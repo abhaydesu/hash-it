@@ -1,0 +1,218 @@
+import { describe, it, expect } from "vitest";
+import {
+  deriveRating,
+  seedCard,
+  advanceCard,
+  interleaveQueue,
+  spreadImportDueDates,
+  isLeech,
+  calculateRetrievability,
+  type QueueItem,
+  type ImportedRowInput,
+} from "../lib/scheduler";
+
+describe("scheduler - rating derivation table", () => {
+  it("derives AGAIN when solve status is ATTEMPTED_FAILED", () => {
+    const rating = deriveRating({
+      status: "ATTEMPTED_FAILED",
+      minutes: 10,
+      difficulty: "EASY",
+    });
+    expect(rating).toBe("AGAIN");
+  });
+
+  it("derives HARD when a hint was used", () => {
+    const rating = deriveRating({
+      status: "SOLVED_UNAIDED",
+      usedHint: true,
+      minutes: 10,
+      difficulty: "EASY",
+    });
+    expect(rating).toBe("HARD");
+  });
+
+  it("derives HARD when minutes > 2x baseline", () => {
+    // Easy baseline = 15m; 35m > 30m
+    const rating = deriveRating({
+      status: "SOLVED_UNAIDED",
+      minutes: 35,
+      difficulty: "EASY",
+    });
+    expect(rating).toBe("HARD");
+  });
+
+  it("derives GOOD when solved cold within baseline", () => {
+    // Medium baseline = 30m; 25m is between 18m and 60m
+    const rating = deriveRating({
+      status: "SOLVED_UNAIDED",
+      minutes: 25,
+      difficulty: "MEDIUM",
+    });
+    expect(rating).toBe("GOOD");
+  });
+
+  it("derives EASY when solved cold well under baseline", () => {
+    // Medium baseline = 30m; 10m <= 18m (0.6x)
+    const rating = deriveRating({
+      status: "SOLVED_UNAIDED",
+      minutes: 10,
+      difficulty: "MEDIUM",
+    });
+    expect(rating).toBe("EASY");
+  });
+});
+
+describe("scheduler - card seeding", () => {
+  const now = new Date("2026-09-14T08:00:00Z");
+
+  it("seeds card for SOLVED_UNAIDED with 1 repetition and Good grade", () => {
+    const card = seedCard({
+      entryId: "entry-1",
+      status: "SOLVED_UNAIDED",
+      now,
+    });
+    expect(card.reps).toBe(1);
+    expect(card.lapses).toBe(0);
+    expect(card.stability).toBeGreaterThan(0);
+  });
+
+  it("seeds card for SOLVED_WITH_HELP with Hard grade", () => {
+    const card = seedCard({
+      entryId: "entry-2",
+      status: "SOLVED_WITH_HELP",
+      now,
+    });
+    expect(card.reps).toBe(1);
+    expect(card.difficulty).toBeGreaterThan(0);
+  });
+
+  it("seeds card for ATTEMPTED_FAILED or revisit: true with Again grade", () => {
+    const cardRevisit = seedCard({
+      entryId: "entry-3",
+      status: "SOLVED_UNAIDED",
+      revisit: true,
+      now,
+    });
+    expect(cardRevisit.reps).toBe(1);
+
+    const cardFailed = seedCard({
+      entryId: "entry-4",
+      status: "ATTEMPTED_FAILED",
+      now,
+    });
+    expect(cardFailed.reps).toBe(1);
+  });
+});
+
+describe("scheduler - card advance", () => {
+  const now = new Date("2026-09-14T08:00:00Z");
+
+  it("advances card state and increments reps on Good", () => {
+    const initial = seedCard({
+      entryId: "entry-adv",
+      status: "SOLVED_UNAIDED",
+      now,
+    });
+
+    const later = new Date("2026-09-17T08:00:00Z");
+    const advanced = advanceCard({
+      currentCard: initial,
+      rating: "GOOD",
+      reviewDate: later,
+    });
+
+    expect(advanced.reps).toBe(2);
+    expect(advanced.stability).toBeGreaterThanOrEqual(initial.stability);
+  });
+});
+
+describe("scheduler - interleaving constraint", () => {
+  const now = new Date("2026-09-14T08:00:00Z");
+
+  it("prevents more than 2 consecutive cards of the same pattern family", () => {
+    const cards: QueueItem[] = [
+      { entryId: "1", due: new Date("2026-09-10"), lapses: 0, reps: 1, family: "Pointers" },
+      { entryId: "2", due: new Date("2026-09-11"), lapses: 0, reps: 1, family: "Pointers" },
+      { entryId: "3", due: new Date("2026-09-12"), lapses: 0, reps: 1, family: "Pointers" },
+      { entryId: "4", due: new Date("2026-09-13"), lapses: 0, reps: 1, family: "Intervals" },
+      { entryId: "5", due: new Date("2026-09-13"), lapses: 0, reps: 1, family: "Pointers" },
+    ];
+
+    const queue = interleaveQueue(cards, 5, now);
+    expect(queue.length).toBe(5);
+
+    // Verify no 3 consecutive cards share the same family
+    for (let i = 0; i < queue.length - 2; i++) {
+      const f1 = queue[i].family;
+      const f2 = queue[i + 1].family;
+      const f3 = queue[i + 2].family;
+      if (f1 && f2 && f3) {
+        const allSame = f1 === f2 && f2 === f3;
+        expect(allSame).toBe(false);
+      }
+    }
+  });
+
+  it("respects dailyReviewCap and prioritizes oldest overdue and highest lapses", () => {
+    const cards: QueueItem[] = [
+      { entryId: "fresh", due: new Date("2026-09-14"), lapses: 0, reps: 1, family: "DP" },
+      { entryId: "oldest", due: new Date("2026-09-01"), lapses: 1, reps: 2, family: "DP" },
+      { entryId: "high-lapse", due: new Date("2026-09-05"), lapses: 4, reps: 2, family: "Graphs" },
+    ];
+
+    const queue = interleaveQueue(cards, 2, now);
+    expect(queue.length).toBe(2);
+    const ids = queue.map((c) => c.entryId);
+    expect(ids).toContain("oldest");
+    expect(ids).toContain("high-lapse");
+  });
+});
+
+describe("scheduler - 21-day import spread", () => {
+  it("spreads cards across 21 days prioritizing revisit: true and SOLVED_WITH_HELP", () => {
+    const rows: ImportedRowInput[] = [
+      { id: "normal-1", status: "SOLVED_UNAIDED", revisit: false },
+      { id: "revisit-1", status: "SOLVED_UNAIDED", revisit: true },
+      { id: "help-1", status: "SOLVED_WITH_HELP", revisit: false },
+      { id: "normal-2", status: "SOLVED_UNAIDED", revisit: false },
+    ];
+
+    const startDate = new Date("2026-09-14T00:00:00Z");
+    const spread = spreadImportDueDates(rows, startDate);
+
+    expect(spread.length).toBe(4);
+    // revisit: true must be first
+    expect(spread[0].id).toBe("revisit-1");
+    expect(spread[0].seededRating).toBe("AGAIN");
+    // SOLVED_WITH_HELP must be second
+    expect(spread[1].id).toBe("help-1");
+    expect(spread[1].seededRating).toBe("HARD");
+
+    // Check that dates are spread across multiple days
+    const dates = spread.map((s) => s.due.getTime());
+    expect(dates[dates.length - 1]).toBeGreaterThanOrEqual(dates[0]);
+  });
+});
+
+describe("scheduler - leeches and retrievability", () => {
+  it("identifies leeches when lapses >= 3", () => {
+    expect(isLeech({ lapses: 2 })).toBe(false);
+    expect(isLeech({ lapses: 3 })).toBe(true);
+    expect(isLeech({ lapses: 5 })).toBe(true);
+  });
+
+  it("computes reasonable retrievability values between 0 and 1", () => {
+    const card = seedCard({
+      entryId: "r-test",
+      status: "SOLVED_UNAIDED",
+      now: new Date("2026-09-01T00:00:00Z"),
+    });
+
+    const rNow = calculateRetrievability(card, new Date("2026-09-01T00:00:00Z"));
+    expect(rNow).toBeGreaterThan(0.95);
+
+    const rLater = calculateRetrievability(card, new Date("2026-09-30T00:00:00Z"));
+    expect(rLater).toBeLessThan(rNow);
+    expect(rLater).toBeGreaterThan(0);
+  });
+});

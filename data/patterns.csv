@@ -1,0 +1,26 @@
+name,family,sortOrder
+Basics,Sliding & Array,1
+Two Pointer,Pointers,2
+Fast and Slow Pointer,Pointers,3
+Sliding Window,Sliding & Array,4
+Merge Intervals,Intervals,5
+Prefix Sum,Sliding & Array,6
+Kadane's Pattern,Sliding & Array,7
+In-place Reversal of LinkedList,Pointers,8
+Dummy Node,Pointers,9
+Stack,Hashing & Linear,10
+HashMap,Hashing & Linear,11
+Heap,Hashing & Linear,12
+Binary Search,Search & Math,13
+Backtracking,Search & Math,14
+BFS,Trees & Graphs,15
+DFS,Trees & Graphs,16
+Topological Sort,Trees & Graphs,17
+Dynamic Programming,DP & Greedy,18
+Greedy,DP & Greedy,19
+Trie,Trees & Graphs,20
+Union Find,Trees & Graphs,21
+Bit Manipulation,Search & Math,22
+Matrix Traversal,Trees & Graphs,23
+Monotonic Stack,Hashing & Linear,24
+Intervals,Intervals,25

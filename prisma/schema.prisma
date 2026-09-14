@@ -1,0 +1,245 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Platform {
+  LEETCODE
+  GFG
+  OTHER
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum SolveStatus {
+  SOLVED_UNAIDED
+  SOLVED_WITH_HELP
+  ATTEMPTED_FAILED
+}
+
+enum Rating {
+  AGAIN
+  HARD
+  GOOD
+  EASY
+}
+
+enum CardState {
+  NEW
+  LEARNING
+  REVIEW
+  RELEARNING
+}
+
+enum PatternSource {
+  SHEET
+  USER
+}
+
+model Problem {
+  id          String      @id @default(cuid())
+  platform    Platform
+  slug        String
+  number      Int?
+  title       String
+  url         String
+  difficulty  Difficulty?
+  acRate      Float?
+  isPaidOnly  Boolean     @default(false)
+  topicTags   String[]
+  lastSyncedAt DateTime?
+
+  patterns    ProblemPattern[]
+  entries     Entry[]
+  roadmapItems RoadmapItem[]
+
+  @@unique([platform, slug])
+  @@index([number])
+}
+
+model Pattern {
+  id        String @id @default(cuid())
+  name      String @unique
+  family    String
+  sortOrder Int
+
+  problems  ProblemPattern[]
+}
+
+model ProblemPattern {
+  problemId String
+  patternId String
+  source    PatternSource @default(SHEET)
+
+  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  pattern   Pattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+
+  @@id([problemId, patternId])
+}
+
+model Entry {
+  id              String      @id @default(cuid())
+  userId          String
+  problemId       String
+  status          SolveStatus
+  idea            String?
+  mistake         String?
+  sourceList      String?
+  minutes         Int?
+  revisit         Boolean     @default(false)
+  firstSolvedAt   DateTime
+  patternOverride String[]
+  topic           String?
+  customUrl       String?
+  customPattern   String?
+  importBatchId   String?
+
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem         Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  attempts        Attempt[]
+  reviewCard      ReviewCard?
+  importBatch     ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, problemId])
+  @@index([userId])
+}
+
+model Attempt {
+  id        String   @id @default(cuid())
+  entryId   String
+  at        DateTime @default(now())
+  rating    Rating
+  minutes   Int?
+  usedHint  Boolean  @default(false)
+  note      String?
+
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  @@index([entryId])
+}
+
+model ReviewCard {
+  entryId       String    @id
+  due           DateTime
+  stability     Float
+  difficulty    Float
+  elapsedDays   Int
+  scheduledDays Int
+  reps          Int
+  lapses        Int
+  state         CardState
+  lastReview    DateTime?
+
+  entry         Entry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  @@index([due])
+}
+
+model UserSettings {
+  userId           String  @id
+  dailyReviewCap   Int     @default(5)
+  desiredRetention Float   @default(0.9)
+  fsrsParams       Float[]
+  timezone         String  @default("Asia/Kolkata")
+  easyBaseline     Int     @default(15)
+  mediumBaseline   Int     @default(30)
+  hardBaseline     Int     @default(45)
+
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ImportBatch {
+  id         String   @id @default(cuid())
+  userId     String
+  createdAt  DateTime @default(now())
+  filename   String?
+  entryCount Int
+  status     String   @default("COMMITTED")
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries    Entry[]
+
+  @@index([userId])
+}
+
+// NextAuth Models
+model User {
+  id            String         @id @default(cuid())
+  name          String?
+  email         String?        @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  entries       Entry[]
+  settings      UserSettings?
+  importBatches ImportBatch[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Separate Study Roadmap (e.g. YouTuber DSA Patterns Sheet)
+model RoadmapPattern {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  order     Int
+  items     RoadmapItem[]
+
+  createdAt DateTime      @default(now())
+}
+
+model RoadmapItem {
+  id                 String          @id @default(cuid())
+  roadmapPatternId   String
+  title              String
+  primaryUrl         String?
+  additionalUrls     String[]        @default([])
+  order              Int
+  canonicalProblemId String?
+
+  roadmapPattern     RoadmapPattern  @relation(fields: [roadmapPatternId], references: [id], onDelete: Cascade)
+  canonicalProblem   Problem?        @relation(fields: [canonicalProblemId], references: [id], onDelete: SetNull)
+
+  @@index([roadmapPatternId])
+  @@index([canonicalProblemId])
+}
