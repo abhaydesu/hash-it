@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle, AlertTriangle, AlertCircle, HelpCircle, Clock, Check } from "lucide-react";
-import { formatDifficulty } from "@/lib/utils";
+import { AlertTriangle, AlertCircle, HelpCircle, Clock, Check } from "lucide-react";
 import { recordReviewAttempt } from "@/app/actions/entry-actions";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +17,8 @@ interface ReviewQueueItem {
   reps: number;
   mistake?: string | null;
   idea?: string | null;
+  // family is intentionally omitted here — hidden pre-submit per Section 4
+  family?: string | null;
 }
 
 interface ReviewCardItemProps {
@@ -28,20 +29,49 @@ interface ReviewCardItemProps {
 export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
   const [minutes, setMinutes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const diff = formatDifficulty(item.difficulty);
+  const [result, setResult] = useState<{
+    rating: string;
+    nextDue: Date;
+    family?: string | null;
+    difficulty?: string | null;
+  } | null>(null);
+
+  const difficultyLabel =
+    item.difficulty === "EASY" ? "Easy" : item.difficulty === "HARD" ? "Hard" : item.difficulty === "MEDIUM" ? "Medium" : null;
+
+  const difficultyClass =
+    item.difficulty === "EASY"
+      ? "border-emerald-600/60 text-emerald-400"
+      : item.difficulty === "HARD"
+      ? "border-rose-600/60 text-rose-400"
+      : "border-amber-600/60 text-amber-400";
 
   const handleOutcome = async (
     status: "SOLVED_UNAIDED" | "SOLVED_WITH_HELP" | "ATTEMPTED_FAILED"
   ) => {
+    const trimmedMinutes = minutes.trim();
+    const parsedMinutes = trimmedMinutes === "" ? null : Number.parseInt(trimmedMinutes, 10);
+    if (status !== "ATTEMPTED_FAILED" && parsedMinutes === null) {
+      alert("Please enter the minutes spent before marking a problem as solved.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await recordReviewAttempt({
+      const res = await recordReviewAttempt({
         entryId: item.entryId,
         status,
-        minutes: minutes ? parseInt(minutes, 10) : undefined,
+        minutes: parsedMinutes,
         usedHint: status === "SOLVED_WITH_HELP",
       });
-      onComplete();
+      setResult({
+        rating: res.rating,
+        nextDue: new Date(res.nextDue),
+        family: item.family,
+        difficulty: difficultyLabel,
+      });
+      // Let user read the post-submit confirmation, then dismiss
+      setTimeout(() => onComplete(), 2500);
     } catch (err) {
       console.error("Failed to record attempt", err);
       alert("Failed to record review. See console.");
@@ -50,9 +80,40 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
     }
   };
 
+  // ── Post-submit confirmation (Section 4: reveal labels here) ──────────────
+  if (result) {
+    const daysUntil = Math.round(
+      (result.nextDue.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    return (
+      <div className="w-full max-w-2xl mx-auto border border-zinc-800 bg-zinc-950 rounded-lg overflow-hidden animate-in fade-in duration-300">
+        <div className="p-5 space-y-2">
+          <div className="text-sm font-medium text-zinc-100">{item.title}</div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-zinc-400">
+            <span>
+              Next review in <span className="text-emerald-400 font-semibold">{daysUntil} day{daysUntil !== 1 ? "s" : ""}</span>
+            </span>
+            {result.family && (
+              <>
+                <span className="text-zinc-700">·</span>
+                <span className="text-sky-400">{result.family}</span>
+              </>
+            )}
+            {result.difficulty && (
+              <>
+                <span className="text-zinc-700">·</span>
+                <span className={cn("rounded border px-1.5 py-0.5", difficultyClass)}>{result.difficulty}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-2xl mx-auto border border-zinc-800 bg-zinc-950 rounded-lg overflow-hidden animate-in fade-in duration-300">
-      {/* Header */}
+      {/* Header — no pattern label or difficulty shown pre-submit (Section 4) */}
       <div className="border-b border-zinc-800 p-4 bg-zinc-900/40 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 font-mono text-xs text-zinc-400 mb-1">
@@ -73,21 +134,17 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
             {item.title}
           </a>
         </div>
-        <span className={`inline-block rounded border px-2 py-0.5 text-xs font-mono ${diff.className}`}>
-          {diff.label}
-        </span>
+        {/* difficulty badge intentionally omitted here — shown post-submit */}
       </div>
 
       <div className="p-5 space-y-5">
-        {/* If Leech, pin previous mistake per spec §7 */}
+        {/* Leech: pin previous mistake */}
         {item.lapses >= 3 && item.mistake && (
           <div className="rounded-md border border-rose-900/50 bg-rose-950/30 p-3">
             <h3 className="text-[10px] font-mono font-semibold uppercase tracking-wider text-rose-500 mb-1.5 flex items-center gap-1.5">
               <AlertCircle className="h-3 w-3" /> Previous Mistake (Leech Warning)
             </h3>
-            <div className="text-sm font-mono text-rose-200/90 whitespace-pre-wrap">
-              {item.mistake}
-            </div>
+            <div className="text-sm font-mono text-rose-200/90 whitespace-pre-wrap">{item.mistake}</div>
           </div>
         )}
 
@@ -95,17 +152,16 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
           Solve this problem on {item.platform === "LEETCODE" ? "LeetCode" : item.platform}, then record your outcome.
         </div>
 
-        {/* Input */}
         <div className="space-y-4 pt-2">
           <div className="flex items-center gap-3">
             <Clock className="h-4 w-4 text-zinc-500" />
             <input
               type="number"
               min="0"
-              placeholder="Minutes taken"
+              placeholder="Minutes taken (required)"
               value={minutes}
               onChange={(e) => setMinutes(e.target.value)}
-              className="w-32 rounded border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+              className="w-40 rounded border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
               disabled={isSubmitting}
             />
           </div>

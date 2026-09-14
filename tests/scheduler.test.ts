@@ -51,6 +51,15 @@ describe("scheduler - rating derivation table", () => {
     expect(rating).toBe("GOOD");
   });
 
+  it("derives HARD when a solve is logged without minutes", () => {
+    const rating = deriveRating({
+      status: "SOLVED_UNAIDED",
+      minutes: null,
+      difficulty: "MEDIUM",
+    });
+    expect(rating).toBe("HARD");
+  });
+
   it("derives EASY when solved cold well under baseline", () => {
     // Medium baseline = 30m; 10m <= 18m (0.6x)
     const rating = deriveRating({
@@ -153,11 +162,11 @@ describe("scheduler - interleaving constraint", () => {
     }
   });
 
-  it("respects dailyReviewCap and prioritizes oldest overdue and highest lapses", () => {
+  it("respects dailyResolveCap and prioritizes oldest overdue and highest lapses", () => {
     const cards: QueueItem[] = [
-      { entryId: "fresh", due: new Date("2026-09-14"), lapses: 0, reps: 1, family: "DP" },
-      { entryId: "oldest", due: new Date("2026-09-01"), lapses: 1, reps: 2, family: "DP" },
-      { entryId: "high-lapse", due: new Date("2026-09-05"), lapses: 4, reps: 2, family: "Graphs" },
+      { entryId: "fresh", due: new Date("2026-09-14"), lapses: 0, reps: 1, family: "DP", lane: "RESOLVE" },
+      { entryId: "oldest", due: new Date("2026-09-01"), lapses: 1, reps: 2, family: "DP", lane: "RESOLVE" },
+      { entryId: "high-lapse", due: new Date("2026-09-05"), lapses: 4, reps: 2, family: "Graphs", lane: "RESOLVE" },
     ];
 
     const queue = interleaveQueue(cards, 2, now);
@@ -165,6 +174,23 @@ describe("scheduler - interleaving constraint", () => {
     const ids = queue.map((c) => c.entryId);
     expect(ids).toContain("oldest");
     expect(ids).toContain("high-lapse");
+  });
+
+  it("composes two review lanes with resolve cards first up to resolveCap and recall cards up to recallCap", () => {
+    const cards: QueueItem[] = [
+      { entryId: "res-1", due: new Date("2026-09-01"), lapses: 1, reps: 2, family: "DP", lane: "RESOLVE" },
+      { entryId: "res-2", due: new Date("2026-09-02"), lapses: 2, reps: 2, family: "Graphs", lane: "RESOLVE" },
+      { entryId: "res-3", due: new Date("2026-09-03"), lapses: 1, reps: 2, family: "Trees", lane: "RESOLVE" },
+      { entryId: "rec-1", due: new Date("2026-09-01"), lapses: 0, reps: 1, family: "DP", lane: "RECALL" },
+      { entryId: "rec-2", due: new Date("2026-09-02"), lapses: 0, reps: 1, family: "Arrays", lane: "RECALL" },
+    ];
+
+    const queue = interleaveQueue(cards, 2, now, 6);
+    expect(queue.length).toBe(4);
+    expect(queue[0].lane).toBe("RESOLVE");
+    expect(queue[1].lane).toBe("RESOLVE");
+    expect(queue[2].lane).toBe("RECALL");
+    expect(queue[3].lane).toBe("RECALL");
   });
 });
 

@@ -144,8 +144,9 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
 
   const startManualMode = () => {
     setManualMode(true);
-    setManualTitle(query.startsWith("http") ? "" : query);
-    setManualUrl(query.startsWith("http") ? query : "");
+    const nextUrl = query.startsWith("http") ? query : "";
+    setManualTitle(nextUrl ? "" : query);
+    setManualUrl(nextUrl);
     setSelectedProblem(null);
     setResults([]);
   };
@@ -168,6 +169,14 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     if (!selectedProblem && !manualMode) return;
     if (manualMode && !manualTitle && !manualUrl) return;
 
+    const trimmedMinutes = minutes.trim();
+    const parsedMinutes = trimmedMinutes === "" ? null : Number.parseInt(trimmedMinutes, 10);
+    if (status !== "ATTEMPTED_FAILED" && parsedMinutes === null) {
+      alert("Please enter the minutes spent before saving a solved problem.");
+      setTimeout(() => minutesInputRef.current?.focus(), 50);
+      return;
+    }
+
     const probTitle = selectedProblem ? selectedProblem.title : manualTitle;
 
     startTransition(async () => {
@@ -179,7 +188,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
           manualPlatform: manualUrl.includes("geeksforgeeks.org") ? "GFG" : "OTHER",
           manualDifficulty: manualDifficulty,
           status,
-          minutes: minutes ? parseInt(minutes, 10) : null,
+          minutes: parsedMinutes,
           idea: idea.trim() || null,
           mistake: mistake.trim() || null,
           revisit,
@@ -301,18 +310,186 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
               </div>
             )}
 
-            {/* If no results, offer manual entry */}
+            {/* If no search results match query, display manual entry inline directly beneath search */}
             {query.trim().length > 0 && results.length === 0 && !isSearching && (
-              <div className="mt-2 flex items-center justify-between rounded-md border border-dashed border-zinc-800 bg-zinc-900/50 p-2.5 text-xs">
-                <span className="text-zinc-400">Problem not in local dataset.</span>
-                <button
-                  type="button"
-                  onClick={startManualMode}
-                  className="flex items-center gap-1 rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-700"
-                >
-                  <Plus className="h-3 w-3" />
-                  <span>Add manually</span>
-                </button>
+              <div className="mt-3 space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3.5 text-xs animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+                  <span className="font-mono text-xs text-emerald-400">
+                    {query.startsWith("http") ? "URL Problem Import" : "Manual Problem Entry"}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono">Not found in catalog</span>
+                </div>
+
+                {/* Inline Title & URL & Difficulty */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-[10px] font-mono text-zinc-400">Problem Title</label>
+                    <input
+                      type="text"
+                      placeholder="Title"
+                      value={manualTitle || (query.startsWith("http") ? query.split("/").filter(Boolean).pop()?.replace(/[-_]+/g, " ") || "" : query)}
+                      onChange={(e) => setManualTitle(e.target.value)}
+                      className="w-full rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono text-zinc-400">Difficulty</label>
+                    <select
+                      value={manualDifficulty}
+                      onChange={(e) => setManualDifficulty(e.target.value as any)}
+                      className="w-full rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-100 focus:border-emerald-500 focus:outline-hidden"
+                    >
+                      <option value="EASY">Easy</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HARD">Hard</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-3 space-y-1">
+                    <label className="text-[10px] font-mono text-zinc-400">Problem URL (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. https://practice.geeksforgeeks.org/..."
+                      value={manualUrl || (query.startsWith("http") ? query : "")}
+                      onChange={(e) => setManualUrl(e.target.value)}
+                      className="w-full rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                {/* Inline 4 Hot Fields: Status, Minutes, Idea, Mistake */}
+                <div className="space-y-3 pt-2 border-t border-zinc-800/80">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono text-zinc-400">Status</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setStatus("SOLVED_UNAIDED")}
+                        className={cn(
+                          "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors border",
+                          status === "SOLVED_UNAIDED"
+                            ? "border-emerald-700 bg-emerald-950/80 text-emerald-300"
+                            : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                        )}
+                      >
+                        <Check className="h-3 w-3" />
+                        <span>Unaided</span>
+                        <kbd className="text-[10px] opacity-70 font-mono">[1]</kbd>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setStatus("SOLVED_WITH_HELP")}
+                        className={cn(
+                          "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors border",
+                          status === "SOLVED_WITH_HELP"
+                            ? "border-sky-700 bg-sky-950/80 text-sky-300"
+                            : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                        )}
+                      >
+                        <HelpCircle className="h-3 w-3" />
+                        <span>With Help</span>
+                        <kbd className="text-[10px] opacity-70 font-mono">[2]</kbd>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setStatus("ATTEMPTED_FAILED")}
+                        className={cn(
+                          "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors border",
+                          status === "ATTEMPTED_FAILED"
+                            ? "border-rose-700 bg-rose-950/80 text-rose-300"
+                            : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                        )}
+                      >
+                        <AlertCircle className="h-3 w-3" />
+                        <span>Failed</span>
+                        <kbd className="text-[10px] opacity-70 font-mono">[3]</kbd>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-zinc-500" />
+                      <span className="text-xs font-mono text-zinc-400">Minutes</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="600"
+                        value={minutes}
+                        onChange={(e) => setMinutes(e.target.value)}
+                        placeholder="e.g. 25"
+                        className="w-20 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-zinc-100 focus:border-zinc-600 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <label className="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={revisit}
+                        onChange={(e) => setRevisit(e.target.checked)}
+                        className="rounded border-zinc-800 bg-zinc-900 text-emerald-500 focus:ring-0"
+                      />
+                      <span>Flag for early revisit</span>
+                    </label>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-mono text-zinc-400">Idea / Core insight</div>
+                    <textarea
+                      value={idea}
+                      onChange={(e) => setIdea(e.target.value)}
+                      placeholder="e.g. Key observation, invariant, or technique..."
+                      rows={2}
+                      className="w-full rounded border border-zinc-800 bg-zinc-900/90 p-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/80 focus:outline-hidden resize-y"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-mono text-zinc-400">What I did wrong / Trap to avoid</div>
+                    <textarea
+                      value={mistake}
+                      onChange={(e) => setMistake(e.target.value)}
+                      placeholder="e.g. Mistake made, edge case missed..."
+                      rows={2}
+                      className="w-full rounded border border-zinc-800 bg-zinc-900/90 p-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/80 focus:outline-hidden resize-y"
+                    />
+                  </div>
+                </div>
+
+                {/* Bottom Actions */}
+                <div className="flex items-center justify-between border-t border-zinc-800/80 pt-3">
+                  <div className="text-[11px] font-mono text-zinc-500">
+                    <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 py-0.5">⌘ + Enter</kbd> saves & resets
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        const effTitle = manualTitle || (query.startsWith("http") ? query.split("/").filter(Boolean).pop()?.replace(/[-_]+/g, " ") || "Untitled Problem" : query);
+                        const effUrl = manualUrl || (query.startsWith("http") ? query : "");
+                        setManualMode(true);
+                        setManualTitle(effTitle);
+                        setManualUrl(effUrl);
+                        // Trigger submit
+                        setTimeout(() => handleSubmit(), 10);
+                      }}
+                      className="flex items-center gap-1.5 rounded bg-emerald-600 hover:bg-emerald-500 px-3 py-1 text-xs font-medium text-white transition-colors disabled:opacity-50"
+                    >
+                      {isPending ? <span>Saving...</span> : <span>Log Solve</span>}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>

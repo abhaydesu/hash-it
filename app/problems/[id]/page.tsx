@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatDifficulty, formatMinutes } from "@/lib/utils";
 import { ExternalLink, Calendar, CheckCircle, AlertCircle, Clock, Sparkles, ArrowLeft } from "lucide-react";
 import { calculateRetrievability, isLeech } from "@/lib/scheduler";
+import { ScheduleReviewToggle } from "@/components/schedule-review-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,7 @@ export default async function ProblemDetailPage({
           </div>
 
           <div className="flex items-center gap-2">
+            <ScheduleReviewToggle entryId={entry.id} initialScheduled={Boolean(card)} />
             <span className={`rounded border px-2 py-0.5 text-xs font-mono ${diff.className}`}>
               {diff.label}
             </span>

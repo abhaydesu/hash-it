@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
 export interface UserSettingsInput {
-  dailyReviewCap: number;
+  dailyResolveCap: number;
   desiredRetention: number;
   timezone: string;
   easyBaseline: number;
@@ -23,8 +23,8 @@ export async function getUserSettings() {
     settings = await prisma.userSettings.create({
       data: {
         userId: user.id,
-        dailyReviewCap: 5,
-        desiredRetention: 0.85,
+        dailyResolveCap: 2,
+        desiredRetention: 0.80,
         timezone: "Asia/Kolkata",
         easyBaseline: 15,
         mediumBaseline: 30,
@@ -49,7 +49,7 @@ export async function updateUserSettings(input: UserSettingsInput) {
   const updated = await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: {
-      dailyReviewCap: input.dailyReviewCap,
+      dailyResolveCap: input.dailyResolveCap,
       desiredRetention: input.desiredRetention,
       timezone: input.timezone,
       easyBaseline: input.easyBaseline,
@@ -58,7 +58,7 @@ export async function updateUserSettings(input: UserSettingsInput) {
     },
     create: {
       userId: user.id,
-      dailyReviewCap: input.dailyReviewCap,
+      dailyResolveCap: input.dailyResolveCap,
       desiredRetention: input.desiredRetention,
       timezone: input.timezone,
       easyBaseline: input.easyBaseline,

@@ -60,8 +60,8 @@ const config: NextAuthConfig = {
             update: {},
             create: {
               userId: user.id,
-              dailyReviewCap: 5,
-              desiredRetention: 0.85,
+              dailyResolveCap: 2,
+              desiredRetention: 0.80,
               fsrsParams: [],
               timezone: "Asia/Kolkata",
               easyBaseline: 15,

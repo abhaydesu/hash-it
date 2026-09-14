@@ -1,6 +1,79 @@
 import { prisma } from "@/lib/prisma";
-import { calculateRetrievability, type ReviewCardData } from "@/lib/scheduler";
+import { calculateRetrievability, deriveLane, type ReviewCardData, type AppRating } from "@/lib/scheduler";
 import { getPatternCue } from "@/lib/cues";
+
+const RECALL_CAP = 6;
+
+export async function getDailyReviewQueue(userId: string, now: Date = new Date()) {
+  const settings = await prisma.userSettings.findUnique({ where: { userId } });
+  const resolveCap = settings?.dailyResolveCap ?? 2;
+
+  const dueCards = await prisma.reviewCard.findMany({
+    where: {
+      entry: { userId },
+      due: { lte: now },
+    },
+    include: {
+      entry: {
+        include: {
+          problem: {
+            include: {
+              patterns: { include: { pattern: true } },
+            },
+          },
+          // Get last attempt for lane derivation
+          attempts: {
+            orderBy: { at: "desc" },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+
+  const queueItems = dueCards.map((card) => {
+    const problem = card.entry.problem;
+    const family = problem.patterns[0]?.pattern.family ?? null;
+    const lastAttempt = card.entry.attempts[0];
+    const lastRating = (lastAttempt?.rating ?? null) as AppRating | null;
+    const revisit = card.entry.revisit ?? false;
+
+    const lane = deriveLane({ lastRating, lapses: card.lapses, revisit });
+
+    return {
+      entryId: card.entryId,
+      due: card.due,
+      lapses: card.lapses,
+      reps: card.reps,
+      family,
+      lane,
+      lastRating,
+      revisit,
+      problemId: problem.id,
+      title: problem.title,
+      number: problem.number,
+      url: problem.url,
+      difficulty: problem.difficulty,
+      platform: problem.platform,
+      mistake: card.entry.mistake,
+      idea: card.entry.idea,
+    };
+  });
+
+  const { interleaveQueue } = await import("@/lib/scheduler");
+  // interleaveQueue with resolveCap — returns RESOLVE-first order, respects per-lane caps
+  const finalQueue = interleaveQueue(queueItems, resolveCap, now, RECALL_CAP);
+  const resolveCount = finalQueue.filter((item) => item.lane === "RESOLVE").length;
+  const recallCount = finalQueue.filter((item) => item.lane === "RECALL").length;
+
+  return { queue: finalQueue, resolveCount, recallCount };
+}
+
+export async function getOverdueCount(userId: string, now: Date = new Date()) {
+  return prisma.reviewCard.count({
+    where: { entry: { userId }, due: { lt: now } },
+  });
+}
 
 export async function getDashboardSnapshot(userId: string, now: Date = new Date()) {
   const [attempts, entries, settings] = await Promise.all([

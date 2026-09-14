@@ -279,6 +279,33 @@ export async function commitImportBatch(params: {
   const user = await getCurrentUser();
   const { rows, filename = "sheet_import.csv", conflictStrategy = "SKIP" } = params;
 
+  const existingPatterns = await prisma.pattern.findMany();
+  const patternLookup = new Map<string, (typeof existingPatterns)[0]>();
+  for (const p of existingPatterns) {
+    patternLookup.set(p.name.trim().toLowerCase().replace(/\s+/g, " "), p);
+  }
+
+  for (const row of rows) {
+    if (row.rawPattern) {
+      const normalizedName = row.rawPattern.trim().replace(/\s+/g, " ");
+      if (normalizedName) {
+        const key = normalizedName.toLowerCase();
+        let matched = patternLookup.get(key);
+        if (!matched) {
+          matched = await prisma.pattern.create({
+            data: {
+              name: normalizedName,
+              family: "Imported",
+              sortOrder: 999,
+            },
+          });
+          patternLookup.set(key, matched);
+        }
+        row.rawPattern = matched.name;
+      }
+    }
+  }
+
   return await prisma.$transaction(
     async (tx) => {
       // 1. Create ImportBatch

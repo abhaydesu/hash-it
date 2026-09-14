@@ -12,6 +12,7 @@ export type ProblemDifficulty = "EASY" | "MEDIUM" | "HARD";
 export type SolveStatusType = "SOLVED_UNAIDED" | "SOLVED_WITH_HELP" | "ATTEMPTED_FAILED";
 export type AppRating = "AGAIN" | "HARD" | "GOOD" | "EASY";
 export type AppCardState = "NEW" | "LEARNING" | "REVIEW" | "RELEARNING";
+export type ReviewLane = "RECALL" | "RESOLVE";
 
 export interface TimeBaselines {
   easy: number;   // default 15 min
@@ -52,7 +53,16 @@ export interface QueueItem {
   lapses: number;
   reps: number;
   family?: string | null;
+  lane?: ReviewLane;
+  lastRating?: AppRating | null;
+  revisit?: boolean;
   [key: string]: any;
+}
+
+export function deriveLane(item: { lastRating?: AppRating | null; lapses?: number; revisit?: boolean }): ReviewLane {
+  if (item.lastRating === "GOOD" || item.lastRating === "EASY") return "RECALL";
+  if (item.revisit || (item.lapses ?? 0) >= 1 || item.lastRating === "AGAIN" || item.lastRating === "HARD") return "RESOLVE";
+  return "RECALL";
 }
 
 export const FSRS_STATE_TO_APP: Record<number, AppCardState> = {
@@ -98,6 +108,14 @@ export function deriveRating(input: DeriveRatingInput): AppRating {
     return "AGAIN";
   }
 
+  if (usedHint) {
+    return "HARD";
+  }
+
+  if (minutes == null) {
+    return "HARD";
+  }
+
   const baselineMinutes =
     difficulty === "EASY"
       ? baselines.easy
@@ -105,11 +123,11 @@ export function deriveRating(input: DeriveRatingInput): AppRating {
       ? baselines.hard
       : baselines.medium;
 
-  if (usedHint || (minutes != null && minutes > 2 * baselineMinutes)) {
+  if (minutes > 2 * baselineMinutes) {
     return "HARD";
   }
 
-  if (minutes != null && minutes <= Math.round(0.6 * baselineMinutes)) {
+  if (minutes <= Math.round(0.6 * baselineMinutes)) {
     return "EASY";
   }
 
@@ -170,7 +188,7 @@ export function seedCard(params: {
     status,
     revisit = false,
     now = new Date(),
-    desiredRetention = 0.9,
+    desiredRetention = 0.80,
     fsrsParams,
   } = params;
 
@@ -212,7 +230,7 @@ export function advanceCard(params: {
     currentCard,
     rating,
     reviewDate = new Date(),
-    desiredRetention = 0.9,
+    desiredRetention = 0.80,
     fsrsParams,
   } = params;
 
@@ -258,42 +276,20 @@ export function isLeech(card: { lapses: number }): boolean {
   return card.lapses >= 3;
 }
 
-/**
- * Interleaving Algorithm per spec §7:
- * 1. Filter cards due <= now (or process given pool).
- * 2. If pool > dailyReviewCap, select by oldest overdue first, then highest lapses.
- * 3. Reorder the selected set so no more than 2 consecutive cards share a pattern family.
- */
-export function interleaveQueue<T extends QueueItem>(
-  cards: T[],
-  dailyReviewCap: number = 5,
-  now: Date = new Date()
-): T[] {
-  if (cards.length === 0) return [];
-
-  // Filter due cards
-  const dueCards = cards.filter((c) => new Date(c.due).getTime() <= now.getTime());
-  const pool = dueCards.length > 0 ? dueCards : cards;
-
-  // Sort pool: oldest overdue first (ascending due), then highest lapses descending
-  const sorted = [...pool].sort((a, b) => {
+export function interleaveLane<T extends QueueItem>(items: T[], cap: number): T[] {
+  const sorted = [...items].sort((a, b) => {
     const dueDiff = new Date(a.due).getTime() - new Date(b.due).getTime();
     if (dueDiff !== 0) return dueDiff;
     return (b.lapses || 0) - (a.lapses || 0);
   });
-
-  // Cap at dailyReviewCap
-  const selected = sorted.slice(0, dailyReviewCap);
+  const selected = sorted.slice(0, Math.max(0, cap));
   if (selected.length <= 2) return selected;
 
-  // Reorder so <= 2 consecutive cards share the same pattern family
   const result: T[] = [];
   const remaining = [...selected];
 
   while (remaining.length > 0) {
     let candidateIndex = -1;
-
-    // Check last two items in result
     const len = result.length;
     const lastFamily = len >= 1 ? result[len - 1].family : null;
     const secondLastFamily = len >= 2 ? result[len - 2].family : null;
@@ -301,22 +297,50 @@ export function interleaveQueue<T extends QueueItem>(
 
     for (let i = 0; i < remaining.length; i++) {
       const itemFamily = remaining[i].family;
-      if (blockSame && itemFamily === lastFamily) {
-        continue;
-      }
+      if (blockSame && itemFamily === lastFamily) continue;
       candidateIndex = i;
       break;
     }
 
-    // If all remaining candidates have the blocked family, take the first available
-    if (candidateIndex === -1) {
-      candidateIndex = 0;
-    }
-
+    if (candidateIndex === -1) candidateIndex = 0;
     result.push(remaining.splice(candidateIndex, 1)[0]);
   }
 
   return result;
+}
+
+/**
+ * Interleaving Algorithm per spec §1 and §7:
+ * Compose two review lanes:
+ * - At most dailyResolveCap (default 2) RESOLVE cards
+ * - Up to recallCap (default 6) RECALL cards
+ * - Resolve cards render first, followed by recall cards
+ * - Overdue cards sort ahead of due-today within their lane
+ * - Pattern-family interleaving applies within each lane
+ */
+export function interleaveQueue<T extends QueueItem>(
+  cards: T[],
+  dailyResolveCapOrNow?: number | Date,
+  maybeNow?: Date,
+  maybeRecallCap?: number
+): T[] {
+  const legacyMode = dailyResolveCapOrNow instanceof Date || typeof dailyResolveCapOrNow === "undefined";
+  const resolveCap = legacyMode ? 2 : Number(dailyResolveCapOrNow) || 2;
+  const now = legacyMode ? (dailyResolveCapOrNow instanceof Date ? dailyResolveCapOrNow : new Date()) : (maybeNow ?? new Date());
+  const recallCap = typeof maybeRecallCap === "number" ? maybeRecallCap : 6;
+
+  if (cards.length === 0) return [];
+
+  const dueCards = cards.filter((c) => new Date(c.due).getTime() <= now.getTime());
+  const pool = dueCards.length > 0 ? dueCards : cards;
+
+  const resolved = pool.filter((card) => (card.lane ?? deriveLane(card)) === "RESOLVE");
+  const recalled = pool.filter((card) => (card.lane ?? deriveLane(card)) === "RECALL");
+
+  const interleavedResolve = interleaveLane(resolved, resolveCap);
+  const interleavedRecall = interleaveLane(recalled, recallCap);
+
+  return [...interleavedResolve, ...interleavedRecall];
 }
 
 export interface ImportedRowInput {
@@ -343,7 +367,7 @@ export function spreadImportDueDates(
     return 0;
   });
 
-  const totalDays = 21;
+  const totalDays = 60;
   return sorted.map((row, index) => {
     const dayOffset = Math.floor((index * totalDays) / Math.max(1, sorted.length));
     const due = new Date(startDate);

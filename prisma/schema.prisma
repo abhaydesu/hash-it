@@ -143,8 +143,8 @@ model ReviewCard {
 
 model UserSettings {
   userId           String  @id
-  dailyReviewCap   Int     @default(5)
-  desiredRetention Float   @default(0.85)
+  dailyResolveCap  Int     @default(2)
+  desiredRetention Float   @default(0.80)
   fsrsParams       Float[]
   timezone         String  @default("Asia/Kolkata")
   easyBaseline     Int     @default(15)

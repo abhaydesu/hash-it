@@ -114,7 +114,7 @@ export default function WeeklyReviewPage() {
               </h1>
             </div>
             <p className="text-xs text-zinc-400 mt-1">
-              Test pattern recognition without seeing headings. Cue appears first — self-check if you can immediately identify the technique.
+              Five cue prompts drawn from your weakest patterns to check whether you can name the technique before seeing the heading.
             </p>
           </div>
 

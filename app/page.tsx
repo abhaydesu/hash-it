@@ -1,50 +1,63 @@
 import Link from "next/link";
 import { ArrowRight, BarChart3, BrainCircuit, CheckCircle2, Clock3, Database, Search, Sparkles, TrendingUp } from "lucide-react";
 import { auth } from "@/lib/auth";
-
-const features = [
-  {
-    icon: BrainCircuit,
-    title: "FSRS Spaced Repetition",
-    description: "Adaptive review scheduling prevents the solve-and-forget loop for real interview prep.",
-  },
-  {
-    icon: Database,
-    title: "4,055 Problem Catalog",
-    description: "Search the canonical DSA catalog and your own solved history in one place.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Mistakes & Insights Log",
-    description: "Capture mental blockers, bug patterns, and edge-case mistakes before they recur.",
-  },
-  {
-    icon: Sparkles,
-    title: "14 Core Patterns",
-    description: "Master the recurring frameworks behind sliding windows, DP, graphs, and more.",
-  },
-  {
-    icon: Clock3,
-    title: "Roadmap + Drills",
-    description: "Follow a YouTuber roadmap while drilling weekly and monthly mock sessions.",
-  },
-  {
-    icon: BarChart3,
-    title: "Leech Detection",
-    description: "Spot recurring failures early with analytics that flag weak areas before interviews.",
-  },
-];
-
-const metrics = [
-  { value: "92%", label: "retrievability" },
-  { value: "14", label: "core patterns" },
-  { value: "4,055", label: "problems" },
-  { value: "3+", label: "lapses = leech" },
-];
+import { prisma } from "@/lib/prisma";
 
 export default async function HomePage() {
   const session = await auth();
   const firstName = session?.user?.name?.split(" ")[0] ?? "friend";
+
+  const [problemCount, patternCount, dueCount, leechCount] = await Promise.all([
+    prisma.problem.count(),
+    prisma.pattern.count(),
+    prisma.reviewCard.count({ where: { due: { lte: new Date() } } }),
+    prisma.reviewCard.count({ where: { lapses: { gte: 3 } } }),
+  ]);
+
+  const problemCountLabel = new Intl.NumberFormat("en-US").format(problemCount);
+  const patternCountLabel = new Intl.NumberFormat("en-US").format(patternCount);
+  const dueCountLabel = new Intl.NumberFormat("en-US").format(dueCount);
+  const leechCountLabel = new Intl.NumberFormat("en-US").format(leechCount);
+
+  const features = [
+    {
+      icon: BrainCircuit,
+      title: "FSRS Spaced Repetition",
+      description: "Adaptive review scheduling keeps the forgetting curve in front of you instead of hidden behind a checklist.",
+    },
+    {
+      icon: Database,
+      title: "Your problem catalog",
+      description: "Search the canonical DSA catalog and your own solved history in one place.",
+    },
+    {
+      icon: TrendingUp,
+      title: "Mistakes & insights log",
+      description: "Capture the idea that worked, the mistake that broke it, and the next time you should revisit it.",
+    },
+    {
+      icon: Sparkles,
+      title: `${patternCountLabel} pattern taxonomy`,
+      description: "See which recurring frameworks you recognise well and which ones deserve another cue drill.",
+    },
+    {
+      icon: Clock3,
+      title: "Roadmap + review rhythm",
+      description: "Follow the roadmap while the queue surfaces the problems most likely to fade next.",
+    },
+    {
+      icon: BarChart3,
+      title: "Leech rule",
+      description: "When a problem slips three times, it becomes a leech: a strong signal that it needs a focused review block.",
+    },
+  ];
+
+  const metrics = [
+    { value: patternCountLabel, label: "patterns" },
+    { value: problemCountLabel, label: "problems" },
+    { value: dueCountLabel, label: "due now" },
+    { value: leechCountLabel, label: "leech flags" },
+  ];
 
   return (
     <div className="pb-16 pt-4 sm:pt-8">
@@ -100,7 +113,7 @@ export default async function HomePage() {
                   <div className="mt-1 text-lg font-semibold text-foreground">Review Queue</div>
                 </div>
                 <div className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-emerald-600 dark:text-emerald-300">
-                  12 due
+                  {dueCountLabel} due
                 </div>
               </div>
 
@@ -145,6 +158,31 @@ export default async function HomePage() {
       <section className="mt-16 space-y-6">
         <div className="flex items-end justify-between gap-4">
           <div>
+            <div className="font-pixel text-[11px] uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">How it works</div>
+            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-foreground">A small, daily review loop beats a big but forgotten backlog.</h2>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            "Log what you solve. Type a LeetCode number and the problem, difficulty, tags and pattern fill themselves in. You add the idea that cracked it and what you got wrong.",
+            "The scheduler decides when you see it again. Each problem gets a predicted forgetting curve based on the solve outcome and the time it took relative to its difficulty baseline.",
+            "Re-solve a few a day. The daily queue mixes patterns deliberately so you review memory under recall pressure instead of following a linear checklist.",
+            "Check recognition weekly, technique monthly. A two-minute cue drill tests whether you can name the pattern; a monthly blind mock gives five timed problems with the labels stripped off.",
+          ].map((step, index) => (
+            <div key={step} className="rounded-2xl border border-border bg-card/70 p-5">
+              <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-sm font-semibold text-emerald-600 dark:text-emerald-300">
+                {index + 1}
+              </div>
+              <p className="text-sm leading-6 text-muted-foreground">{step}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-16 space-y-6">
+        <div className="flex items-end justify-between gap-4">
+          <div>
             <div className="font-pixel text-[11px] uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">Built for memory</div>
             <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-foreground">Everything you need to retain algorithmic intuition.</h2>
           </div>
@@ -163,51 +201,20 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mt-16 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="rounded-[24px] border border-border bg-card/80 p-6">
-          <div className="font-pixel text-[11px] uppercase tracking-[0.18em] text-sky-600 dark:text-sky-300">Why it works</div>
-          <h3 className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-foreground">Memory decay is a real problem. Your review system should be smarter than a checklist.</h3>
-          <div className="mt-6 space-y-4">
-            {[
-              "FSRS schedules each problem based on how quickly it decays in your memory.",
-              "Patterns are tagged and recommended when the next review is most useful.",
-              "Leeches are surfaced before they derail your interview confidence.",
-            ].map((item) => (
-              <div key={item} className="flex items-start gap-3 rounded-xl border border-border/80 bg-background/50 p-3">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />
-                <p className="text-sm leading-6 text-muted-foreground">{item}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-[24px] border border-border bg-background/80 p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="font-pixel text-[11px] uppercase tracking-[0.18em] text-amber-600 dark:text-amber-300">Benchmark</div>
-              <h3 className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-foreground">Retain what matters</h3>
+      <section className="mt-16 rounded-[24px] border border-border bg-card/80 p-6">
+        <div className="font-pixel text-[11px] uppercase tracking-[0.18em] text-sky-600 dark:text-sky-300">Why it works</div>
+        <h3 className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-foreground">Memory decay is a real problem. Your review system should be smarter than a checklist.</h3>
+        <div className="mt-6 space-y-4">
+          {[
+            "FSRS-6 schedules each problem using stability, difficulty and retrievability rather than a fixed interval ladder.",
+            "Patterns are tagged and recommended when the next review is most useful, which keeps weak areas from hiding behind a long backlog.",
+            "A problem that slips three times becomes a leech: a clear signal to review it before it eats another interview cycle.",
+          ].map((item) => (
+            <div key={item} className="flex items-start gap-3 rounded-xl border border-border/80 bg-background/50 p-3">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />
+              <p className="text-sm leading-6 text-muted-foreground">{item}</p>
             </div>
-            <div className="rounded-full border border-border bg-muted px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Live</div>
-          </div>
-
-          <div className="mt-6 space-y-5">
-            {[
-              { label: "Graph problems", value: 82 },
-              { label: "Two pointers", value: 91 },
-              { label: "DP / memoization", value: 67 },
-              { label: "Monotonic stacks", value: 49 },
-            ].map((item) => (
-              <div key={item.label}>
-                <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                  <span>{item.label}</span>
-                  <span>{item.value}%</span>
-                </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-border/80">
-                  <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500" style={{ width: `${item.value}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
       </section>
 

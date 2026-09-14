@@ -182,6 +182,9 @@ export default function MonthlyMockPage() {
             This mock draws 5 problems from your weakest pattern families.
             To simulate real interview conditions, <span className="text-zinc-200 font-medium">pattern names and difficulty ratings are strictly hidden</span> until you finish.
           </p>
+          <p className="text-xs text-zinc-500 leading-relaxed font-sans">
+            It is the monthly stress test: no labels, no hints, no safe-mode warmup. If you can choose the right strategy under pressure, your review system is doing its job.
+          </p>
 
           <div className="rounded border border-zinc-800/80 bg-zinc-900/40 p-4 space-y-2 font-mono text-xs text-zinc-400">
             <div className="text-zinc-300 font-semibold uppercase tracking-wider">Protocol:</div>

@@ -125,7 +125,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
         },
         rating,
         reviewDate: now,
-        desiredRetention: userSettings?.desiredRetention ?? 0.85,
+        desiredRetention: userSettings?.desiredRetention ?? 0.80,
         fsrsParams: userSettings?.fsrsParams ?? [],
       });
     } else {
@@ -134,6 +134,8 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
         status: data.status as SolveStatusType,
         revisit: data.revisit,
         now,
+        desiredRetention: userSettings?.desiredRetention ?? 0.80,
+        fsrsParams: userSettings?.fsrsParams ?? [],
       });
     }
 
@@ -240,20 +242,23 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
       },
     });
 
-    await tx.reviewCard.create({
-      data: {
-        entryId: entry.id,
-        due: initialCard.due,
-        stability: initialCard.stability,
-        difficulty: initialCard.difficulty,
-        elapsedDays: initialCard.elapsedDays,
-        scheduledDays: initialCard.scheduledDays,
-        reps: initialCard.reps,
-        lapses: initialCard.lapses,
-        state: initialCard.state as CardState,
-        lastReview: now,
-      },
-    });
+    const shouldSchedule = rating === "AGAIN" || rating === "HARD" || data.revisit === true;
+    if (shouldSchedule) {
+      await tx.reviewCard.create({
+        data: {
+          entryId: entry.id,
+          due: initialCard.due,
+          stability: initialCard.stability,
+          difficulty: initialCard.difficulty,
+          elapsedDays: initialCard.elapsedDays,
+          scheduledDays: initialCard.scheduledDays,
+          reps: initialCard.reps,
+          lapses: initialCard.lapses,
+          state: initialCard.state as CardState,
+          lastReview: now,
+        },
+      });
+    }
 
     return entry;
   });
@@ -327,7 +332,7 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
     currentCard,
     rating,
     reviewDate: now,
-    desiredRetention: userSettings?.desiredRetention ?? 0.9,
+    desiredRetention: userSettings?.desiredRetention ?? 0.80,
     fsrsParams: userSettings?.fsrsParams ?? [],
   });
 
@@ -386,6 +391,95 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
   return { success: true, rating, nextDue: updatedCard.due };
 }
 
+const RecordRecallSchema = z.object({
+  entryId: z.string(),
+  rating: z.enum(["AGAIN", "HARD", "GOOD"]),
+  wroteApproach: z.string().optional().nullable(),
+});
+
+/**
+ * Record a RECALL-lane review — no minutes, direct rating (Matched=GOOD, Close=HARD, Blank=AGAIN).
+ */
+export async function recordRecallAttempt(input: z.input<typeof RecordRecallSchema>) {
+  const user = await getCurrentUser();
+  const data = RecordRecallSchema.parse(input);
+
+  const entry = await prisma.entry.findFirstOrThrow({
+    where: { id: data.entryId, userId: user.id },
+    include: { reviewCard: true },
+  });
+
+  const userSettings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  const now = new Date();
+
+  const currentCard = entry.reviewCard
+    ? {
+        entryId: entry.id,
+        due: entry.reviewCard.due,
+        stability: entry.reviewCard.stability,
+        difficulty: entry.reviewCard.difficulty,
+        elapsedDays: entry.reviewCard.elapsedDays,
+        scheduledDays: entry.reviewCard.scheduledDays,
+        reps: entry.reviewCard.reps,
+        lapses: entry.reviewCard.lapses,
+        state: entry.reviewCard.state as any,
+        lastReview: entry.reviewCard.lastReview,
+      }
+    : seedCard({ entryId: entry.id, status: "SOLVED_UNAIDED", now });
+
+  const updatedCard = advanceCard({
+    currentCard,
+    rating: data.rating as AppRating,
+    reviewDate: now,
+    desiredRetention: userSettings?.desiredRetention ?? 0.80,
+    fsrsParams: userSettings?.fsrsParams ?? [],
+  });
+
+  await prisma.$transaction([
+    prisma.attempt.create({
+      data: {
+        entryId: entry.id,
+        at: now,
+        rating: data.rating as Rating,
+        minutes: null,
+        usedHint: false,
+        note: data.wroteApproach ? `Recall: ${data.wroteApproach.slice(0, 120)}` : "Recall review",
+      },
+    }),
+    prisma.reviewCard.upsert({
+      where: { entryId: entry.id },
+      update: {
+        due: updatedCard.due,
+        stability: updatedCard.stability,
+        difficulty: updatedCard.difficulty,
+        elapsedDays: updatedCard.elapsedDays,
+        scheduledDays: updatedCard.scheduledDays,
+        reps: updatedCard.reps,
+        lapses: updatedCard.lapses,
+        state: updatedCard.state as CardState,
+        lastReview: now,
+      },
+      create: {
+        entryId: entry.id,
+        due: updatedCard.due,
+        stability: updatedCard.stability,
+        difficulty: updatedCard.difficulty,
+        elapsedDays: updatedCard.elapsedDays,
+        scheduledDays: updatedCard.scheduledDays,
+        reps: updatedCard.reps,
+        lapses: updatedCard.lapses,
+        state: updatedCard.state as CardState,
+        lastReview: now,
+      },
+    }),
+  ]);
+
+  revalidatePath("/today");
+  revalidatePath("/problems");
+  revalidatePath("/stats");
+  return { success: true, rating: data.rating, nextDue: updatedCard.due };
+}
+
 export async function updateEntryInline(params: {
   entryId: string;
   field: "idea" | "mistake" | "revisit" | "status";
@@ -408,6 +502,54 @@ export async function updateEntryInline(params: {
   revalidatePath("/problems");
   revalidatePath(`/problems/${entryId}`);
   return { success: true };
+}
+
+export async function toggleScheduleReview(entryId: string, schedule: boolean) {
+  const user = await getCurrentUser();
+  const entry = await prisma.entry.findFirstOrThrow({
+    where: { id: entryId, userId: user.id },
+    include: { reviewCard: true, problem: true, attempts: { orderBy: { at: "desc" }, take: 1 } },
+  });
+
+  if (schedule) {
+    if (!entry.reviewCard) {
+      const now = new Date();
+      const userSettings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+      const initialCard = seedCard({
+        entryId: entry.id,
+        status: (entry.status as SolveStatusType) || "SOLVED_UNAIDED",
+        revisit: entry.revisit,
+        now,
+        desiredRetention: userSettings?.desiredRetention ?? 0.80,
+        fsrsParams: userSettings?.fsrsParams ?? [],
+      });
+      await prisma.reviewCard.create({
+        data: {
+          entryId: entry.id,
+          due: initialCard.due,
+          stability: initialCard.stability,
+          difficulty: initialCard.difficulty,
+          elapsedDays: initialCard.elapsedDays,
+          scheduledDays: initialCard.scheduledDays,
+          reps: initialCard.reps,
+          lapses: initialCard.lapses,
+          state: initialCard.state as CardState,
+          lastReview: now,
+        },
+      });
+    }
+  } else {
+    if (entry.reviewCard) {
+      await prisma.reviewCard.delete({
+        where: { entryId: entry.id },
+      });
+    }
+  }
+
+  revalidatePath("/today");
+  revalidatePath("/problems");
+  revalidatePath(`/problems/${entryId}`);
+  return { success: true, scheduled: schedule };
 }
 
 export async function deleteEntry(entryId: string) {
