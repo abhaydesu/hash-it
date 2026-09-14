@@ -30,23 +30,54 @@ export default async function SignInPage({
           <p className="text-sm leading-6 text-muted-foreground">
             {hasGoogleAuth || isProduction
               ? "Sign in with Google to keep your solves, memory reviews, and pattern insights synced to your account."
-              : "Development mode is active. Use the local dev sign-in so you can work without Google credentials."}
+              : "Development mode is active. Use a local email to create or reuse a separate dev account without all accounts collapsing to one identity."}
           </p>
 
           <form
-            action={async () => {
+            action={async (formData: FormData) => {
               "use server";
               if (hasGoogleAuth) {
                 await signIn("google", { redirectTo: redirectTarget });
                 return;
               }
+
+              const email = String(formData.get("email") || "dev-user-local@example.com").trim().toLowerCase();
+              const name = String(formData.get("name") || email.split("@")[0] || "Local Dev").trim() || "Local Dev";
+
               await signIn("credentials", {
-                email: "dev-user-local@example.com",
+                email,
+                name,
                 password: "dev",
                 redirectTo: redirectTarget,
               });
             }}
+            className="space-y-3"
           >
+            {!hasGoogleAuth && (
+              <>
+                <label className="block text-sm text-muted-foreground">
+                  <span className="mb-1.5 block">Local dev email</span>
+                  <input
+                    type="email"
+                    name="email"
+                    defaultValue="dev-user-local@example.com"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground/70 focus:border-foreground"
+                    placeholder="you@example.com"
+                  />
+                </label>
+                <label className="block text-sm text-muted-foreground">
+                  <span className="mb-1.5 block">Display name</span>
+                  <input
+                    type="text"
+                    name="name"
+                    defaultValue="Local Dev"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground/70 focus:border-foreground"
+                    placeholder="Alice"
+                  />
+                </label>
+              </>
+            )}
+
             <button
               type="submit"
               className="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-500/30 active:scale-[0.98]"
@@ -62,7 +93,7 @@ export default async function SignInPage({
                   <span>Continue with Google</span>
                 </>
               ) : (
-                <span>Continue as Local Dev</span>
+                <span>Continue as local account</span>
               )}
             </button>
           </form>

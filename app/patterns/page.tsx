@@ -124,78 +124,64 @@ function PatternsContent() {
   const getMasteryVisuals = (r: number | null) => {
     if (r === null) {
       return {
-        bg: "bg-zinc-950 hover:bg-zinc-900/60 border-zinc-800/60 text-zinc-400",
-        bar: "bg-zinc-800",
-        label: "UNPRACTICED",
-        textColor: "text-zinc-500",
+        bg: "bg-background hover:bg-card border-border text-muted-foreground",
+        bar: "bg-muted-foreground",
+        label: "new",
+        textColor: "text-muted-foreground",
       };
     }
     if (r >= 0.9) {
       return {
-        bg: "bg-emerald-950/40 hover:bg-emerald-950/60 border-emerald-600/60 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]",
-        bar: "bg-emerald-500",
+        bg: "bg-[#E9DCC6] hover:bg-[#E0C7A1] border-[#C3A57D] text-[#2A211A]",
+        bar: "bg-[#7E553C]",
         label: `${(r * 100).toFixed(0)}%`,
-        textColor: "text-emerald-400",
+        textColor: "text-[#2A211A]",
       };
     }
     if (r >= 0.8) {
       return {
-        bg: "bg-emerald-950/20 hover:bg-emerald-950/40 border-emerald-800/60 text-emerald-300",
-        bar: "bg-emerald-600",
+        bg: "bg-[#E7D3B4] hover:bg-[#DEC299] border-[#C9A879] text-[#2A211A]",
+        bar: "bg-[#9B6C45]",
         label: `${(r * 100).toFixed(0)}%`,
-        textColor: "text-emerald-400",
+        textColor: "text-[#2A211A]",
       };
     }
     if (r >= 0.6) {
       return {
-        bg: "bg-amber-950/20 hover:bg-amber-950/40 border-amber-800/60 text-amber-300",
-        bar: "bg-amber-500",
+        bg: "bg-[#E0C7A1] hover:bg-[#D9B987] border-[#C59D6C] text-[#2A211A]",
+        bar: "bg-[#B67C4C]",
         label: `${(r * 100).toFixed(0)}%`,
-        textColor: "text-amber-400",
+        textColor: "text-[#2A211A]",
       };
     }
     return {
-      bg: "bg-rose-950/30 hover:bg-rose-950/50 border-rose-800/70 text-rose-300",
-      bar: "bg-rose-500",
+      bg: "bg-[#E8D4C2] hover:bg-[#DDBDA6] border-[#C68F6B] text-[#2A211A]",
+      bar: "bg-[#A55B42]",
       label: `${(r * 100).toFixed(0)}%`,
-      textColor: "text-rose-400",
+      textColor: "text-[#2A211A]",
     };
   };
 
   return (
     <div className="space-y-8">
-      {/* Page Header */}
-      <div className="border-b border-zinc-800 pb-3 flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
         <div>
-          <div className="flex items-center gap-2 font-mono">
-            <Sparkles className="h-4 w-4 text-emerald-400" />
-            <h1 className="text-lg font-bold text-zinc-100 uppercase tracking-tight">
-              PATTERN_MASTERY_GRID
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-foreground" />
+            <h1 className="text-2xl font-semibold tracking-[-0.04em] text-foreground">
+              Pattern mastery
             </h1>
           </div>
-          <p className="text-xs text-zinc-400 mt-1 font-sans">
-            FSRS mean retrievability across pattern taxonomy. Click any pattern to inspect problems and gaps.
+          <p className="mt-1 text-sm text-muted-foreground">
+            FSRS mean retrievability across the pattern taxonomy. Select a pattern to inspect weak spots.
           </p>
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-3 font-mono text-[10px] text-zinc-400">
-          <div className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            <span>≥90% Solid</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-amber-400" />
-            <span>60–89% Reviewing</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-rose-400" />
-            <span>&lt;60% Critical</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-zinc-700" />
-            <span>Unpracticed</span>
-          </div>
+        <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#7E553C]" /> strong</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#B67C4C]" /> medium</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#A55B42]" /> weak</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted" /> new</span>
         </div>
       </div>
 

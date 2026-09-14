@@ -84,9 +84,9 @@ export default function TodayDashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-10 w-64 rounded bg-zinc-800" />
+        <div className="h-10 w-56 rounded bg-muted" />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[...Array(4)].map((_, i) => <div key={i} className="h-24 rounded-2xl bg-zinc-800/60" />)}
+          {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-muted" />)}
         </div>
       </div>
     );
@@ -110,28 +110,25 @@ export default function TodayDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <div className="font-pixel text-[11px] uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">Overview</div>
-          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.06em] text-foreground">Today&apos;s retention dashboard</h1>
+          <h1 className="text-3xl font-semibold tracking-[-0.06em] text-foreground">Today</h1>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link href="/problems" className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground active:scale-[0.98]">
+          <Link href="/problems" className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground">
             Review catalog
           </Link>
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {statCards.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-2xl border border-border bg-card/80 p-4">
+          <div key={label} className="rounded-xl border border-border bg-card p-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</span>
-              <Icon className="h-4 w-4 text-emerald-500" />
+              <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+              <Icon className="h-4 w-4 text-foreground" />
             </div>
-            <div className="mt-4 font-pixel text-2xl text-foreground">{value}</div>
+            <div className="mt-3 tabular-numbers text-2xl font-semibold text-foreground">{value}</div>
           </div>
         ))}
       </div>
@@ -153,11 +150,9 @@ export default function TodayDashboardPage() {
         </div>
       )}
 
-      {/* Today's review section */}
-      <div className="rounded-[24px] border border-border bg-card/80 p-5">
+      <div className="rounded-[24px] border border-border bg-card p-5">
         <div className="mb-4">
-          <div className="font-pixel text-[11px] uppercase tracking-[0.18em] text-sky-600 dark:text-sky-300">Today&apos;s review</div>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">{recallCount} quick recall check{recallCount !== 1 ? "s" : ""}</span> and{" "}
             <span className="font-medium text-foreground">{resolveCount} full re-solve{resolveCount !== 1 ? "s" : ""}.</span>{" "}
             About <span className="font-medium text-foreground">{estimateMinutes} minutes.</span>
@@ -191,48 +186,27 @@ export default function TodayDashboardPage() {
         )}
       </div>
 
-      {/* Pattern drill & Blind mock */}
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-6">
-          <div className="rounded-[24px] border border-border bg-card/80 p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-pixel text-[11px] uppercase tracking-[0.18em] text-sky-600 dark:text-sky-300">Pattern drill</div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-foreground">Read a cue, name the pattern.</h2>
-              </div>
-              <CalendarRange className="h-5 w-5 text-sky-500" />
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="rounded-[24px] border border-border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-[-0.05em] text-foreground">Pattern drill</h2>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">Tests whether you recognise the technique, not whether you can implement it. ~2 min · active when a pattern is below target retrievability or untouched for 14 days.</p>
-            <div className="mt-4 text-sm text-amber-500">Next drill in 3 days</div>
+            <CalendarRange className="h-5 w-5 text-foreground" />
           </div>
-
-          <div className="rounded-[24px] border border-border bg-card/80 p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-pixel text-[11px] uppercase tracking-[0.18em] text-amber-600 dark:text-amber-300">Blind mock</div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-foreground">Five timed problems from your weakest patterns.</h2>
-              </div>
-              <BarChart3 className="h-5 w-5 text-amber-500" />
-            </div>
-            <p className="mt-3 text-sm text-muted-foreground">Tests whether you can pick the right approach unprompted. ~2 hrs · active when 30+ days since the last mock.</p>
-            <div className="mt-4 text-sm text-slate-500">Next mock in 12 days</div>
-          </div>
+          <p className="mt-3 text-sm text-muted-foreground">Tests whether you recognise the technique, not whether you can implement it. ~2 min · active when a pattern is below target retrievability or untouched for 14 days.</p>
+          <div className="mt-4 text-sm text-muted-foreground">Next drill in 3 days</div>
         </div>
 
-        <div className="space-y-6">
-          <div className="rounded-[24px] border border-border bg-card/80 p-5">
-            <div className="font-pixel text-[11px] uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">Quick links</div>
-            <div className="mt-4 space-y-3">
-              <Link href="/problems" className="flex w-full items-center justify-between rounded-xl border border-border bg-background/60 px-3 py-3 text-left text-sm text-foreground hover:bg-muted">
-                <span>Browse your problem library</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link href="/stats" className="flex w-full items-center justify-between rounded-xl border border-border bg-background/60 px-3 py-3 text-left text-sm text-foreground hover:bg-muted">
-                <span>Open analytics</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+        <div className="rounded-[24px] border border-border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-[-0.05em] text-foreground">Blind mock</h2>
             </div>
+            <BarChart3 className="h-5 w-5 text-foreground" />
           </div>
+          <p className="mt-3 text-sm text-muted-foreground">Tests whether you can pick the right approach unprompted. ~2 hrs · active when 30+ days since the last mock.</p>
+          <div className="mt-4 text-sm text-muted-foreground">Next mock in 12 days</div>
         </div>
       </div>
     </div>

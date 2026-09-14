@@ -69,10 +69,10 @@ export default async function ProblemsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold font-mono text-zinc-100 tracking-tight">
-            PROBLEMS_GRID
+          <h1 className="text-2xl font-semibold tracking-[-0.04em] text-foreground">
+            Problems
           </h1>
-          <p className="text-xs text-zinc-400 font-sans">
+          <p className="mt-1 text-sm text-muted-foreground">
             Dense spreadsheet view of all logged problems. Click ideas or mistakes to edit inline.
           </p>
         </div>

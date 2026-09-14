@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
+import { findOrCreateLocalUser } from "@/lib/local-auth";
 import type { NextAuthConfig } from "next-auth";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -34,13 +35,14 @@ const config: NextAuthConfig = {
               password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-              const email = String(credentials?.email ?? "dev-user-local@example.com");
-              const name = email.split("@")[0] || "Local Dev";
+              const email = String(credentials?.email ?? "dev-user-local@example.com").trim().toLowerCase();
+              const name = String(credentials?.name ?? email.split("@")[0] ?? "Local Dev").trim() || "Local Dev";
+              const user = await findOrCreateLocalUser(email, name);
               return {
-                id: "dev-user-local",
-                name,
-                email,
-                image: null,
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
               };
             },
           }),
