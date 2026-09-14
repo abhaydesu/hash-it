@@ -24,7 +24,7 @@ export async function getUserSettings() {
       data: {
         userId: user.id,
         dailyReviewCap: 5,
-        desiredRetention: 0.9,
+        desiredRetention: 0.85,
         timezone: "Asia/Kolkata",
         easyBaseline: 15,
         mediumBaseline: 30,

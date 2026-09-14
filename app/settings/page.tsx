@@ -10,7 +10,7 @@ export default function SettingsPage() {
   const [optimizing, setOptimizing] = useState(false);
 
   const [dailyReviewCap, setDailyReviewCap] = useState(5);
-  const [desiredRetention, setDesiredRetention] = useState(0.9);
+  const [desiredRetention, setDesiredRetention] = useState(0.85);
   const [timezone, setTimezone] = useState("Asia/Kolkata");
   const [easyBaseline, setEasyBaseline] = useState(15);
   const [mediumBaseline, setMediumBaseline] = useState(30);
@@ -144,10 +144,10 @@ export default function SettingsPage() {
                 min="0.7"
                 max="0.95"
                 value={desiredRetention}
-                onChange={(e) => setDesiredRetention(parseFloat(e.target.value) || 0.9)}
+                onChange={(e) => setDesiredRetention(parseFloat(e.target.value) || 0.85)}
                 className="w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-emerald-500 focus:outline-none"
               />
-              <p className="text-[10px] text-zinc-500 font-sans">FSRS default target is 0.9 (90% retrievability)</p>
+              <p className="text-[10px] text-zinc-500 font-sans">A 0.85 target avoids inflated due-card volume: a flashcard review costs ~10 seconds, while a medium re-solve can take ~30 minutes.</p>
             </div>
           </div>
 

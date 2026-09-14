@@ -14,7 +14,7 @@ export async function GET() {
     const settings = await prisma.userSettings.findUnique({
       where: { userId: user.id },
     });
-    const targetRetention = settings?.desiredRetention ?? 0.9;
+    const targetRetention = settings?.desiredRetention ?? 0.85;
 
     const patterns = await prisma.pattern.findMany({
       orderBy: { sortOrder: "asc" },

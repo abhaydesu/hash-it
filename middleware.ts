@@ -10,8 +10,9 @@ export default auth((req: NextRequest & { auth: any }) => {
 
   if (isPublic) return NextResponse.next();
 
-  const hasGoogleAuth = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
-  if (hasGoogleAuth && !req.auth?.user) {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (isProduction && !req.auth?.user) {
     const signInUrl = new URL("/auth/signin", req.url);
     signInUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(signInUrl);

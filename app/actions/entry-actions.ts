@@ -125,7 +125,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
         },
         rating,
         reviewDate: now,
-        desiredRetention: userSettings?.desiredRetention ?? 0.9,
+        desiredRetention: userSettings?.desiredRetention ?? 0.85,
         fsrsParams: userSettings?.fsrsParams ?? [],
       });
     } else {
@@ -201,12 +201,17 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
     now,
   });
 
-  const rating: AppRating =
-    data.status === "ATTEMPTED_FAILED" || data.revisit
-      ? "AGAIN"
-      : data.status === "SOLVED_WITH_HELP"
-      ? "HARD"
-      : "GOOD";
+  const rating = deriveRating({
+    status: data.status as SolveStatusType,
+    minutes: data.minutes,
+    usedHint: data.status === "SOLVED_WITH_HELP",
+    difficulty: problem.difficulty as ProblemDifficulty | null,
+    baselines: {
+      easy: problem.difficulty === "EASY" ? 15 : 15,
+      medium: problem.difficulty === "MEDIUM" ? 30 : 30,
+      hard: problem.difficulty === "HARD" ? 45 : 45,
+    },
+  });
 
   const result = await prisma.$transaction(async (tx) => {
     const entry = await tx.entry.create({
