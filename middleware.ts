@@ -1,6 +1,9 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+
+const { auth } = NextAuth(authConfig);
 
 const PUBLIC_PATHS = [
   "/",
@@ -11,7 +14,7 @@ const PUBLIC_PATHS = [
   "/favicon.ico",
 ];
 
-export default auth((req: NextRequest & { auth: any }) => {
+export default auth((req) => {
   const pathname = req.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => p === pathname || (p !== "/" && pathname.startsWith(p)));
 

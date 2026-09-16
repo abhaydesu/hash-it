@@ -4,19 +4,15 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { findOrCreateLocalUser } from "@/lib/local-auth";
+import { authConfig } from "@/lib/auth.config";
 import type { NextAuthConfig } from "next-auth";
 
 const isProduction = process.env.NODE_ENV === "production";
 const hasGoogleAuth = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
 
 const config: NextAuthConfig = {
-  trustHost: true,
-  secret: process.env.AUTH_SECRET,
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
-  pages: {
-    signIn: "/auth/signin",
-  },
   providers: [
     ...(hasGoogleAuth
       ? [
