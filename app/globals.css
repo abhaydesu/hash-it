@@ -4,14 +4,14 @@
 
 @layer base {
   :root {
-    --background: 38 23% 95%;
+    --background: 38 16% 96%;
     --foreground: 24 14% 12%;
     --card: 36 20% 97%;
     --card-foreground: 24 14% 12%;
     --popover: 36 20% 97%;
     --popover-foreground: 24 14% 12%;
-    --primary: 24 14% 12%;
-    --primary-foreground: 40 20% 96%;
+    --primary: 24 95% 48%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 34 18% 88%;
     --secondary-foreground: 24 14% 12%;
     --muted: 34 18% 88%;
@@ -22,7 +22,17 @@
     --destructive-foreground: 35 23% 97%;
     --border: 25 18% 78%;
     --input: 25 18% 78%;
-    --ring: 24 14% 12%;
+    --ring: 24 95% 48%;
+    --orange-50: 24 100% 97%;
+    --orange-100: 24 100% 93%;
+    --orange-200: 24 96% 84%;
+    --orange-300: 24 95% 72%;
+    --orange-400: 24 95% 58%;
+    --orange-500: 24 95% 48%;
+    --orange-600: 21 90% 40%;
+    --orange-700: 18 83% 32%;
+    --orange-800: 16 76% 26%;
+    --orange-900: 14 70% 20%;
   }
 
   .dark {
@@ -32,7 +42,7 @@
     --card-foreground: 32 15% 92%;
     --popover: 22 12% 12%;
     --popover-foreground: 32 15% 92%;
-    --primary: 32 15% 92%;
+    --primary: 24 95% 58%;
     --primary-foreground: 18 14% 9%;
     --secondary: 24 10% 17%;
     --secondary-foreground: 32 15% 92%;
@@ -44,7 +54,17 @@
     --destructive-foreground: 32 15% 92%;
     --border: 24 9% 25%;
     --input: 24 9% 25%;
-    --ring: 32 15% 92%;
+    --ring: 24 95% 58%;
+    --orange-50: 24 55% 16%;
+    --orange-100: 24 60% 20%;
+    --orange-200: 24 65% 25%;
+    --orange-300: 24 70% 32%;
+    --orange-400: 24 78% 44%;
+    --orange-500: 24 95% 58%;
+    --orange-600: 24 96% 64%;
+    --orange-700: 24 98% 70%;
+    --orange-800: 24 100% 78%;
+    --orange-900: 24 100% 86%;
   }
 
   * {
@@ -79,6 +99,61 @@
 @layer utilities {
   .tabular-numbers {
     font-variant-numeric: tabular-nums;
+  }
+  .idea-preview {
+    animation: idea-preview-in 140ms ease-out;
+  }
+  .bg-dither-25 {
+    background-color: hsl(var(--muted));
+    background-image: radial-gradient(circle at 0.5px 0.5px, currentColor 0.6px, transparent 0.7px);
+    background-size: 4px 4px;
+    color: hsl(var(--border));
+    opacity: 0.65;
+  }
+  .bg-dither-50 {
+    background-color: hsl(var(--muted));
+    background-image: radial-gradient(circle at 0.5px 0.5px, currentColor 0.6px, transparent 0.7px), radial-gradient(circle at 2.5px 2.5px, currentColor 0.6px, transparent 0.7px);
+    background-size: 4px 4px, 4px 4px;
+    background-position: 0 0, 2px 2px;
+    background-repeat: repeat;
+    color: hsl(var(--border));
+    opacity: 0.75;
+  }
+  .bg-dither-orange {
+    background-color: hsl(var(--orange-100));
+    background-image: radial-gradient(circle at 0.5px 0.5px, hsl(var(--orange-500)) 0.6px, transparent 0.7px);
+    background-size: 4px 4px;
+    background-position: 0 0;
+    background-repeat: repeat;
+  }
+  .sheet-section {
+    position: relative;
+    width: 100%;
+  }
+  .sheet-section::after {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    left: 50%;
+    bottom: -1px;
+    width: 100vw;
+    border-bottom: 1px solid hsl(var(--border));
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .sheet-band {
+    display: none;
+  }
+}
+
+@keyframes idea-preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

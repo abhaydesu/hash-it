@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, BrainCircuit, CheckCircle2, Clock3, Database, Search, Sparkles, TrendingUp } from "lucide-react";
+import { Search, ExternalLink } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { SheetSection } from "@/components/ui/sheet-section";
 
 export default async function HomePage() {
   const session = await auth();
-  const firstName = session?.user?.name?.split(" ")[0] ?? "friend";
 
   const [problemCount, patternCount, dueCount, leechCount] = await Promise.all([
     prisma.problem.count(),
@@ -19,185 +19,227 @@ export default async function HomePage() {
   const dueCountLabel = new Intl.NumberFormat("en-US").format(dueCount);
   const leechCountLabel = new Intl.NumberFormat("en-US").format(leechCount);
 
-  const features = [
-    {
-      icon: BrainCircuit,
-      title: "FSRS review logic",
-      description: "Adaptive review scheduling keeps the forgetting curve visible instead of hiding it behind a checklist.",
-    },
-    {
-      icon: Database,
-      title: "Your problem catalog",
-      description: "Search the canonical DSA catalog and your own history in one place.",
-    },
-    {
-      icon: TrendingUp,
-      title: "Mistakes and insight log",
-      description: "Capture the idea that worked, the bug in your reasoning, and the next time you should revisit it.",
-    },
-    {
-      icon: Sparkles,
-      title: `${patternCountLabel} pattern taxonomy`,
-      description: "See which recurring frameworks you know well and which ones deserve another pass.",
-    },
-    {
-      icon: Clock3,
-      title: "Roadmap and review rhythm",
-      description: "Follow the roadmap while the queue surfaces the problems most likely to fade next.",
-    },
-    {
-      icon: BarChart3,
-      title: "Leech rule",
-      description: "When a problem slips three times, it becomes a strong signal that it needs a review block.",
-    },
-  ];
-
-  const metrics = [
-    { value: patternCountLabel, label: "patterns" },
-    { value: problemCountLabel, label: "problems" },
-    { value: dueCountLabel, label: "due now" },
-    { value: leechCountLabel, label: "leech flags" },
-  ];
-
   return (
-    <div className="pb-16 pt-6">
-      <section className="mx-auto max-w-6xl rounded-[30px] border border-border bg-card p-6 sm:p-8 lg:p-10">
-        <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-[11px] font-medium text-muted-foreground">
-              <Sparkles className="h-3.5 w-3.5" />
-              DSA retention engine
-            </div>
+    <div className="relative min-h-screen bg-background text-foreground font-sans selection:bg-foreground selection:text-background flex justify-center w-full">
+      {/* Background hatch/texture outside the main column (optional, using plain background for now to keep it clean) */}
 
-            <div className="space-y-4">
-              <h1 className="max-w-xl text-4xl font-semibold tracking-[-0.06em] text-foreground sm:text-5xl lg:text-6xl">
-                Build a memory for every problem you solve.
-              </h1>
-              <p className="max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-                HASH_IT turns solved problems into durable recall by combining your notes, pattern tags, and spaced repetition.
-              </p>
-            </div>
+      {/*
+        The main center column
+        Has vertical rules running the full height of the page, unbroken.
+      */}
+      <main className="w-full min-h-screen">
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+        {/* Section 1: Hero */}
+        <SheetSection className="relative overflow-hidden" band="accent">
+          <div aria-hidden="true" className="pointer-events-none absolute -left-4 -right-4 top-0 h-64 bg-dither-orange opacity-70 [mask-image:linear-gradient(to_bottom,black,transparent)] sm:-left-6 sm:-right-6" />
+          <div className="relative z-10 px-6 py-24 sm:py-32 flex flex-col items-start max-w-3xl">
+            <h1 className="text-4xl sm:text-6xl font-medium tracking-tight mb-8">
+              A practice log for LeetCode that decides when you should solve each problem again.
+            </h1>
+
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
               {session?.user ? (
-                <Link href="/today" className="inline-flex items-center justify-center gap-2 rounded-xl bg-foreground px-5 py-3 text-sm font-medium text-background">
-                  Welcome back, {firstName}
-                  <ArrowRight className="h-4 w-4" />
+                <Link
+                  href="/today"
+                  className="inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white hover:bg-orange-600 transition-colors"
+                >
+                  Open your queue
                 </Link>
               ) : (
-                <Link href="/auth/signin" className="inline-flex items-center justify-center gap-2 rounded-xl bg-foreground px-5 py-3 text-sm font-medium text-background">
+                <Link
+                  href="/auth/signin"
+                  className="inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white hover:bg-orange-600 transition-colors"
+                >
                   Get started
-                  <ArrowRight className="h-4 w-4" />
                 </Link>
               )}
-              <Link href="/problems" className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-5 py-3 text-sm font-medium text-foreground">
+              <Link
+                href="/problems"
+                className="inline-flex items-center justify-center gap-2 border border-border bg-background px-6 py-2.5 text-sm font-mono text-foreground hover:bg-muted transition-colors"
+              >
                 <Search className="h-4 w-4" />
                 Explore catalog
               </Link>
             </div>
+          </div>
 
-            <div className="grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4">
-              {metrics.map((metric) => (
-                <div key={metric.label} className="rounded-xl border border-border bg-background p-3">
-                  <div className="tabular-numbers text-xl font-semibold text-foreground">{metric.value}</div>
-                  <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{metric.label}</div>
+          {/* Hero Figure (Static render of daily review queue) */}
+          <div className="-mx-4 border-t border-border bg-dither-25 p-6 sm:-mx-6 sm:p-12">
+            <div className="max-w-2xl mx-auto border border-border bg-background">
+              <div className="border-b border-border bg-muted/40 p-2 px-3 flex justify-between items-center text-[10px] font-mono text-muted-foreground  tracking-wider">
+                <span>Daily queue</span>
+                <span className="text-orange-600">3 due</span>
+              </div>
+              <div className="divide-y divide-border font-mono text-xs">
+                <div className="flex justify-between items-center p-3 hover:bg-muted/30">
+                  <span className="text-foreground">#206. Reverse Linked List</span>
+                  <span className="text-muted-foreground">Due today</span>
                 </div>
-              ))}
+                <div className="flex justify-between items-center p-3 hover:bg-muted/30">
+                  <span className="text-foreground">#15. 3Sum</span>
+                  <span className="text-muted-foreground">Due today</span>
+                </div>
+                <div className="flex justify-between items-center p-3 hover:bg-muted/30">
+                  <span className="text-foreground">#42. Trapping Rain Water</span>
+                  <span className="text-destructive">Overdue</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 text-center text-[11px] font-mono text-muted-foreground">
+              <span className="text-orange-600">Fig 1.</span> The daily review queue.
             </div>
           </div>
+        </SheetSection>
 
-          <div className="rounded-[24px] border border-border bg-background p-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div>
-                <div className="text-sm font-medium text-foreground">Daily review queue</div>
+        {/* Section 2: The Problem */}
+        <SheetSection>
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
+            <div className="p-6 sm:p-12">
+              <h2 className="text-lg font-medium mb-4">The problem with spreadsheets</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+                Most developers track their LeetCode progress using a massive spreadsheet. You mark a problem green when you solve it, but a month later, you realize you've completely forgotten the core idea. A spreadsheet is a static checklist, not a memory system. It cannot tell you when you are about to forget a pattern.
+              </p>
+            </div>
+            <div className="p-6 sm:p-12 bg-muted/10">
+              <h2 className="text-lg font-medium mb-4">One keystroke logging</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+                Hash-It replaces the spreadsheet. Hit <kbd className="font-mono text-[10px] border border-border px-1 py-0.5 bg-background">⌘K</kbd> from anywhere in the app to log a problem you just solved. Add the time it took, the core idea, and any mistakes you made. The system will automatically schedule your next review based on your performance.
+              </p>
+            </div>
+          </div>
+        </SheetSection>
+
+        {/* Section 3: Scheduling & FSRS */}
+        <SheetSection innerClassName="p-6 sm:p-12 flex flex-col md:flex-row gap-12 items-start">
+          <div className="flex-1 space-y-6">
+            <h2 className="text-2xl font-medium tracking-tight">Scheduling logic based on cognitive science</h2>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Hash-It uses the Free Spaced Repetition Scheduler (FSRS) algorithm to determine the optimal time for you to see a problem again. If you struggled, you'll see it tomorrow. If you solved it easily, you might not see it for a month. This guarantees you spend time on what you are forgetting, not what you already know.
+            </p>
+            <a href="https://github.com/open-spaced-repetition/fsrs4anki" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-mono text-orange-600 hover:text-orange-700 transition-colors border-b border-orange-500 pb-0.5">
+              Read about FSRS
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+
+          <div className="flex-1 w-full border border-border bg-background">
+            <div className="border-b border-border bg-muted/40 p-2 px-3 text-[10px] font-mono text-muted-foreground  tracking-wider">
+              How outcomes change the schedule
+            </div>
+            <div className="divide-y divide-border text-xs font-mono">
+              <div className="grid grid-cols-2 p-3">
+                <span className="text-foreground">Solved cold</span>
+                <span className="text-muted-foreground">Review interval expands</span>
               </div>
-              <div className="rounded-full border border-border bg-card px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                {dueCountLabel} due
+              <div className="grid grid-cols-2 p-3">
+                <span className="text-foreground">Used hint</span>
+                <span className="text-muted-foreground">Review interval shrinks</span>
+              </div>
+              <div className="grid grid-cols-2 p-3">
+                <span className="text-foreground">Failed</span>
+                <span className="text-destructive">Review resets to 1 day</span>
               </div>
             </div>
+          </div>
+        </SheetSection>
 
-            <div className="mt-4 space-y-3">
-              {[
-                { title: "Two pointers", retention: 92, next: "+10 min" },
-                { title: "Sliding window", retention: 74, next: "+1 day" },
-                { title: "DP", retention: 58, next: "+3 days" },
-              ].map((item) => (
-                <div key={item.title} className="rounded-xl border border-border bg-card p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">pattern</div>
-                      <div className="mt-1 text-sm font-medium text-foreground">{item.title}</div>
-                    </div>
-                    <div className="tabular-numbers text-xs text-muted-foreground">{item.next}</div>
-                  </div>
-                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-[linear-gradient(90deg,#E7D3B4_0%,#D5B083_35%,#B67C4C_75%,#7E553C_100%)]"
-                      style={{ width: `${item.retention}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                    <span>retrieval</span>
-                    <span>{item.retention}%</span>
+        {/* Section 4: Three Checks */}
+        <SheetSection>
+          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
+            <div className="p-6 sm:p-8 space-y-3 hover:bg-muted/10 transition-colors">
+              <h3 className="font-medium text-sm">Daily re-solves</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                The daily queue asks you to re-solve specific problems from scratch.
+              </p>
+            </div>
+            <div className="p-6 sm:p-8 space-y-3 hover:bg-muted/10 transition-colors">
+              <h3 className="font-medium text-sm">Weekly pattern drill</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                A drill appears when a pattern&apos;s recall estimate drops below target or it has not been practised in two weeks. Read a cue and name the technique.
+              </p>
+            </div>
+            <div className="p-6 sm:p-8 space-y-3 hover:bg-muted/10 transition-colors">
+              <h3 className="font-medium text-sm">Monthly blind mock</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Test whether you can choose the right technique from a problem statement alone.
+              </p>
+            </div>
+          </div>
+        </SheetSection>
+
+        {/* Section 5: What You Keep */}
+        <SheetSection innerClassName="bg-dither-25 p-6 sm:p-12">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-xl font-medium mb-8 text-center">What you keep over time</h2>
+            <div className="border border-border bg-background text-sm">
+              <div className="border-b border-border p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">#146. LRU Cache</span>
+                  <span className="font-mono text-[10px] border border-border px-1.5 py-0.5 text-muted-foreground ">Hard</span>
+                </div>
+                <div className="flex gap-2 font-mono text-[10px] text-muted-foreground">
+                  <span className="border border-border px-1">Hash Table</span>
+                  <span className="border border-border px-1">Linked List</span>
+                  <span className="border border-border px-1">Design</span>
+                </div>
+              </div>
+              <div className="divide-y divide-border">
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-2 sm:gap-6">
+                  <div className="font-mono text-xs text-muted-foreground  tracking-wider">Core Idea</div>
+                  <div className="text-foreground leading-relaxed">Keep a doubly linked list for the recent items, and a hash map pointing to the list nodes for O(1) access.</div>
+                </div>
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-2 sm:gap-6">
+                  <div className="font-mono text-xs text-muted-foreground  tracking-wider">Mistake Log</div>
+                  <div className="text-foreground leading-relaxed">
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Forgot to remove the tail when capacity is reached.</li>
+                      <li>Didn't update the hash map when moving a node to the head.</li>
+                    </ul>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-16 max-w-6xl">
-        <div className="mb-6 max-w-2xl">
-          <h2 className="text-3xl font-semibold tracking-[-0.05em] text-foreground">A small daily review loop beats a large forgotten backlog.</h2>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            "Log the problem and the idea that cracked it. The system remembers the pattern, the mistake, and the next time it should resurface.",
-            "The scheduler chooses the next review based on how quickly the concept decays, not on a static checklist.",
-            "Re-solve a few problems a day rather than chasing a large backlog. The queue stays intentionally small and relevant.",
-            "Use weekly cue drills and monthly blind mocks to check recognition and transfer, not just raw recall.",
-          ].map((step, index) => (
-            <div key={step} className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-sm font-medium text-foreground">
-                {index + 1}
               </div>
-              <p className="text-sm leading-6 text-muted-foreground">{step}</p>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto mt-16 max-w-6xl grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {features.map(({ icon: Icon, title, description }) => (
-          <div key={title} className="rounded-2xl border border-border bg-card p-5">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background text-foreground">
-              <Icon className="h-5 w-5" />
+            <div className="mt-3 text-center text-[11px] font-mono text-muted-foreground">
+              Fig 2. An entry focusing on insights, not just the code.
             </div>
-            <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
           </div>
-        ))}
-      </section>
+        </SheetSection>
 
-      <section className="mx-auto mt-16 max-w-6xl rounded-[28px] border border-border bg-card p-6 sm:p-8">
-        <h3 className="max-w-2xl text-2xl font-semibold tracking-[-0.05em] text-foreground">
-          Memory decay is a real problem. The review system should be smarter than a checklist.
-        </h3>
-        <div className="mt-6 space-y-3">
-          {[
-            "FSRS schedules each problem using stability, difficulty and retrievability rather than a fixed ladder.",
-            "Patterns are tagged and suggested when the next review is most useful.",
-            "Problems that repeat too often become clear signals to slow down and focus.",
-          ].map((item) => (
-            <div key={item} className="flex items-start gap-3 rounded-xl border border-border bg-background p-3">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 text-foreground" />
-              <p className="text-sm leading-6 text-muted-foreground">{item}</p>
+        {/* Section 6: Colophon / Stats Grid */}
+        <SheetSection innerClassName="p-6 sm:p-12" band="none">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-[-1px] font-mono text-xs">
+            <div className="border border-border p-4 flex flex-col justify-between">
+              <span className="text-muted-foreground  mb-4">Total Problems</span>
+              <span className="text-xl text-foreground tabular-numbers">{problemCountLabel}</span>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="border border-border p-4 flex flex-col justify-between -ml-[1px]">
+              <span className="text-muted-foreground  mb-4">Total Patterns</span>
+              <span className="text-xl text-foreground tabular-numbers">{patternCountLabel}</span>
+            </div>
+            <div className="border border-border p-4 flex flex-col justify-between mt-[-1px] md:mt-0 md:-ml-[1px]">
+              <span className="text-muted-foreground  mb-4">Due Today</span>
+              <span className="text-xl text-foreground tabular-numbers">{dueCountLabel}</span>
+            </div>
+            <div className="border border-border p-4 flex flex-col justify-between mt-[-1px] md:mt-0 -ml-[1px]">
+              <span className="text-muted-foreground  mb-4">Leech Flags</span>
+              <span className="text-xl text-foreground tabular-numbers">{leechCountLabel}</span>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-4 items-center justify-between text-[10px] font-mono text-muted-foreground border-t border-border pt-4">
+            <div className="flex items-center gap-4">
+              <span className="text-orange-600">Next.js 14</span>
+              <span className="text-orange-600">PostgreSQL</span>
+              <span className="text-orange-600">Prisma</span>
+              <span className="text-orange-600">TailwindCSS</span>
+            </div>
+            <div>
+              Designed like a spec sheet.
+            </div>
+          </div>
+        </SheetSection>
+
+      </main>
     </div>
   );
 }

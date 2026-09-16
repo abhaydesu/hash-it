@@ -124,7 +124,7 @@ export async function getDashboardSnapshot(userId: string, now: Date = new Date(
     leechCount: entries.filter((entry) => entry.reviewCard && entry.reviewCard.lapses >= 3).length,
   };
 
-  const targetRetention = settings?.desiredRetention ?? 0.85;
+  const targetRetention = settings?.desiredRetention ?? 0.80;
   const patterns = await prisma.pattern.findMany({
     orderBy: { sortOrder: "asc" },
     include: {

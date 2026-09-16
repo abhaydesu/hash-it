@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Timer, Check, HelpCircle, AlertCircle, Play, RotateCcw, Award, ChevronRight, ExternalLink } from "lucide-react";
+import { Timer, Check, HelpCircle, AlertCircle, Play, RotateCcw, Award, ExternalLink } from "lucide-react";
 import { recordReviewAttempt, createEntry } from "@/app/actions/entry-actions";
 import { formatDifficulty } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
+import { SheetSection } from "@/components/ui/sheet-section";
 
 interface MockProblem {
   id: string;
@@ -142,9 +146,9 @@ export default function MonthlyMockPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3 font-mono">
-        <Timer className="h-6 w-6 text-emerald-500 animate-spin" />
-        <span className="text-xs text-zinc-500">GENERATING_BLIND_MOCK_SET...</span>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
+        <div className="h-6 w-40 bg-dither-25" />
+        <div className="h-3 w-56 bg-dither-25" />
       </div>
     );
   }
@@ -152,16 +156,13 @@ export default function MonthlyMockPage() {
   if (error || problems.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3 text-center">
-        <div className="text-rose-400 font-mono text-sm">{error || "No problems available to generate mock"}</div>
-        <p className="text-xs text-zinc-500 max-w-sm">
+        <div className="text-destructive font-mono text-sm">{error || "No problems available to generate mock"}</div>
+        <p className="text-xs text-muted-foreground max-w-sm">
           Ensure you have seeded canonical problems and patterns before starting a monthly mock.
         </p>
-        <button
-          onClick={fetchMockSet}
-          className="rounded border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-mono text-zinc-200 hover:bg-zinc-800"
-        >
+        <Button variant="secondary" onClick={fetchMockSet} className="text-xs">
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -169,42 +170,48 @@ export default function MonthlyMockPage() {
   // Not started state
   if (!started) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6 pt-6 animate-in fade-in">
-        <div className="border border-zinc-800 bg-zinc-950 rounded-lg p-6 space-y-4">
-          <div className="flex items-center gap-2 font-mono text-xs text-emerald-400">
-            <Timer className="h-4 w-4" />
-            <span>MONTHLY_MOCK_ASSESSMENT</span>
+      <SheetSection innerClassName="max-w-2xl mx-auto space-y-6 py-8">
+        <div className="border border-border bg-background p-6 sm:p-8 space-y-5">
+          <div className="flex items-center gap-2 text-xs font-mono  tracking-wider text-muted-foreground">
+            <Timer className="h-4 w-4 text-foreground" />
+            <span>Monthly mock assessment</span>
           </div>
-          <h1 className="text-xl font-bold font-mono text-zinc-100">
-            Timed Blind Mock Set (5 Problems)
+
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Timed blind mock set (5 problems)
           </h1>
-          <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+
+          <p className="text-sm text-muted-foreground leading-relaxed">
             This mock draws 5 problems from your weakest pattern families.
-            To simulate real interview conditions, <span className="text-zinc-200 font-medium">pattern names and difficulty ratings are strictly hidden</span> until you finish.
+            To simulate real interview conditions, <span className="text-foreground font-medium">pattern names and difficulty ratings are strictly hidden</span> until you finish.
           </p>
-          <p className="text-xs text-zinc-500 leading-relaxed font-sans">
+
+          <p className="text-xs text-muted-foreground leading-relaxed">
             It is the monthly stress test: no labels, no hints, no safe-mode warmup. If you can choose the right strategy under pressure, your review system is doing its job.
           </p>
 
-          <div className="rounded border border-zinc-800/80 bg-zinc-900/40 p-4 space-y-2 font-mono text-xs text-zinc-400">
-            <div className="text-zinc-300 font-semibold uppercase tracking-wider">Protocol:</div>
-            <ul className="list-disc list-inside space-y-1 text-zinc-400">
+          <div className="bg-dither-25 p-4 space-y-2 text-xs text-muted-foreground">
+            <div className="text-foreground font-semibold text-[11px]">
+              Before you start:
+            </div>
+            <ul className="list-disc list-inside space-y-1">
               <li>Open each problem on the platform and solve unaided.</li>
-              <li>Record your outcome: Solved Cold, Used Hint, or Attempted/Failed.</li>
+              <li>Record your outcome: Solved cold, Used hint, or Attempted / failed.</li>
               <li>Attempts are automatically integrated into your FSRS review schedule.</li>
             </ul>
           </div>
 
           <div className="pt-2">
-            <button
+            <Button
+              variant="primary"
               onClick={startMock}
-              className="flex items-center gap-2 rounded border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-zinc-950 transition-colors"
+              className="text-xs"
             >
-              <Play className="h-4 w-4 fill-zinc-950" /> Start Assessment
-            </button>
+              <Play className="h-3.5 w-3.5 fill-current mr-2" /> Start assessment
+            </Button>
           </div>
         </div>
-      </div>
+      </SheetSection>
     );
   }
 
@@ -215,69 +222,60 @@ export default function MonthlyMockPage() {
     const failCount = Object.values(results).filter((r) => r.status === "ATTEMPTED_FAILED").length;
 
     return (
-      <div className="max-w-3xl mx-auto space-y-6 pt-4 animate-in fade-in">
-        <div className="border border-zinc-800 bg-zinc-950 rounded-lg p-6 space-y-6">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+      <SheetSection innerClassName="max-w-3xl mx-auto space-y-6 py-8">
+        <div className="border border-border bg-background p-6 sm:p-8 space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-4">
             <div>
-              <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
-                <Award className="h-4 w-4" />
-                <span>MOCK_COMPLETED</span>
+              <div className="flex items-center gap-2 text-xs font-mono  tracking-wider text-muted-foreground">
+                <Award className="h-4 w-4 text-foreground" />
+                <span>Assessment complete</span>
               </div>
-              <h1 className="text-xl font-bold font-mono text-zinc-100 mt-1">
-                Assessment Summary
+              <h1 className="text-xl font-bold tracking-tight text-foreground mt-1">
+                Assessment summary
               </h1>
             </div>
-            <div className="text-right font-mono">
-              <div className="text-xs text-zinc-500">Total Duration</div>
-              <div className="text-lg font-bold text-zinc-200">{formatTime(totalSeconds)}</div>
+            <div className="text-right">
+              <div className="text-[11px] font-mono text-muted-foreground ">Total duration</div>
+              <div className="text-lg font-bold tabular-nums text-foreground">{formatTime(totalSeconds)}</div>
             </div>
           </div>
 
-          {/* Headline stats */}
-          <div className="grid grid-cols-3 gap-3 font-mono text-center">
-            <div className="rounded border border-emerald-900/60 bg-emerald-950/20 p-3">
-              <div className="text-xl font-bold text-emerald-400">{coldCount}/5</div>
-              <div className="text-[11px] text-zinc-400 mt-0.5">Solved Cold</div>
-            </div>
-            <div className="rounded border border-sky-900/60 bg-sky-950/20 p-3">
-              <div className="text-xl font-bold text-sky-400">{hintCount}/5</div>
-              <div className="text-[11px] text-zinc-400 mt-0.5">Used Hint</div>
-            </div>
-            <div className="rounded border border-rose-900/60 bg-rose-950/20 p-3">
-              <div className="text-xl font-bold text-rose-400">{failCount}/5</div>
-              <div className="text-[11px] text-zinc-400 mt-0.5">Failed / Solution</div>
-            </div>
-          </div>
+          {/* Headline stats using SpecGrid */}
+          <SpecGrid columns={3}>
+            <SpecCell label="Solved without help" value={`${coldCount}/5`} />
+            <SpecCell label="Needed a hint" value={`${hintCount}/5`} />
+            <SpecCell label="Could not solve" value={`${failCount}/5`} className={failCount > 0 ? "text-destructive" : ""} />
+          </SpecGrid>
 
           {/* Breakdown with revealed patterns & difficulties */}
           <div className="space-y-3">
-            <h2 className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-400">
-              Revealed Problem Breakdown
+            <h2 className="text-xs font-mono font-semibold  tracking-wider text-muted-foreground">
+              Revealed problem breakdown
             </h2>
 
-            <div className="divide-y divide-zinc-800/80 border border-zinc-800 rounded-lg overflow-hidden font-mono text-xs">
+            <div className="divide-y divide-border border-y border-border bg-background text-xs">
               {problems.map((p, idx) => {
                 const res = results[p.id];
                 const diff = formatDifficulty(p.difficulty);
 
                 return (
-                  <div key={p.id} className="p-3 bg-zinc-900/30 flex items-center justify-between gap-4">
+                  <div key={p.id} className="p-3.5 flex items-center justify-between gap-4">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-zinc-400">
-                        <span>#{idx + 1}</span>
-                        {p.number != null && <span>[LC #{p.number}]</span>}
-                        <span className={`rounded border px-1.5 py-0.2 text-[10px] ${diff.className}`}>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <span className="font-mono">#{idx + 1}</span>
+                        {p.number != null && <span className="font-mono text-[11px]">[LC #{p.number}]</span>}
+                        <span className={`border px-1.5 py-0.2 text-[10px] font-mono ${diff.className}`}>
                           {diff.label}
                         </span>
-                        <span className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-300">
+                        <Badge variant="secondary" className="text-[10px] font-mono font-normal">
                           {p.patternName}
-                        </span>
+                        </Badge>
                       </div>
                       <a
                         href={p.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-zinc-200 hover:text-emerald-400 font-medium transition-colors flex items-center gap-1"
+                        className="text-foreground hover:text-muted-foreground font-medium transition-colors flex items-center gap-1"
                       >
                         {p.title} <ExternalLink className="h-3 w-3 opacity-60" />
                       </a>
@@ -285,15 +283,15 @@ export default function MonthlyMockPage() {
 
                     <div className="text-right">
                       {res?.status === "SOLVED_UNAIDED" && (
-                        <span className="text-emerald-400 font-semibold">SOLVED_COLD</span>
+                        <span className="text-easy font-semibold text-xs">Solved without help</span>
                       )}
                       {res?.status === "SOLVED_WITH_HELP" && (
-                        <span className="text-sky-400 font-semibold">USED_HINT</span>
+                        <span className="text-medium font-semibold text-xs">Needed a hint</span>
                       )}
                       {res?.status === "ATTEMPTED_FAILED" && (
-                        <span className="text-rose-400 font-semibold">FAILED</span>
+                        <span className="text-destructive font-semibold text-xs">Could not solve</span>
                       )}
-                      <div className="text-[10px] text-zinc-500 mt-0.5">{res?.minutes}m</div>
+                      <div className="text-[10px] font-mono tabular-nums text-muted-foreground mt-0.5">{res?.minutes}m</div>
                     </div>
                   </div>
                 );
@@ -304,11 +302,12 @@ export default function MonthlyMockPage() {
           <div className="pt-2 flex justify-between items-center">
             <a
               href="/problems"
-              className="text-xs font-mono text-zinc-400 hover:text-zinc-200"
+              className="text-xs text-muted-foreground hover:text-foreground font-mono"
             >
-              ← Back to Problem Grid
+              ← Back to problem grid
             </a>
-            <button
+            <Button
+              variant="secondary"
               onClick={() => {
                 setStarted(false);
                 setFinished(false);
@@ -316,13 +315,13 @@ export default function MonthlyMockPage() {
                 setCurrentIndex(0);
                 fetchMockSet();
               }}
-              className="flex items-center gap-2 rounded border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 px-4 py-2 text-xs font-mono text-zinc-200 transition-colors"
+              className="text-xs"
             >
-              <RotateCcw className="h-3.5 w-3.5" /> Start Another Mock
-            </button>
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Start another mock
+            </Button>
           </div>
         </div>
-      </div>
+      </SheetSection>
     );
   }
 
@@ -330,46 +329,46 @@ export default function MonthlyMockPage() {
   const currentProblem = problems[currentIndex];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pt-4 animate-in fade-in">
+    <SheetSection innerClassName="max-w-2xl mx-auto space-y-6 py-8">
       {/* Top Header with Progress & Timer */}
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-3 font-mono text-xs">
+      <div className="flex items-center justify-between border-b border-border pb-3 font-mono text-xs">
         <div className="flex items-center gap-2">
-          <span className="text-emerald-400 font-semibold">
-            PROBLEM {currentIndex + 1} OF {problems.length}
+          <span className="text-foreground font-semibold">
+            Problem {currentIndex + 1} of {problems.length}
           </span>
-          <span className="text-zinc-600">|</span>
-          <span className="text-zinc-400 uppercase">{currentProblem.platform}</span>
+          <span className="text-border">|</span>
+          <span className="text-muted-foreground ">{currentProblem.platform}</span>
         </div>
 
-        <div className="flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900 px-3 py-1 text-zinc-200">
-          <Timer className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
-          <span className="font-bold">{formatTime(totalSeconds)}</span>
+        <div className="flex items-center gap-2 border border-border bg-background px-3 py-1 text-foreground">
+          <Timer className="h-3.5 w-3.5 text-foreground animate-pulse" />
+          <span className="font-bold tabular-nums">{formatTime(totalSeconds)}</span>
         </div>
       </div>
 
       {/* Main Problem Card (Pattern & Difficulty intentionally hidden) */}
-      <div className="border border-zinc-800 bg-zinc-950 rounded-lg overflow-hidden">
+      <div className="border-y border-border bg-background">
         <div className="p-6 space-y-5">
           <div className="space-y-1">
-            <div className="text-[11px] font-mono text-zinc-500">
+            <div className="text-[11px] font-mono text-muted-foreground">
               {currentProblem.number != null && `Problem #${currentProblem.number}`}
             </div>
             <a
               href={currentProblem.url}
               target="_blank"
               rel="noreferrer"
-              className="text-xl font-bold font-mono text-zinc-100 hover:text-emerald-400 transition-colors flex items-center gap-2"
+              className="text-xl font-bold tracking-tight text-foreground hover:text-muted-foreground transition-colors flex items-center gap-2"
             >
               {currentProblem.title}
               <ExternalLink className="h-4 w-4 opacity-70" />
             </a>
           </div>
 
-          <div className="rounded border border-zinc-800/80 bg-zinc-900/40 p-3.5 text-xs font-sans text-zinc-400 space-y-1">
+          <div className="bg-dither-25 p-3.5 text-xs text-muted-foreground space-y-1">
             <p>
               Solve this problem on {currentProblem.platform === "LEETCODE" ? "LeetCode" : currentProblem.platform} without looking at discussion or related tags.
             </p>
-            <p className="text-[11px] font-mono text-zinc-500">
+            <p className="text-[11px] font-mono text-muted-foreground">
               Pattern cue & difficulty will be revealed upon completion of the 5-problem set.
             </p>
           </div>
@@ -377,44 +376,47 @@ export default function MonthlyMockPage() {
           {/* Outcome buttons */}
           <div className="space-y-3 pt-2">
             <div className="flex items-center gap-3">
-              <label className="text-xs font-mono text-zinc-400">Minutes taken:</label>
+              <label className="text-xs text-muted-foreground font-mono">Minutes taken:</label>
               <input
                 type="number"
                 min="1"
                 placeholder="auto-timed"
                 value={problemMinutes}
                 onChange={(e) => setProblemMinutes(e.target.value)}
-                className="w-28 rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs font-mono text-zinc-200 focus:border-emerald-500 focus:outline-none"
+                className="w-28 border border-border bg-background px-2.5 py-1 text-xs font-mono text-foreground focus:border-foreground focus:outline-none"
                 disabled={isSubmitting}
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-              <button
+              <Button
+                variant="easy"
                 onClick={() => handleRecordProblem("SOLVED_UNAIDED")}
                 disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 rounded border border-emerald-800 bg-emerald-950/40 hover:bg-emerald-900 px-4 py-2.5 text-xs font-mono font-medium text-emerald-300 transition-colors disabled:opacity-50"
+                className="text-xs justify-center"
               >
-                <Check className="h-3.5 w-3.5" /> Solved Cold
-              </button>
-              <button
+                <Check className="h-3.5 w-3.5 mr-1.5" /> Solved cold
+              </Button>
+              <Button
+                variant="medium"
                 onClick={() => handleRecordProblem("SOLVED_WITH_HELP")}
                 disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 rounded border border-sky-800 bg-sky-950/40 hover:bg-sky-900 px-4 py-2.5 text-xs font-mono font-medium text-sky-300 transition-colors disabled:opacity-50"
+                className="text-xs justify-center"
               >
-                <HelpCircle className="h-3.5 w-3.5" /> Used Hint
-              </button>
-              <button
+                <HelpCircle className="h-3.5 w-3.5 mr-1.5" /> Used hint
+              </Button>
+              <Button
+                variant="failed"
                 onClick={() => handleRecordProblem("ATTEMPTED_FAILED")}
                 disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 rounded border border-rose-800 bg-rose-950/40 hover:bg-rose-900 px-4 py-2.5 text-xs font-mono font-medium text-rose-300 transition-colors disabled:opacity-50"
+                className="text-xs justify-center"
               >
-                <AlertCircle className="h-3.5 w-3.5" /> Failed / Saw Solution
-              </button>
+                <AlertCircle className="h-3.5 w-3.5 mr-1.5" /> Failed / saw solution
+              </Button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </SheetSection>
   );
 }

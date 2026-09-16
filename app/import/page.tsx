@@ -9,10 +9,8 @@ import {
   ArrowRight,
   RefreshCw,
   Check,
-  Sparkles,
   GitMerge,
   ExternalLink,
-  Info,
   Maximize2,
   X,
   Wand2,
@@ -21,11 +19,13 @@ import {
   dryRunImportCSV,
   commitImportBatch,
   DryRunRow,
-  DryRunSummary,
   DuplicateGroup,
   mergeTwoRows,
 } from "@/app/actions/import-actions";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 
 export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -90,7 +90,6 @@ export default function ImportPage() {
 
     setRows(updatedRows);
 
-    // Remove fixed row from the group, or remove group entirely if only 1 row remains
     setDuplicateGroups((prev) =>
       prev
         .map((g) => {
@@ -171,38 +170,38 @@ export default function ImportPage() {
   const unresolvedDuplicateCount = duplicateGroups.length;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in">
+    <div className="max-w-5xl mx-auto space-y-8 pb-12">
       {/* Header */}
-      <div className="border-b border-zinc-800 pb-3">
-        <div className="flex items-center gap-2 font-mono">
-          <Upload className="h-4 w-4 text-emerald-400" />
-          <h1 className="text-lg font-bold text-zinc-100 uppercase tracking-tight">
-            SOLVED_SHEET_IMPORT_WORKFLOW
-          </h1>
-        </div>
-        <p className="text-xs text-zinc-400 mt-1 font-sans">
-          Migrate your personal 9-column solved-problems spreadsheet. Preserves all notes, ideas, mistakes, topics, and custom patterns. Interactive pre-commit duplicate resolution ensures no notes are lost.
+      <div className="border-b border-border pb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          Import workflow
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Migrate your personal 9-column solved-problems spreadsheet. Preserves all notes, ideas, mistakes, topics, and custom patterns with pre-commit duplicate resolution.
         </p>
       </div>
 
       {committedCount != null ? (
         /* Success State */
-        <div className="rounded-lg border border-emerald-800 bg-emerald-950/20 p-8 text-center space-y-4">
-          <CheckCircle className="h-10 w-10 text-emerald-400 mx-auto" />
-          <div className="space-y-1 font-mono">
-            <h2 className="text-base font-bold text-emerald-300">Import Committed Successfully!</h2>
-            <p className="text-xs text-zinc-400">
-              Successfully ingested <span className="text-emerald-400 font-bold">{committedCount}</span> entries with preserved custom patterns and 21-day FSRS schedule spread.
+        <div className="border border-border bg-background p-8 text-center space-y-4">
+          <CheckCircle className="h-10 w-10 text-foreground mx-auto" />
+          <div className="space-y-1">
+            <h2 className="text-base font-bold text-foreground">Import committed successfully</h2>
+            <p className="text-xs text-muted-foreground">
+              Ingested <span className="text-foreground font-semibold tabular-nums">{committedCount}</span> entries with preserved custom patterns and 21-day FSRS schedule spread.
             </p>
           </div>
-          <div className="pt-2 flex justify-center gap-3 font-mono text-xs">
-            <a
-              href="/problems"
-              className="rounded border border-emerald-700 bg-emerald-900/60 px-4 py-2 text-emerald-200 hover:bg-emerald-800 transition-colors"
+          <div className="pt-2 flex justify-center gap-3 text-xs">
+            <Button
+              variant="primary"
+              onClick={() => {
+                window.location.href = "/problems";
+              }}
             >
-              Go to Problem Grid
-            </a>
-            <button
+              Go to problem grid
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => {
                 setCommittedCount(null);
                 setRows([]);
@@ -210,75 +209,75 @@ export default function ImportPage() {
                 setFile(null);
                 setCsvText("");
               }}
-              className="rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-zinc-300 hover:bg-zinc-800"
             >
-              Import Another File
-            </button>
+              Import another file
+            </Button>
           </div>
         </div>
       ) : (
         /* Workflow Steps */
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Step 1: File Upload */}
-          <div className="border border-zinc-800 bg-zinc-950 rounded-lg p-5 space-y-4 font-mono">
-            <div className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px]">
+          <div className="border border-border bg-background p-5 sm:p-6 space-y-4">
+            <div className="text-xs font-semibold text-foreground  tracking-wider flex items-center gap-2">
+              <span className="flex h-5 w-5 items-center justify-center border border-border bg-muted text-[10px] font-mono text-muted-foreground">
                 1
               </span>
-              Select Solved-Problems CSV File
+              Select solved-problems CSV file
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-4">
-              <label className="w-full sm:w-auto flex items-center justify-center gap-2 rounded border border-dashed border-zinc-700 bg-zinc-900/60 hover:bg-zinc-800 px-5 py-3 cursor-pointer text-xs text-zinc-300 transition-colors">
-                <FileText className="h-4 w-4 text-emerald-400" />
+              <label className="w-full sm:w-auto flex items-center justify-center gap-2 border border-dashed border-border bg-background hover:bg-muted/40 px-5 py-3 cursor-pointer text-xs text-foreground transition-colors">
+                <FileText className="h-4 w-4 text-muted-foreground" />
                 <span>{file ? file.name : "Choose .csv file..."}</span>
                 <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
               </label>
 
               {file && rows.length === 0 && (
-                <button
+                <Button
+                  variant="primary"
                   onClick={handleDryRun}
                   disabled={isProcessing}
-                  className="flex items-center gap-2 rounded border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 px-5 py-3 text-xs font-semibold text-zinc-950 transition-colors disabled:opacity-50"
+                  className="w-full sm:w-auto text-xs"
                 >
                   {isProcessing ? (
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin mr-2" />
                   ) : (
-                    <ArrowRight className="h-3.5 w-3.5" />
+                    <ArrowRight className="h-3.5 w-3.5 mr-2" />
                   )}
-                  Run Dry-Run Verification
-                </button>
+                  Run dry-run verification
+                </Button>
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-[11px] font-mono text-zinc-400 pt-2 border-t border-zinc-900">
-              <span className="text-zinc-500">1. Problem Name</span>
-              <span className="text-zinc-500">2. Problem Link</span>
-              <span className="text-zinc-500">3. Topic</span>
-              <span className="text-zinc-500">4. Pattern</span>
-              <span className="text-zinc-500">5. Idea</span>
-              <span className="text-zinc-500">6. What I did wrong</span>
-              <span className="text-zinc-500">7. Status</span>
-              <span className="text-zinc-500">8. Revisit?</span>
-              <span className="text-zinc-500">9. Source</span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-[11px] text-muted-foreground pt-3 border-t border-border">
+              <span>1. Problem Name</span>
+              <span>2. Problem Link</span>
+              <span>3. Topic</span>
+              <span>4. Pattern</span>
+              <span>5. Idea</span>
+              <span>6. What I did wrong</span>
+              <span>7. Status</span>
+              <span>8. Revisit?</span>
+              <span>9. Source</span>
             </div>
           </div>
 
           {error && (
-            <div className="rounded border border-rose-900 bg-rose-950/40 p-4 text-xs font-mono text-rose-300">
+            <div className="border border-destructive/50 bg-destructive/10 p-4 text-xs font-mono text-destructive">
               {error}
             </div>
           )}
 
           {/* Step 2: Interactive Duplicate Resolution Panel (If any duplicates exist) */}
           {duplicateGroups.length > 0 && (
-            <div className="rounded-lg border border-purple-800/80 bg-purple-950/20 p-5 space-y-4 font-mono">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-purple-300 font-bold text-xs">
-                  <AlertTriangle className="h-4 w-4 text-purple-400" />
-                  <span>PRE-COMMIT RESOLUTION: {duplicateGroups.length} CSV DUPLICATE GROUP(S) DETECTED</span>
+            <div className="border border-border bg-background p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
+                <div className="flex items-center gap-2 text-warning font-medium text-xs">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Pre-commit resolution: {duplicateGroups.length} CSV duplicate group(s) detected</span>
                 </div>
-                <span className="text-[11px] text-zinc-400">
+                <span className="text-[11px] text-muted-foreground">
                   Resolve or merge these rows below so no personal notes are lost.
                 </span>
               </div>
@@ -287,107 +286,109 @@ export default function ImportPage() {
                 {duplicateGroups.map((group, gIdx) => (
                   <div
                     key={group.groupId}
-                    className="rounded border border-zinc-800 bg-zinc-900/90 p-4 space-y-3"
+                    className="border border-border bg-background p-4 space-y-3"
                   >
-                    <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                      <span className="text-xs font-semibold text-zinc-200">
-                        Conflict Group #{gIdx + 1}: Target {group.matchedProblemTitle || group.matchedKey}
+                    <div className="flex items-center justify-between border-b border-border pb-2">
+                      <span className="text-xs font-semibold text-foreground">
+                        Conflict group #{gIdx + 1}: Target {group.matchedProblemTitle || group.matchedKey}
                       </span>
                       <div className="flex items-center gap-2">
                         {group.suggestedFixes.length === 0 && (
-                          <button
+                          <Button
+                            variant="secondary"
                             onClick={() => handleMergeGroupRows(group.groupId)}
-                            className="flex items-center gap-1.5 rounded bg-emerald-600 hover:bg-emerald-500 px-3 py-1 text-xs font-bold text-zinc-950 transition-colors"
+                            className="text-xs h-7 px-3"
                           >
-                            <GitMerge className="h-3 w-3" />
-                            Merge Both Rows (Combine Notes)
-                          </button>
+                            <GitMerge className="h-3 w-3 mr-1.5" />
+                            Merge both rows (combine notes)
+                          </Button>
                         )}
                       </div>
                     </div>
 
                     {/* Side-by-side comparison */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {group.rows.map((r, rIdx) => {
+                      {group.rows.map((r) => {
                         const fix = group.suggestedFixes.find((f) => f.rowIndex === r.rowIndex);
 
                         return (
                           <div
                             key={r.rowIndex}
                             className={cn(
-                              "rounded border p-3 space-y-2 text-xs",
+                              "border p-3 space-y-2 text-xs",
                               fix
-                                ? "border-amber-700/60 bg-amber-950/20"
-                                : "border-zinc-800 bg-zinc-950/60"
+                                ? "border-warning/50 bg-warning/5"
+                                : "border-border bg-muted/20"
                             )}
                           >
                             <div className="flex items-center justify-between">
-                              <span className="font-bold text-zinc-300">
+                              <span className="font-semibold text-foreground">
                                 Row #{r.rowIndex}: {r.rawName}
                               </span>
                               <button
                                 onClick={() => handleKeepRow(group.groupId, r.rowIndex)}
-                                className="text-[10px] text-zinc-400 hover:text-zinc-200 underline"
+                                className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2"
                               >
                                 Keep this row only
                               </button>
                             </div>
 
-                            <div className="text-[11px] text-zinc-400 truncate" title={r.rawLink}>
-                              <span className="text-zinc-500">URL: </span>
+                            <div className="text-[11px] text-muted-foreground truncate" title={r.rawLink}>
+                              <span className="text-muted-foreground/70">URL: </span>
                               {r.rawLink}
                             </div>
 
                             <div className="flex flex-wrap gap-2 text-[10px]">
                               {r.rawTopic && (
-                                <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
+                                <Badge variant="secondary">
                                   Topic: {r.rawTopic}
-                                </span>
+                                </Badge>
                               )}
                               {r.rawPattern && (
-                                <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-emerald-400">
+                                <Badge variant="outline">
                                   Pattern: {r.rawPattern}
-                                </span>
+                                </Badge>
                               )}
-                              <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-sky-400">
+                              <Badge variant="outline">
                                 Status: {r.parsedStatus}
-                              </span>
+                              </Badge>
                               {r.parsedRevisit && (
-                                <span className="rounded bg-rose-950 border border-rose-800 px-1.5 py-0.5 text-rose-300">
+                                <Badge variant="failed">
                                   Revisit
-                                </span>
+                                </Badge>
                               )}
                             </div>
 
                             {/* Idea Preview */}
-                            <div className="rounded bg-zinc-900 border border-zinc-800/80 p-2 text-[11px] text-zinc-300 max-h-20 overflow-y-auto">
-                              <span className="text-[10px] text-zinc-500 uppercase font-semibold block">
-                                Idea / Intuition:
+                            <div className="bg-background border border-border p-2 text-[11px] text-foreground max-h-20 overflow-y-auto">
+                              <span className="text-[10px] text-muted-foreground  font-semibold block">
+                                Idea / intuition:
                               </span>
-                              {r.rawIdea || <span className="text-zinc-600 italic">None</span>}
+                              {r.rawIdea || <span className="text-muted-foreground italic">None</span>}
                             </div>
 
                             {/* Mistake Preview */}
-                            <div className="rounded bg-zinc-900 border border-zinc-800/80 p-2 text-[11px] text-zinc-300 max-h-20 overflow-y-auto">
-                              <span className="text-[10px] text-zinc-500 uppercase font-semibold block">
+                            <div className="bg-background border border-border p-2 text-[11px] text-foreground max-h-20 overflow-y-auto">
+                              <span className="text-[10px] text-muted-foreground  font-semibold block">
                                 What I did wrong:
                               </span>
-                              {r.rawMistake || <span className="text-zinc-600 italic">None</span>}
+                              {r.rawMistake || <span className="text-muted-foreground italic">None</span>}
                             </div>
 
                             {/* 1-Click Fix Button for Mismatched Links */}
                             {fix && (
-                              <div className="pt-2 border-t border-amber-900/40">
-                                <div className="text-[11px] text-amber-300 mb-2">
+                              <div className="pt-2 border-t border-border">
+                                <div className="text-[11px] text-warning mb-2">
                                   ⚠️ {fix.reason}
                                 </div>
-                                <button
+                                <Button
+                                  variant="secondary"
                                   onClick={() => handleApplySuggestedFix(group.groupId, r.rowIndex, fix)}
-                                  className="w-full flex items-center justify-center gap-1.5 rounded border border-amber-600 bg-amber-600/20 hover:bg-amber-600 hover:text-zinc-950 px-3 py-1.5 text-xs font-bold text-amber-200 transition-colors"
+                                  className="w-full text-xs justify-center"
                                 >
-                                  <Wand2 className="h-3.5 w-3.5" />
-                                  Auto-Fix: Remap to #{fix.suggestedNumber} {fix.suggestedTitle}
-                                </button>
+                                  <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+                                  Auto-fix: Remap to #{fix.suggestedNumber} {fix.suggestedTitle}
+                                </Button>
                               </div>
                             )}
                           </div>
@@ -402,126 +403,107 @@ export default function ImportPage() {
 
           {/* Step 3: Dry-Run Summary & Preview Table */}
           {rows.length > 0 && (
-            <div className="space-y-4 animate-in fade-in">
-              {/* Summary Stats Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 font-mono text-xs">
-                <div className="rounded border border-zinc-800 bg-zinc-900/60 p-3">
-                  <div className="text-zinc-500 text-[10px]">TOTAL ROWS</div>
-                  <div className="text-base font-bold text-zinc-100 mt-0.5">{rows.length}</div>
-                </div>
-                <div className="rounded border border-emerald-900/50 bg-emerald-950/20 p-3">
-                  <div className="text-emerald-500 text-[10px]">MATCHED TO CATALOG</div>
-                  <div className="text-base font-bold text-emerald-400 mt-0.5">{matchedCatalogCount}</div>
-                </div>
-                <div className="rounded border border-sky-900/50 bg-sky-950/20 p-3">
-                  <div className="text-sky-500 text-[10px]">NEW PROBLEMS TO CREATE</div>
-                  <div className="text-base font-bold text-sky-400 mt-0.5">{newProblemsCount}</div>
-                </div>
-                <div className="rounded border border-amber-900/50 bg-amber-950/20 p-3">
-                  <div className="text-amber-500 text-[10px]">EXISTING DB CONFLICTS</div>
-                  <div className="text-base font-bold text-amber-400 mt-0.5">{existingEntryConflictCount}</div>
-                </div>
-                <div
-                  className={cn(
-                    "rounded border p-3",
-                    unresolvedDuplicateCount > 0
-                      ? "border-purple-800 bg-purple-950/30"
-                      : "border-zinc-800 bg-zinc-900/60"
-                  )}
-                >
-                  <div className="text-purple-400 text-[10px]">UNRESOLVED CSV DUPES</div>
-                  <div className="text-base font-bold text-purple-300 mt-0.5">
-                    {unresolvedDuplicateCount}
-                  </div>
-                </div>
-              </div>
+            <div className="space-y-6">
+              {/* Summary Stats Cards using SpecGrid */}
+              <SpecGrid columns={5}>
+                <SpecCell label="TOTAL ROWS" value={rows.length} />
+                <SpecCell label="MATCHED TO CATALOG" value={matchedCatalogCount} />
+                <SpecCell label="NEW PROBLEMS" value={newProblemsCount} />
+                <SpecCell label="DB CONFLICTS" value={existingEntryConflictCount} />
+                <SpecCell
+                  label="UNRESOLVED DUPES"
+                  value={unresolvedDuplicateCount}
+                  className={unresolvedDuplicateCount > 0 ? "text-warning" : ""}
+                />
+              </SpecGrid>
 
               {/* Database Conflict Strategy & Commit Section */}
-              <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 space-y-3 font-mono text-xs">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-800/80 pb-3">
+              <div className="border border-border bg-background p-4 sm:p-5 space-y-4 text-xs">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-3">
                   <div>
-                    <span className="text-zinc-300 font-semibold block">
-                      Prior Database Conflict Strategy:
+                    <span className="text-foreground font-semibold block">
+                      Prior database conflict strategy
                     </span>
-                    <span className="text-[11px] text-zinc-500">
+                    <span className="text-[11px] text-muted-foreground">
                       Controls entries already logged in your database from previous imports (does not affect CSV duplicates).
                     </span>
                   </div>
 
                   <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-1.5 cursor-pointer text-zinc-300">
+                    <label className="flex items-center gap-2 cursor-pointer text-foreground">
                       <input
                         type="radio"
                         name="conflictStrategy"
                         value="SKIP"
                         checked={conflictStrategy === "SKIP"}
                         onChange={() => setConflictStrategy("SKIP")}
-                        className="accent-emerald-500"
+                        className="accent-foreground"
                       />
-                      <span>Skip Existing DB Entries</span>
+                      <span>Skip existing DB entries</span>
                     </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-zinc-300">
+                    <label className="flex items-center gap-2 cursor-pointer text-foreground">
                       <input
                         type="radio"
                         name="conflictStrategy"
                         value="OVERWRITE"
                         checked={conflictStrategy === "OVERWRITE"}
                         onChange={() => setConflictStrategy("OVERWRITE")}
-                        className="accent-amber-500"
+                        className="accent-foreground"
                       />
-                      <span className="text-amber-300">Update / Overwrite Existing</span>
+                      <span>Update / overwrite existing</span>
                     </label>
                   </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-                  <div className="text-xs text-zinc-400">
+                  <div className="text-xs text-muted-foreground">
                     {unresolvedDuplicateCount > 0 ? (
-                      <span className="text-purple-400 flex items-center gap-1">
+                      <span className="text-warning flex items-center gap-1.5">
                         <AlertTriangle className="h-3.5 w-3.5" />
                         Please resolve the {unresolvedDuplicateCount} duplicate conflict(s) above before committing.
                       </span>
                     ) : (
-                      <span className="text-emerald-400 flex items-center gap-1">
-                        <Check className="h-3.5 w-3.5" />
+                      <span className="text-foreground flex items-center gap-1.5">
+                        <Check className="h-3.5 w-3.5 text-easy" />
                         All rows verified and ready to commit. 100% data preservation guaranteed.
                       </span>
                     )}
                   </div>
 
-                  <button
+                  <Button
+                    variant="primary"
                     onClick={handleCommit}
                     disabled={isProcessing || unresolvedDuplicateCount > 0}
-                    className="flex items-center gap-2 rounded border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 text-xs font-bold text-zinc-950 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto text-xs"
                   >
                     {isProcessing ? (
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin mr-2" />
                     ) : (
-                      <Check className="h-3.5 w-3.5" />
+                      <Check className="h-3.5 w-3.5 mr-2" />
                     )}
-                    Commit {rows.length} Problems to Database
-                  </button>
+                    Commit {rows.length} problems to database
+                  </Button>
                 </div>
               </div>
 
               {/* Table */}
-              <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950 font-mono text-xs">
+              <div className="border border-border bg-background text-xs overflow-hidden">
                 <div className="max-h-[550px] overflow-y-auto">
                   <table className="w-full text-left">
-                    <thead className="sticky top-0 bg-zinc-900 border-b border-zinc-800 text-[10px] text-zinc-400 uppercase tracking-wider">
+                    <thead className="sticky top-0 bg-muted/40 border-b border-border text-[10px] font-mono text-muted-foreground  tracking-wider">
                       <tr>
                         <th className="py-2.5 px-3">#</th>
-                        <th className="py-2.5 px-3">Raw Name</th>
+                        <th className="py-2.5 px-3">Raw name</th>
                         <th className="py-2.5 px-3">Topic</th>
                         <th className="py-2.5 px-3">Pattern</th>
                         <th className="py-2.5 px-3">Idea</th>
-                        <th className="py-2.5 px-3">What I Did Wrong</th>
-                        <th className="py-2.5 px-3">Catalog Target</th>
+                        <th className="py-2.5 px-3">What I did wrong</th>
+                        <th className="py-2.5 px-3">Catalog target</th>
                         <th className="py-2.5 px-3">Status</th>
                         <th className="py-2.5 px-3">Inspect</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-800/60">
+                    <tbody className="divide-y divide-border">
                       {rows.map((row) => (
                         <tr
                           key={row.rowIndex}
@@ -529,41 +511,41 @@ export default function ImportPage() {
                           className={cn(
                             "cursor-pointer transition-colors",
                             row.isDuplicateInCSV
-                              ? "bg-purple-950/20 hover:bg-purple-950/30"
+                              ? "bg-warning/10 hover:bg-warning/15"
                               : row.alreadyExistsInDB
-                              ? "bg-amber-950/10 hover:bg-amber-950/20"
-                              : "hover:bg-zinc-900/40"
+                              ? "bg-muted/40 hover:bg-muted/60"
+                              : "hover:bg-muted/30"
                           )}
                         >
-                          <td className="py-2 px-3 text-zinc-500">{row.rowIndex}</td>
-                          <td className="py-2 px-3 font-sans text-zinc-300 max-w-[180px] truncate" title={row.rawName}>
+                          <td className="py-2 px-3 text-muted-foreground font-mono">{row.rowIndex}</td>
+                          <td className="py-2 px-3 text-foreground font-medium max-w-[180px] truncate" title={row.rawName}>
                             {row.rawName}
                           </td>
-                          <td className="py-2 px-3 text-zinc-400 max-w-[100px] truncate" title={row.rawTopic}>
+                          <td className="py-2 px-3 text-muted-foreground max-w-[100px] truncate" title={row.rawTopic}>
                             {row.rawTopic || "-"}
                           </td>
                           <td className="py-2 px-3">
                             {row.rawPattern ? (
-                              <span className="rounded bg-zinc-900 border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-200">
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
                                 {row.rawPattern}
-                              </span>
+                              </Badge>
                             ) : (
-                              <span className="text-zinc-600">-</span>
+                              <span className="text-muted-foreground/60">-</span>
                             )}
                           </td>
-                          <td className="py-2 px-3 text-zinc-400 max-w-[150px] truncate" title={row.rawIdea}>
-                            {row.rawIdea || <span className="text-zinc-600">-</span>}
+                          <td className="py-2 px-3 text-muted-foreground max-w-[150px] truncate" title={row.rawIdea}>
+                            {row.rawIdea || <span className="text-muted-foreground/60">-</span>}
                           </td>
-                          <td className="py-2 px-3 text-zinc-400 max-w-[150px] truncate" title={row.rawMistake}>
-                            {row.rawMistake || <span className="text-zinc-600">-</span>}
+                          <td className="py-2 px-3 text-muted-foreground max-w-[150px] truncate" title={row.rawMistake}>
+                            {row.rawMistake || <span className="text-muted-foreground/60">-</span>}
                           </td>
                           <td className="py-2 px-3">
-                            <span className="font-medium text-zinc-100 max-w-[200px] truncate block" title={row.matchedTitle}>
+                            <span className="font-medium text-foreground max-w-[200px] truncate block" title={row.matchedTitle}>
                               {row.matchedNumber != null ? `#${row.matchedNumber} ` : ""}
                               {row.matchedTitle}
                             </span>
                           </td>
-                          <td className="py-2 px-3 text-zinc-400">
+                          <td className="py-2 px-3 text-muted-foreground font-mono text-[11px]">
                             {row.parsedStatus}
                           </td>
                           <td className="py-2 px-3">
@@ -572,7 +554,7 @@ export default function ImportPage() {
                                 e.stopPropagation();
                                 setSelectedRowForDetail(row);
                               }}
-                              className="rounded border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 p-1 text-zinc-400 hover:text-zinc-200"
+                              className="border border-border bg-background hover:bg-muted p-1 text-muted-foreground hover:text-foreground transition-colors"
                               title="Inspect full details"
                             >
                               <Maximize2 className="h-3 w-3" />
@@ -589,29 +571,33 @@ export default function ImportPage() {
 
           {/* Full Note & Detail Inspection Modal */}
           {selectedRowForDetail && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 font-mono animate-in fade-in">
-              <div className="w-full max-w-2xl rounded-lg border border-zinc-800 bg-zinc-950 p-6 space-y-4 shadow-2xl">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="w-full max-w-2xl border border-border bg-background p-6 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between border-b border-border pb-3">
                   <div>
-                    <span className="text-xs text-zinc-500">ROW #{selectedRowForDetail.rowIndex}</span>
-                    <h2 className="text-base font-bold text-zinc-100">{selectedRowForDetail.rawName}</h2>
+                    <span className="text-[11px] font-mono  tracking-wider text-muted-foreground">
+                      Row #{selectedRowForDetail.rowIndex}
+                    </span>
+                    <h2 className="text-base font-bold text-foreground">{selectedRowForDetail.rawName}</h2>
                   </div>
                   <button
                     onClick={() => setSelectedRowForDetail(null)}
-                    className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                    className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
 
-                <div className="space-y-3 text-xs">
+                <div className="space-y-4 text-xs">
                   <div>
-                    <span className="text-zinc-500 text-[10px] uppercase font-semibold block">Problem Link</span>
+                    <span className="text-muted-foreground text-[10px] font-mono  tracking-wider block mb-1">
+                      Problem link
+                    </span>
                     <a
                       href={selectedRowForDetail.rawLink}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-emerald-400 hover:underline flex items-center gap-1 mt-0.5"
+                      className="text-foreground underline underline-offset-2 hover:text-muted-foreground flex items-center gap-1.5"
                     >
                       {selectedRowForDetail.rawLink}
                       <ExternalLink className="h-3 w-3" />
@@ -619,50 +605,51 @@ export default function ImportPage() {
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                    <div className="rounded bg-zinc-900 border border-zinc-800 p-2">
-                      <span className="text-zinc-500 text-[10px] block">TOPIC</span>
-                      <span className="text-zinc-200 font-semibold">{selectedRowForDetail.rawTopic || "-"}</span>
+                    <div className="border border-border bg-muted/20 p-2.5">
+                      <span className="text-muted-foreground text-[10px] font-mono  block">Topic</span>
+                      <span className="text-foreground font-medium">{selectedRowForDetail.rawTopic || "-"}</span>
                     </div>
-                    <div className="rounded bg-zinc-900 border border-zinc-800 p-2">
-                      <span className="text-zinc-500 text-[10px] block">PATTERN</span>
-                      <span className="text-emerald-400 font-semibold">{selectedRowForDetail.rawPattern || "-"}</span>
+                    <div className="border border-border bg-muted/20 p-2.5">
+                      <span className="text-muted-foreground text-[10px] font-mono  block">Pattern</span>
+                      <span className="text-foreground font-medium">{selectedRowForDetail.rawPattern || "-"}</span>
                     </div>
-                    <div className="rounded bg-zinc-900 border border-zinc-800 p-2">
-                      <span className="text-zinc-500 text-[10px] block">STATUS</span>
-                      <span className="text-zinc-200 font-semibold">{selectedRowForDetail.parsedStatus}</span>
+                    <div className="border border-border bg-muted/20 p-2.5">
+                      <span className="text-muted-foreground text-[10px] font-mono  block">Status</span>
+                      <span className="text-foreground font-medium">{selectedRowForDetail.parsedStatus}</span>
                     </div>
-                    <div className="rounded bg-zinc-900 border border-zinc-800 p-2">
-                      <span className="text-zinc-500 text-[10px] block">REVISIT?</span>
-                      <span className="text-rose-400 font-semibold">{selectedRowForDetail.parsedRevisit ? "Yes" : "No"}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-emerald-400 text-[10px] uppercase font-semibold block mb-1">
-                      Core Idea / Intuition Notes:
-                    </span>
-                    <div className="rounded bg-zinc-900 border border-zinc-800 p-3 text-zinc-200 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
-                      {selectedRowForDetail.rawIdea || <span className="text-zinc-600 italic">No idea notes logged.</span>}
+                    <div className="border border-border bg-muted/20 p-2.5">
+                      <span className="text-muted-foreground text-[10px] font-mono  block">Revisit?</span>
+                      <span className="text-foreground font-medium">{selectedRowForDetail.parsedRevisit ? "Yes" : "No"}</span>
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-rose-400 text-[10px] uppercase font-semibold block mb-1">
-                      What I Did Wrong / Trap Notes:
+                    <span className="text-muted-foreground text-[10px] font-mono  tracking-wider block mb-1">
+                      Core idea / intuition notes:
                     </span>
-                    <div className="rounded bg-zinc-900 border border-zinc-800 p-3 text-zinc-200 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
-                      {selectedRowForDetail.rawMistake || <span className="text-zinc-600 italic">No mistake notes logged.</span>}
+                    <div className="border border-border bg-muted/20 p-3 text-foreground whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
+                      {selectedRowForDetail.rawIdea || <span className="text-muted-foreground italic">No idea notes logged.</span>}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-muted-foreground text-[10px] font-mono  tracking-wider block mb-1">
+                      What I did wrong / trap notes:
+                    </span>
+                    <div className="border border-border bg-muted/20 p-3 text-foreground whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
+                      {selectedRowForDetail.rawMistake || <span className="text-muted-foreground italic">No mistake notes logged.</span>}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2">
-                  <button
+                <div className="flex justify-end pt-3 border-t border-border">
+                  <Button
+                    variant="secondary"
                     onClick={() => setSelectedRowForDetail(null)}
-                    className="rounded border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 px-4 py-1.5 text-xs text-zinc-300"
+                    className="text-xs"
                   >
                     Close
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

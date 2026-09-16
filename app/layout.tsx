@@ -16,8 +16,8 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HASH_IT - DSA Retention Engine",
-  description: "Personal DSA review system built around FSRS memory science, patterns, and developer-focused analytics.",
+  title: "Hash-It — Practice log & recall schedule for LeetCode",
+  description: "A practice log for LeetCode that decides when you should solve each problem again.",
 };
 
 export default async function RootLayout({
@@ -30,13 +30,14 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning className={`${manrope.variable} ${ibmPlexMono.variable}`}>
-      <body className="min-h-screen bg-background text-foreground antialiased font-sans flex flex-col selection:bg-[#D6C2A8] selection:text-[#1D1A17] dark:selection:bg-[#5A3E2A] dark:selection:text-[#F7F1E8]">
+      <body className="min-h-screen bg-background text-foreground antialiased font-sans flex flex-col selection:bg-muted selection:text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <div className="flex min-h-screen flex-col">
-            <Navbar user={user} />
-            <div className="mx-auto flex w-full max-w-[1600px] flex-1">
+          <div className="relative min-h-screen flex flex-col w-full bg-background overflow-x-clip">
+            {/* One continuous sheet column: header, nav, and content share its rules. */}
+            <div className="mx-auto w-full max-w-[1040px] border-x border-border flex-1 flex flex-col bg-background relative z-20">
+              <Navbar user={user} />
               <SidebarNav />
-              <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+              <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8">{children}</main>
             </div>
           </div>
           <CommandBar />

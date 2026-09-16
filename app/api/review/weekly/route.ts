@@ -14,11 +14,16 @@ export async function GET() {
     const settings = await prisma.userSettings.findUnique({
       where: { userId: user.id },
     });
-    const targetRetention = settings?.desiredRetention ?? 0.85;
+    const targetRetention = settings?.desiredRetention ?? 0.80;
 
     const patterns = await prisma.pattern.findMany({
       orderBy: { sortOrder: "asc" },
       include: {
+        drills: {
+          where: { userId: user.id },
+          orderBy: { at: "desc" },
+          take: 1,
+        },
         problems: {
           include: {
             problem: {
@@ -68,6 +73,10 @@ export async function GET() {
       const daysSinceReview = latestReview
         ? Math.floor((now.getTime() - latestReview) / (1000 * 60 * 60 * 24))
         : null;
+      const lastDrilledAt = p.drills[0]?.at ?? null;
+      const daysSinceDrill = lastDrilledAt
+        ? Math.floor((now.getTime() - lastDrilledAt.getTime()) / (1000 * 60 * 60 * 24))
+        : null;
 
       return {
         id: p.id,
@@ -79,8 +88,9 @@ export async function GET() {
         hasCards: cards.length > 0,
         cardCount: cards.length,
         daysSinceReview,
-        isBelowTarget: avgRetrievability != null && avgRetrievability < targetRetention,
-        isUntouched14Days: daysSinceReview == null ? cards.length > 0 : daysSinceReview >= 14,
+        isBelowTarget: avgRetrievability != null && avgRetrievability < targetRetention && p.drills[0]?.correct !== true,
+        isUntouched14Days: daysSinceDrill == null || daysSinceDrill >= 14,
+        lastDrilledAt,
         sampleProblems: cards.slice(0, 4).map((c) => c.problem),
       };
     });

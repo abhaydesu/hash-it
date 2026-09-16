@@ -1,113 +1,98 @@
-# Hash-It design system
+# Hash-It Design System
 
-## 1) Palette
+## 1. Identity & Concept
 
-Chrome is a neutral warm-paper system, with colour reserved for data meaning instead of decoration.
+**Concept:** A technical drafting sheet or spec-sheet. Hash-It is an instrument for measuring recall, and the interface honestly expresses that with a stark, structured, and precise layout.
+**Reference:** Inspired by `chanhdai.com`.
 
-Neutral ramp:
-- Paper: #F8F5F1
-- Panel: #F3EEE7
-- Line: #D7CEC0
-- Muted: #9E9488
-- Ink: #1D1A17
-- Black: #0E0D0B
+### Core Rules:
+1. **The Grid:** A fixed center column with vertical rules running the full height of the page, on both sides, unbroken from header to footer.
+2. **Hairline Separators:** Horizontal rules extend edge to edge past the content column. Sections are separated by full-bleed lines, not by gaps or boxed cards.
+3. **Margins:** Empty or lightly hatched (diagonal stripe fills) to mark dead space as deliberate.
+4. **Metadata as Spec-Sheet Cells:** Grids of small labelled cells divided by hairlines (no rounded borders).
+5. **Figure Captions:** Use "Fig. 1", "Fig. 2" beneath diagrams and data visuals (technical-drawing vernacular).
 
-Data colours:
-- Easy: #7C9E74
-- Medium: #C38B4C
-- Hard: #B85C4A
-- Cold / failed: #B85C4A
-- Hint / review: #8E7A63
-- Overdue: #C07F3C
-- Retrieval ramp: #E3D8C7 → #CBB69B → #A77B57 → #6F4A35
+## 2. Palette
 
-These values are intentionally warm and low-contrast for the chrome layer so the graph, difficulty, and failure states read as the real signal.
+Chrome is mostly neutral, with orange reserved for interaction and decisions. Semantic colors remain reserved for data meaning.
 
-## 2) Type
+Neutral ramp (Light / Dark to be mapped to Tailwind tokens, e.g. `zinc-900`/`zinc-100`):
+- Line (Hairlines, Borders)
+- Muted (Labels, Captions)
+- Ink (Primary Text, Headings)
 
-Typeface choice:
-- Sans: Manrope
-- Mono: IBM Plex Mono
+Interaction accent:
+- Light orange: `#F97316`; dark orange: `#FB923C`.
+- The complete `orange-50` through `orange-900` scale is defined in `tailwind.config.ts`.
+- Use orange for primary actions, active navigation, selected controls, links, focus rings, and checked states. Keep it on small decisive elements, not broad fills.
 
-Reason: Manrope gives the product a more deliberate editorial feel than generic UI sans while staying readable in a dense tool. The mono face is reserved for data-like, code-like invariants rather than labels.
+Semantic data colors:
+- Difficulty: easy green, medium amber, hard red. Badges are quiet border/text treatments without fills.
+- Overdue and failure: warning red.
+- Recall estimate: teal retrieval ramp.
+- Orange never encodes data meaning. Warnings and failures remain red; medium difficulty retains muted amber for recognizability.
 
-Type scale:
-- Display: 48 / 52 / 700 / -0.06em
-- H1: 36 / 40 / 700 / -0.05em
-- H2: 28 / 32 / 600 / -0.04em
-- H3: 20 / 28 / 600 / -0.02em
-- Body: 16 / 28 / 400 / 0
-- Small body: 14 / 22 / 400 / 0
-- Meta: 11 / 16 / 500 / 0.08em
+*Green is stripped from all chrome. It only survives as an outcome indicator.*
 
-Numbers and aligned columns use tabular figures via font-variant-numeric: tabular-nums.
+## 3. Typography
 
-## 3) Layout concept
+- **Headings:** Large, generous whitespace. **Sentence-case only.** (Never ALL_CAPS `SNAKE_CASE`).
+- **Body & Labels:** Sans-serif (Manrope/Inter).
+- **Data:** Tabular figures for aligned numbers (`tabular-nums`).
+- **Mono:** Reserved *strictly* for code and user-written invariants. Not used for labels, stat values, or buttons.
 
-Concept: a quiet lab notebook on a dark desk; the tool reads like a daily memory instrument, not a SaaS shell.
+## 3.1 Structural rules
 
-ASCII wireframes:
+- A bordered container owns its border; bordered children use hairline dividers instead.
+- Hatching appears only in thin horizontal separator bands. Page margins stay plain.
+- Section rules run full-bleed through the center column and past its vertical rules.
 
-/ (landing)
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│ HASH_IT                                                   [roadmap] │
-├────────────────────────────────────────────────────────────────────────────┤
-│ hero: single product mockup + headline + subhead + CTA                     │
-│                                                                            │
-│ how it works (4 short typographic steps)                                   │
-│                                                                            │
-│ proof / real counts / single feature statement                             │
-└────────────────────────────────────────────────────────────────────────────┘
-```
+## 4. Component Primitives
 
-/today
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│ Today                                                                │
-├────────────────────────────────────────────────────────────────────────────┤
-│ quiet stats row                                                            │
-│                                                                            │
-│ review queue: full width cards, no dead left gutter                         │
-│                                                                            │
-│ pattern drill + blind mock in a two-column row                              │
-└────────────────────────────────────────────────────────────────────────────┘
-```
+- **Buttons:** Three strict variants: Primary (solid neutral), Secondary (outline neutral), Ghost (no border). Outcome buttons are a distinct semantic group.
+- **Form Controls:** Unified input, select, and focus rings (neutral, structural).
+- **Badges:** One configurable component driven by semantic data.
+- **Loaders:** Structural skeletons or a restrained indicator. No spinners with all-caps text.
+- **Cards:** No boxed, floating elements with rounded borders. Rendered flat against the drafting sheet with hairline dividers.
 
-/problems
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│ filter row + export                                                         │
-├────────────────────────────────────────────────────────────────────────────┤
-│ sticky header, dense rows, hairline dividers, tabular numbers              │
-│ rows like spreadsheet; no card borders                                      │
-└────────────────────────────────────────────────────────────────────────────┘
+## 5. Layout Concept (ASCII Wireframes)
+
+### / (landing)
+```text
+========================================================================
+|   [empty/hatch]   | HASH-IT                            |             |
+------------------------------------------------------------------------
+|                   | A practice log for LeetCode that   |             |
+|                   | decides when to re-solve...        |             |
+|                   |                                    |             |
+|                   | [ Mockup of review queue ]         |             |
+|                   | Fig 1. Daily review queue.         |             |
+------------------------------------------------------------------------
+|                   | The Problem                        |             |
+|                   | Spreadsheets fade...               |             |
+------------------------------------------------------------------------
+|                   | Colophon (Spec-sheet cells)        |             |
+|                   | ┌──────┬──────┬──────┐             |             |
+|                   | │ Tech │ Repo │ Font │             |             |
+|                   | └──────┴──────┴──────┘             |             |
+========================================================================
 ```
 
-/patterns
+### /today
+```text
+========================================================================
+|   [empty/hatch]   | Today's Queue                      |             |
+------------------------------------------------------------------------
+|                   | ┌─────────┬─────────┬─────────┐    |             |
+|                   | │ To Do   │ Overdue │ Learned │    |             |
+|                   | └─────────┴─────────┴─────────┘    |             |
+------------------------------------------------------------------------
+|                   | RECALL                             |             |
+|                   | Problem 1                          |             |
+|                   | ---------------------------------- |             |
+|                   | Problem 2                          |             |
+------------------------------------------------------------------------
+|                   | RESOLVE                            |             |
+|                   | Problem 3                          |             |
+========================================================================
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│ pattern mastery heatmap                                                       │
-│ 25 cells, one hue ramp, labels secondary, position carries meaning          │
-│ detail pane below for the selected pattern                                   │
-└────────────────────────────────────────────────────────────────────────────┘
-```
-
-## 4) Principles
-
-- Chrome is neutral; colour is data.
-- Surfaces earn borders; most blocks are spacing-driven groups.
-- Dense surfaces should read like a notebook, not a marketing site.
-- Use one deliberate accent at most; the pattern grid is the place for boldness.
-
-## 5) Self-critique before building
-
-A generic dark developer dashboard would usually lead to:
-- bright green accents everywhere
-- boxed cards with equal radius
-- all-caps eyebrow labels
-- a single accent colour sprayed across chrome
-
-This plan deliberately avoids those defaults. The pattern heatmap is the only place with strong visual intensity. Cartographic cues, not decorative tinting, do the work.
-
-This is what changes the system from generic to specific: it treats the interface as a memory tool, not a product launch page.

@@ -43,10 +43,10 @@ export function UserMenu({ user }: UserMenuProps) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex items-center gap-1.5 rounded-xl border px-2 py-1.5 text-xs transition-all",
+          "flex items-center gap-1.5 border px-2 py-1.5 text-xs transition-colors",
           open
             ? "border-border bg-muted text-foreground"
-            : "border-border bg-card text-muted-foreground hover:border-border/80 hover:text-foreground"
+            : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
         )}
         title={user.email ?? "User"}
       >
@@ -55,10 +55,10 @@ export function UserMenu({ user }: UserMenuProps) {
           <img
             src={user.image}
             alt={user.name ?? "avatar"}
-            className="h-4 w-4 rounded-full object-cover"
+            className="h-4 w-4 object-cover"
           />
         ) : (
-          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/15 text-[9px] font-bold text-emerald-600 dark:text-emerald-300">
+          <span className="flex h-4 w-4 items-center justify-center bg-muted text-[9px] font-semibold text-foreground">
             {initials}
           </span>
         )}
@@ -67,7 +67,7 @@ export function UserMenu({ user }: UserMenuProps) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-border bg-card/95 p-1 text-xs shadow-xl shadow-slate-900/10 backdrop-blur-md">
+        <div className="absolute right-0 top-full z-50 mt-1 w-52 border border-border bg-background p-1 text-xs shadow-md">
           <div className="border-b border-border px-3 py-2.5">
             <p className="truncate font-semibold text-foreground">{user.name ?? "User"}</p>
             <p className="truncate text-muted-foreground">{user.email}</p>
@@ -77,7 +77,7 @@ export function UserMenu({ user }: UserMenuProps) {
             <Link
               href="/settings"
               onClick={() => setOpen(false)}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex w-full items-center gap-2 px-2.5 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <Settings className="h-3.5 w-3.5" />
               Settings
@@ -86,7 +86,7 @@ export function UserMenu({ user }: UserMenuProps) {
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-rose-500 hover:bg-rose-500/10 hover:text-rose-400"
+              className="flex w-full items-center gap-2 px-2.5 py-1.5 text-destructive hover:bg-destructive/10"
             >
               <LogOut className="h-3.5 w-3.5" />
               Sign out

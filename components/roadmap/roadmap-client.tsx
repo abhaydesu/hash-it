@@ -8,12 +8,8 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
-  Sparkles,
   Search,
-  Check,
-  ChevronsUpDown,
   ListCollapse,
-  ListFilter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toggleRoadmapItemSolve } from "@/app/actions/entry-actions";
@@ -164,34 +160,34 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
     .filter((section) => section.items.length > 0 || !searchQuery);
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in">
+    <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in pb-12">
       {/* Header & Overall Progress */}
-      <div className="border-b border-zinc-800 pb-4">
+      <div className="border-b border-border pb-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 font-mono">
-              <BookOpen className="h-4 w-4 text-emerald-400" />
-              <h1 className="text-lg font-bold text-zinc-100 uppercase tracking-tight">
+              <BookOpen className="h-4 w-4 text-foreground" />
+              <h1 className="text-lg font-bold text-foreground  tracking-tight">
                 DSA_PATTERNS_STUDY_ROADMAP
               </h1>
             </div>
-            <p className="text-xs text-zinc-400 mt-1 font-sans">
+            <p className="text-xs text-muted-foreground mt-1 font-sans">
               Curated DSA Patterns curriculum. Click any question checkbox to select or deselect solve status directly. Expand and collapse pattern sections as you study.
             </p>
           </div>
 
-          <div className="flex items-center gap-4 border border-zinc-800 bg-zinc-950 px-4 py-2.5 rounded-lg font-mono">
+          <div className="flex items-center gap-4 border border-border bg-background px-4 py-2.5 rounded-none font-mono">
             <div>
-              <div className="text-[10px] text-zinc-500 uppercase">Roadmap Progress</div>
-              <div className="text-sm font-bold text-zinc-100">
-                {totalCompleted} <span className="text-zinc-500 font-normal">/ {totalItems}</span>
+              <div className="text-[10px] text-muted-foreground ">Roadmap Progress</div>
+              <div className="text-sm font-bold text-foreground">
+                {totalCompleted} <span className="text-muted-foreground font-normal">/ {totalItems}</span>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] text-emerald-400 font-bold uppercase">{completionPercentage}%</div>
-              <div className="w-24 bg-zinc-800 h-2 rounded-full overflow-hidden mt-1">
+              <div className="text-[10px] text-foreground font-bold ">{completionPercentage}%</div>
+              <div className="w-24 bg-muted h-2 rounded-none overflow-hidden mt-1 border border-border">
                 <div
-                  className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+                  className="bg-foreground h-full rounded-none transition-all duration-300"
                   style={{ width: `${completionPercentage}%` }}
                 />
               </div>
@@ -203,27 +199,27 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 font-mono text-xs">
           <div className="flex items-center gap-2 flex-1 max-w-md">
             <div className="relative w-full">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-500" />
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search roadmap questions or patterns..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded border border-zinc-800 bg-zinc-900/80 pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:border-emerald-500 focus:outline-hidden"
+                className="w-full rounded-none border border-border bg-background pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             {/* Filter Toggle */}
-            <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded p-0.5">
+            <div className="flex items-center bg-background border border-border rounded-none p-0.5">
               <button
                 onClick={() => setFilterSolved("ALL")}
                 className={cn(
-                  "px-2.5 py-1 rounded text-[11px] transition-colors",
+                  "px-2.5 py-1 rounded-none text-[11px] transition-colors",
                   filterSolved === "ALL"
-                    ? "bg-zinc-800 text-zinc-100 font-bold"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-foreground text-background font-bold"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 All ({totalItems})
@@ -231,10 +227,10 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
               <button
                 onClick={() => setFilterSolved("UNSOLVED")}
                 className={cn(
-                  "px-2.5 py-1 rounded text-[11px] transition-colors",
+                  "px-2.5 py-1 rounded-none text-[11px] transition-colors",
                   filterSolved === "UNSOLVED"
-                    ? "bg-zinc-800 text-zinc-100 font-bold"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-foreground text-background font-bold"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 Unsolved ({totalItems - totalCompleted})
@@ -242,10 +238,10 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
               <button
                 onClick={() => setFilterSolved("SOLVED")}
                 className={cn(
-                  "px-2.5 py-1 rounded text-[11px] transition-colors",
+                  "px-2.5 py-1 rounded-none text-[11px] transition-colors",
                   filterSolved === "SOLVED"
-                    ? "bg-emerald-950 text-emerald-300 font-bold"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-foreground text-background font-bold"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 Solved ({totalCompleted})
@@ -255,9 +251,9 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
             {/* Expand / Collapse All */}
             <button
               onClick={collapsedSectionIds.size === 0 ? collapseAll : expandAll}
-              className="flex items-center gap-1.5 rounded border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
+              className="flex items-center gap-1.5 rounded-none border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
-              <ListCollapse className="h-3.5 w-3.5 text-zinc-400" />
+              <ListCollapse className="h-3.5 w-3.5 text-muted-foreground" />
               <span>{collapsedSectionIds.size === 0 ? "Collapse All" : "Expand All"}</span>
             </button>
           </div>
@@ -276,37 +272,37 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
           return (
             <div
               key={section.id}
-              className="rounded-lg border border-zinc-800/80 bg-zinc-950/60 overflow-hidden transition-all"
+              className="rounded-none border border-border bg-background overflow-hidden transition-all"
             >
               {/* Collapsible Section Header */}
               <button
                 type="button"
                 onClick={() => toggleSection(section.id)}
-                className="w-full bg-zinc-900/80 hover:bg-zinc-900 border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between font-mono text-left transition-colors"
+                className="w-full bg-muted/40 hover:bg-muted border-b border-border px-4 py-3 flex items-center justify-between font-mono text-left transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="text-zinc-500 hover:text-zinc-300">
+                  <div className="text-muted-foreground hover:text-foreground">
                     {isCollapsed ? (
                       <ChevronRight className="h-4 w-4" />
                     ) : (
                       <ChevronDown className="h-4 w-4" />
                     )}
                   </div>
-                  <span className="flex h-5 w-5 items-center justify-center rounded bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10px]">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-none bg-background border border-border text-foreground text-[10px]">
                     {section.order}
                   </span>
-                  <h2 className="text-xs font-bold text-zinc-200 tracking-wide uppercase">
+                  <h2 className="text-xs font-bold text-foreground tracking-wide ">
                     {section.name}
                   </h2>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="text-[11px] text-zinc-400">
-                    <span className="text-emerald-400 font-semibold">{sectionSolved}</span> / {sectionTotal} solved
+                  <div className="text-[11px] text-muted-foreground">
+                    <span className="text-foreground font-semibold">{sectionSolved}</span> / {sectionTotal} solved
                   </div>
-                  <div className="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden hidden sm:block">
+                  <div className="w-16 bg-background border border-border h-2 rounded-none overflow-hidden hidden sm:block">
                     <div
-                      className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+                      className="bg-foreground h-full rounded-none transition-all duration-300"
                       style={{ width: `${sectionPercentage}%` }}
                     />
                   </div>
@@ -315,18 +311,18 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
 
               {/* Questions List (Collapsible Body) */}
               {!isCollapsed && (
-                <div className="divide-y divide-zinc-900">
+                <div className="divide-y divide-border">
                   {section.items.map((item, idx) => (
                     <div
                       key={item.id}
                       className={cn(
-                        "flex items-center justify-between px-4 py-2.5 hover:bg-zinc-900/30 transition-colors text-xs font-mono",
-                        item.isSolved && "bg-emerald-950/10"
+                        "flex items-center justify-between px-4 py-2.5 hover:bg-muted/50 transition-colors text-xs font-mono",
+                        item.isSolved && "bg-muted/30"
                       )}
                     >
                       {/* Left: Interactive Checkbox + Title */}
                       <div className="flex items-center gap-3 min-w-0 pr-4">
-                        <span className="text-zinc-600 text-[10px] w-5 text-right shrink-0">
+                        <span className="text-muted-foreground text-[10px] w-5 text-right shrink-0">
                           {idx + 1}.
                         </span>
 
@@ -334,13 +330,13 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
                         <button
                           type="button"
                           onClick={() => handleToggleSolve(section.id, item)}
-                          className="text-zinc-500 hover:text-emerald-400 shrink-0 focus:outline-hidden transition-colors"
+                          className="text-muted-foreground hover:text-foreground shrink-0 focus:outline-hidden transition-colors"
                           title={item.isSolved ? "Click to mark as unsolved" : "Click to mark as solved"}
                         >
                           {item.isSolved ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                            <CheckCircle2 className="h-4 w-4 text-foreground" />
                           ) : (
-                            <Circle className="h-4 w-4 text-zinc-700 hover:text-zinc-400" />
+                            <Circle className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           )}
                         </button>
 
@@ -349,21 +345,21 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
                           className={cn(
                             "font-sans font-medium truncate cursor-pointer select-none",
                             item.isSolved
-                              ? "text-zinc-300 line-through opacity-80"
-                              : "text-zinc-200 hover:text-emerald-300"
+                              ? "text-muted-foreground line-through opacity-80"
+                              : "text-foreground hover:text-muted-foreground"
                           )}
                         >
                           {item.title}
                         </span>
 
                         {item.canonicalProblemNumber && (
-                          <span className="text-[10px] font-mono text-zinc-500 shrink-0">
+                          <span className="text-[10px] font-mono text-muted-foreground shrink-0">
                             #{item.canonicalProblemNumber}
                           </span>
                         )}
 
                         {item.isSolved && (
-                          <span className="rounded bg-emerald-950 border border-emerald-800/80 px-1.5 py-0.2 text-[9px] text-emerald-400 shrink-0 uppercase">
+                          <span className="rounded-none bg-background border border-border px-1.5 py-0.2 text-[9px] text-foreground shrink-0 ">
                             {item.solveStatus === "SOLVED_UNAIDED" ? "Unaided" : "Solved"}
                           </span>
                         )}
@@ -376,7 +372,7 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
                             href={item.primaryUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-emerald-400 transition-colors border border-zinc-800 bg-zinc-900/80 hover:border-zinc-700 px-2 py-0.5 rounded"
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors border border-border bg-background hover:bg-muted px-2 py-0.5 rounded-none"
                           >
                             <span>Link 1</span>
                             <ExternalLink className="h-2.5 w-2.5" />
@@ -389,7 +385,7 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
                             href={url}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors border border-zinc-850 bg-zinc-900/40 hover:border-zinc-700 px-1.5 py-0.5 rounded"
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors border border-border bg-muted/30 hover:bg-muted px-1.5 py-0.5 rounded-none"
                           >
                             <span>Link {uIdx + 2}</span>
                             <ExternalLink className="h-2.5 w-2.5" />

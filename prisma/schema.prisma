@@ -72,6 +72,20 @@ model Pattern {
   sortOrder Int
 
   problems  ProblemPattern[]
+  drills    PatternDrill[]
+}
+
+model PatternDrill {
+  id        String   @id @default(cuid())
+  userId    String
+  patternId String
+  at        DateTime @default(now())
+  correct   Boolean
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pattern   Pattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+
+  @@index([userId, patternId, at])
 }
 
 model ProblemPattern {
@@ -178,6 +192,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   entries       Entry[]
+  patternDrills PatternDrill[]
   settings      UserSettings?
   importBatches ImportBatch[]
 }

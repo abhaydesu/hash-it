@@ -14,6 +14,11 @@ export async function GET() {
     const patterns = await prisma.pattern.findMany({
       orderBy: { sortOrder: "asc" },
       include: {
+        drills: {
+          where: { userId: user.id },
+          orderBy: { at: "desc" },
+          take: 1,
+        },
         problems: {
           include: {
             problem: {
@@ -100,6 +105,7 @@ export async function GET() {
         cardCount,
         leechCount,
         meanRetrievability,
+        lastDrilledAt: pattern.drills[0]?.at ?? null,
         problems: problemItems,
       };
     });

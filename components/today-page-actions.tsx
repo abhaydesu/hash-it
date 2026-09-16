@@ -12,7 +12,7 @@ export function TodayPageActions({ compact = false }: { compact?: boolean }) {
       <button
         type="button"
         onClick={openLogProblem}
-        className="flex w-full items-center justify-between rounded-xl border border-border bg-background/60 px-3 py-3 text-left text-sm text-foreground hover:bg-muted"
+        className="flex w-full items-center justify-between border border-border bg-background px-3 py-2.5 text-left text-xs sm:text-sm text-foreground hover:bg-muted transition-colors"
       >
         <span>Log a new problem</span>
         <Plus className="h-4 w-4" />
@@ -24,10 +24,10 @@ export function TodayPageActions({ compact = false }: { compact?: boolean }) {
     <button
       type="button"
       onClick={openLogProblem}
-      className="inline-flex items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-2.5 text-sm font-medium text-background active:scale-[0.98]"
+      className="inline-flex items-center justify-center gap-2 border border-primary bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
     >
-      <Plus className="h-4 w-4" />
-      Add problem
+      <Plus className="h-3.5 w-3.5" />
+      <span>Add problem</span>
     </button>
   );
 }

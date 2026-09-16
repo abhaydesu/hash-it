@@ -4,13 +4,12 @@ import { useState, useMemo } from "react";
 import {
   useReactTable,
   getCoreRowModel,
-  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   flexRender,
   SortingState,
 } from "@tanstack/react-table";
-import { Download, Search, Filter, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { Download, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { columns, ProblemGridRow } from "./columns";
 import Papa from "papaparse";
 
@@ -79,8 +78,6 @@ export function DataTable({ data, patternsList }: DataTableProps) {
     },
   });
 
-  // Export CSV matching Google Sheet columns per spec §6 and §9:
-  // Problem Name, Problem Link, Topic, Pattern, Idea, What I did wrong, Status, Revisit?, Source
   const handleExportCsv = () => {
     const csvRows = filteredData.map((row) => ({
       "Problem Name": row.number != null ? `${row.number}. ${row.title}` : row.title,
@@ -113,7 +110,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
   return (
     <div className="space-y-3 font-sans">
       {/* Top Controls: Preset Views & Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         {/* Preset Tabs */}
         <div className="flex items-center gap-1">
           {[
@@ -126,10 +123,10 @@ export function DataTable({ data, patternsList }: DataTableProps) {
             <button
               key={tab.id}
               onClick={() => setSelectedView(tab.id as any)}
-              className={`rounded px-2.5 py-1 text-xs font-mono font-medium transition-colors ${
+              className={`rounded-none px-2.5 py-1 text-xs font-mono font-medium transition-colors border-b-2 ${
                 selectedView === tab.id
-                  ? "bg-zinc-800 text-zinc-100 border border-zinc-700"
-                  : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
               }`}
             >
               {tab.label}
@@ -140,7 +137,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
         {/* CSV Export */}
         <button
           onClick={handleExportCsv}
-          className="flex items-center gap-1.5 rounded border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors font-mono"
+          className="flex items-center gap-1.5 rounded-none border border-border bg-background px-3 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors font-mono"
         >
           <Download className="h-3 w-3" />
           <span>Export CSV (Sheet Format)</span>
@@ -151,13 +148,13 @@ export function DataTable({ data, patternsList }: DataTableProps) {
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-4 md:grid-cols-5 text-xs font-mono">
         {/* Search */}
         <div className="relative sm:col-span-2">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-500" />
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search problems, ideas, mistakes..."
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="w-full rounded border border-zinc-800 bg-zinc-900/90 py-1.5 pl-8 pr-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500/80 focus:outline-hidden"
+            className="w-full rounded-none border border-border bg-background py-1.5 pl-8 pr-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -165,9 +162,9 @@ export function DataTable({ data, patternsList }: DataTableProps) {
         <select
           value={difficultyFilter}
           onChange={(e) => setDifficultyFilter(e.target.value)}
-          className="rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-300 focus:border-zinc-700 focus:outline-hidden"
+          className="rounded-none border border-border bg-background px-2.5 py-1.5 text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         >
-          <option value="ALL">All Difficulties</option>
+          <option value="ALL">All difficulties</option>
           <option value="EASY">Easy</option>
           <option value="MEDIUM">Medium</option>
           <option value="HARD">Hard</option>
@@ -177,11 +174,11 @@ export function DataTable({ data, patternsList }: DataTableProps) {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-300 focus:border-zinc-700 focus:outline-hidden"
+          className="rounded-none border border-border bg-background px-2.5 py-1.5 text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         >
-          <option value="ALL">All Statuses</option>
+          <option value="ALL">All statuses</option>
           <option value="SOLVED_UNAIDED">Unaided</option>
-          <option value="SOLVED_WITH_HELP">With Help</option>
+          <option value="SOLVED_WITH_HELP">With help</option>
           <option value="ATTEMPTED_FAILED">Failed</option>
         </select>
 
@@ -189,9 +186,9 @@ export function DataTable({ data, patternsList }: DataTableProps) {
         <select
           value={patternFilter}
           onChange={(e) => setPatternFilter(e.target.value)}
-          className="rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-300 focus:border-zinc-700 focus:outline-hidden"
+          className="rounded-none border border-border bg-background px-2.5 py-1.5 text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         >
-          <option value="ALL">All Patterns ({patternsList.length})</option>
+          <option value="ALL">All patterns ({patternsList.length})</option>
           {patternsList.map((p) => (
             <option key={p} value={p}>
               {p}
@@ -201,16 +198,16 @@ export function DataTable({ data, patternsList }: DataTableProps) {
       </div>
 
       {/* Spreadsheet Table Container */}
-      <div className="overflow-x-auto rounded-md border border-zinc-800/90 bg-zinc-950">
+      <div className="overflow-x-auto rounded-none border border-border bg-background">
         <table className="w-full border-collapse text-left text-xs">
-          <thead className="border-b border-zinc-800 bg-zinc-900/60 font-mono text-[11px] text-zinc-400">
+          <thead className="border-b border-border bg-muted/40 font-mono text-[11px] text-muted-foreground">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
                     onClick={header.column.getToggleSortingHandler()}
-                    className="cursor-pointer px-3 py-2 font-medium tracking-wider select-none hover:text-zinc-200"
+                    className="cursor-pointer px-3 py-2 font-medium tracking-wider select-none hover:text-foreground border-r border-border last:border-r-0"
                   >
                     <div className="flex items-center gap-1">
                       {flexRender(header.column.columnDef.header, header.getContext())}
@@ -222,15 +219,15 @@ export function DataTable({ data, patternsList }: DataTableProps) {
               </tr>
             ))}
           </thead>
-          <tbody className="divide-y divide-zinc-900">
+          <tbody className="divide-y divide-border">
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="hover:bg-zinc-900/50 transition-colors group"
+                  className="hover:bg-muted/50 transition-colors group"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-3 py-1.5 align-middle">
+                    <td key={cell.id} className="px-3 py-1.5 align-middle border-r border-border last:border-r-0">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -238,7 +235,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
               ))
             ) : (
               <tr>
-                <td colSpan={columns.length} className="py-8 text-center text-zinc-500 font-mono">
+                <td colSpan={columns.length} className="py-8 text-center text-muted-foreground font-mono">
                   No problems match the current filter.
                 </td>
               </tr>
@@ -248,7 +245,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
       </div>
 
       {/* Pagination Footer */}
-      <div className="flex items-center justify-between border-t border-zinc-900 pt-2 text-xs font-mono text-zinc-500">
+      <div className="flex items-center justify-between border-t border-border pt-2 text-xs font-mono text-muted-foreground">
         <div>
           Showing {table.getRowModel().rows.length} of {filteredData.length} records
         </div>
@@ -256,7 +253,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="flex items-center gap-1 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-zinc-400 hover:text-zinc-200 disabled:opacity-30"
+            className="flex items-center gap-1 rounded-none border border-border bg-background px-2 py-1 hover:text-foreground disabled:opacity-50"
           >
             <ChevronLeft className="h-3 w-3" /> Prev
           </button>
@@ -267,7 +264,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           <button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="flex items-center gap-1 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-zinc-400 hover:text-zinc-200 disabled:opacity-30"
+            className="flex items-center gap-1 rounded-none border border-border bg-background px-2 py-1 hover:text-foreground disabled:opacity-50"
           >
             Next <ChevronRight className="h-3 w-3" />
           </button>

@@ -2,19 +2,18 @@
 
 import Link from "next/link";
 import {
-  BarChart3,
   CalendarRange,
   Clock3,
   Database,
-  ExternalLink,
   Target,
   TrendingUp,
-  ArrowRight,
   X,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { RecallCardItem } from "@/components/recall-card-item";
 import { ReviewCardItem } from "@/components/review-card-item";
+import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
+import { SheetSection } from "@/components/ui/sheet-section";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,11 +82,17 @@ export default function TodayDashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-10 w-56 rounded bg-muted" />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-muted" />)}
+      <div className="space-y-8">
+        <div className="h-9 w-32 bg-dither-25" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 border border-border bg-border gap-px">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="p-4 space-y-2 bg-background">
+              <div className="h-3 w-20 bg-dither-25" />
+              <div className="h-6 w-14 bg-dither-25" />
+            </div>
+          ))}
         </div>
+        <div className="h-64 border border-border bg-dither-25" />
       </div>
     );
   }
@@ -101,68 +106,75 @@ export default function TodayDashboardPage() {
   const activeQueue = queue.filter((item) => !completedIds.has(item.entryId));
   const estimateMinutes = recallCount * 3 + resolveCount * 25;
 
-  const statCards = [
-    { label: "Problems logged", value: snapshot.totalEntries, icon: Database },
-    { label: "Cold-solve rate", value: `${Math.round(snapshot.coldSolveRate * 100)}%`, icon: TrendingUp },
-    { label: "Due today", value: queue.length, icon: Clock3 },
-    { label: "Leeches", value: snapshot.leechCount, icon: Target },
-  ];
-
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <div className="pb-12">
+      {/* Page Header */}
+      <SheetSection innerClassName="flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between py-6">
         <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.06em] text-foreground">Today</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+            Today
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Daily spaced-repetition queue and performance overview.
+          </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Link href="/problems" className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground">
-            Review catalog
+        <div>
+          <Link
+            href="/problems"
+            className="border border-border bg-background hover:bg-muted px-4 py-2 text-xs font-semibold  tracking-wide text-foreground transition-colors inline-flex items-center"
+          >
+            Review catalogue
           </Link>
         </div>
-      </div>
+      </SheetSection>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {statCards.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-xl border border-border bg-card p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
-              <Icon className="h-4 w-4 text-foreground" />
-            </div>
-            <div className="mt-3 tabular-numbers text-2xl font-semibold text-foreground">{value}</div>
-          </div>
-        ))}
-      </div>
+      {/* Spec-sheet metrics cells (no rounded cards) */}
+      <SheetSection innerClassName="py-6" band="none">
+      <SpecGrid columns={4}>
+        <SpecCell label="Problems logged" value={snapshot.totalEntries} />
+        <SpecCell label="Solved without help" value={`${Math.round(snapshot.coldSolveRate * 100)}%`} />
+        <SpecCell label="Due today" value={queue.length} />
+        <SpecCell label="Stuck problems" value={snapshot.leechCount} />
+      </SpecGrid>
+      </SheetSection>
 
-      {/* Overdue banner */}
+      {/* Overdue warning banner */}
       {overdueCount > 20 && !overdueDissmissed && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-800/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-300">
+        <div className="flex items-center justify-between border border-warning bg-warning/10 px-4 py-3 text-xs sm:text-sm text-warning font-mono">
           <span>
-            <span className="font-semibold">{overdueCount} cards overdue.</span>{" "}
+            <span className="font-semibold  tracking-wider">{overdueCount} cards overdue.</span>{" "}
             Reviews are capped, so this clears slowly — consider a catch-up session or{" "}
-            <Link href="/settings" className="underline underline-offset-2 hover:text-amber-200">lowering retention in settings.</Link>
+            <Link href="/settings" className="underline underline-offset-2 hover:opacity-80 font-sans">
+              lowering retention in settings.
+            </Link>
           </span>
           <button
+            type="button"
             onClick={() => setOverdueDismissed(true)}
-            className="ml-4 shrink-0 rounded p-1 hover:bg-amber-900/40"
+            className="ml-4 shrink-0 p-1 hover:bg-warning/20 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      <div className="rounded-[24px] border border-border bg-card p-5">
-        <div className="mb-4">
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{recallCount} quick recall check{recallCount !== 1 ? "s" : ""}</span> and{" "}
-            <span className="font-medium text-foreground">{resolveCount} full re-solve{resolveCount !== 1 ? "s" : ""}.</span>{" "}
-            About <span className="font-medium text-foreground">{estimateMinutes} minutes.</span>
-          </p>
+      {/* Today's review section */}
+      <SheetSection innerClassName="py-6 space-y-4">
+        <div className="border-b border-border pb-2 flex items-baseline justify-between">
+          <h2 className="text-base font-semibold text-foreground tracking-tight">
+            Today&apos;s review
+          </h2>
+            <span className="text-[11px] text-muted-foreground tabular-numbers">
+            <span className="font-semibold text-foreground">{recallCount}</span> quick recall and{" "}
+            <span className="font-semibold text-foreground">{resolveCount}</span> full re-solve ·{" "}
+            ~{estimateMinutes} min
+          </span>
         </div>
 
         {activeQueue.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-background/40 p-5 text-sm text-muted-foreground">
+            <div className="border border-border bg-dither-25 p-6 text-[11px] text-muted-foreground text-center">
             {queue.length > 0
-              ? "All done for today! Great work. Log new problems with ⌘K."
+              ? "All done for today. Log new problems with ⌘K or review the catalog."
               : "Nothing due today. Log new problems with ⌘K, or work through your roadmap."}
           </div>
         ) : (
@@ -184,31 +196,50 @@ export default function TodayDashboardPage() {
             )}
           </div>
         )}
-      </div>
+      </SheetSection>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <div className="rounded-[24px] border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-[-0.05em] text-foreground">Pattern drill</h2>
+      {/* Pattern drill & Blind mock assessment */}
+      <SheetSection innerClassName="py-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="border border-border bg-background p-4 sm:p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-foreground tracking-tight">
+                Pattern drill
+              </h2>
+              <CalendarRange className="h-4 w-4 text-muted-foreground" />
             </div>
-            <CalendarRange className="h-5 w-5 text-foreground" />
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+              Tests recognition of core algorithmic technique without implementation overhead. ~2 min per drill.
+            </p>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">Tests whether you recognise the technique, not whether you can implement it. ~2 min · active when a pattern is below target retrievability or untouched for 14 days.</p>
-          <div className="mt-4 text-sm text-muted-foreground">Next drill in 3 days</div>
+          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-[10px] font-mono  tracking-wider text-muted-foreground">
+            <span>Interval: 14 days</span>
+            <Link href="/review/weekly" className="text-foreground hover:underline font-semibold">
+              Open drill →
+            </Link>
+          </div>
         </div>
 
-        <div className="rounded-[24px] border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-[-0.05em] text-foreground">Blind mock</h2>
+        <div className="border border-border bg-background p-4 sm:p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-foreground tracking-tight">
+                Blind mock
+              </h2>
+              <Clock3 className="h-4 w-4 text-muted-foreground" />
             </div>
-            <BarChart3 className="h-5 w-5 text-foreground" />
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+              Full unprompted assessment under interview conditions. Tests technique selection from problem statement alone.
+            </p>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">Tests whether you can pick the right approach unprompted. ~2 hrs · active when 30+ days since the last mock.</p>
-          <div className="mt-4 text-sm text-muted-foreground">Next mock in 12 days</div>
+          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-[10px] font-mono  tracking-wider text-muted-foreground">
+            <span>Interval: 30 days</span>
+            <Link href="/review/monthly" className="text-foreground hover:underline font-semibold">
+              Start mock →
+            </Link>
+          </div>
         </div>
-      </div>
+      </SheetSection>
     </div>
   );
 }

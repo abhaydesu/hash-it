@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Calendar, CheckCircle2, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 import { toggleScheduleReview } from "@/app/actions/entry-actions";
 
 interface ScheduleReviewToggleProps {
@@ -29,17 +29,18 @@ export function ScheduleReviewToggle({ entryId, initialScheduled }: ScheduleRevi
 
   return (
     <button
+      type="button"
       onClick={handleToggle}
       disabled={isPending}
-      className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-mono transition-all disabled:opacity-50 ${
+      className={`flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
         isScheduled
-          ? "border-emerald-700/60 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/40"
-          : "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          ? "border-easy/50 bg-easy/10 text-easy hover:bg-easy/20"
+          : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
       title={isScheduled ? "Click to unschedule spaced reviews for this problem" : "Click to schedule spaced reviews for this problem"}
     >
       <Clock className="h-3.5 w-3.5" />
-      <span>{isScheduled ? "Scheduled for Review" : "Schedule Reviews"}</span>
+      <span>{isScheduled ? "Scheduled for review" : "Schedule reviews"}</span>
     </button>
   );
 }

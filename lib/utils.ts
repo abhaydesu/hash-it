@@ -18,22 +18,22 @@ export function formatDifficulty(diff?: string | null): { label: string; classNa
     case "EASY":
       return {
         label: "Easy",
-        className: "bg-emerald-950/70 text-emerald-300 border-emerald-800/60",
+        className: "border border-easy bg-easy text-background",
       };
     case "MEDIUM":
       return {
         label: "Medium",
-        className: "bg-amber-950/70 text-amber-300 border-amber-800/60",
+        className: "border border-medium bg-medium text-background",
       };
     case "HARD":
       return {
         label: "Hard",
-        className: "bg-rose-950/70 text-rose-300 border-rose-800/60",
+        className: "border border-hard bg-hard text-background",
       };
     default:
       return {
         label: "Unknown",
-        className: "bg-zinc-800 text-zinc-400 border-zinc-700",
+        className: "border border-border text-muted-foreground bg-muted/40",
       };
   }
 }
@@ -43,7 +43,7 @@ export function formatStatus(status?: string | null): { label: string; short: st
     return {
       label: "Unattempted",
       short: "Unattempted",
-      className: "bg-zinc-800 text-zinc-400 border-zinc-700",
+      className: "border border-border text-muted-foreground bg-muted/30",
     };
   }
   switch (status) {
@@ -51,25 +51,25 @@ export function formatStatus(status?: string | null): { label: string; short: st
       return {
         label: "Unaided",
         short: "Unaided",
-        className: "bg-emerald-950/70 text-emerald-300 border-emerald-800/60",
+        className: "border border-easy/40 text-easy bg-easy/10",
       };
     case "SOLVED_WITH_HELP":
       return {
         label: "With Help",
         short: "With Help",
-        className: "bg-sky-950/70 text-sky-300 border-sky-800/60",
+        className: "border border-border text-foreground bg-muted/50",
       };
     case "ATTEMPTED_FAILED":
       return {
         label: "Failed",
         short: "Failed",
-        className: "bg-rose-950/70 text-rose-300 border-rose-800/60",
+        className: "border border-destructive/40 text-destructive bg-destructive/10",
       };
     default:
       return {
         label: status,
         short: status,
-        className: "bg-zinc-800 text-zinc-300 border-zinc-700",
+        className: "border border-border text-muted-foreground bg-muted/30",
       };
   }
 }

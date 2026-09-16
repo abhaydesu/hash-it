@@ -133,7 +133,10 @@ export async function GET() {
     return NextResponse.json({
       coldSolveRate,
       totalAttempts: totalAttemptsCount,
+      coldSolveAttempts: coldSolveAttemptsCount,
       totalEntries: entries.length,
+      totalCards: totalCardsCount,
+      totalLapses: totalLapsesCount,
       medianMinutes,
       lapseRate,
       leechCount: leechEntries.length,

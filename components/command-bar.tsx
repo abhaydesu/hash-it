@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useTransition } from "react";
-import { Search, Plus, ExternalLink, Check, AlertCircle, HelpCircle, X, Sparkles, Clock } from "lucide-react";
+import { Search, ExternalLink, Check, AlertCircle, HelpCircle, X, Sparkles, Clock } from "lucide-react";
 import { cn, formatDifficulty } from "@/lib/utils";
 import { createEntry, deleteEntry } from "@/app/actions/entry-actions";
 
@@ -118,7 +118,6 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       return;
     }
 
-    // Only trigger 1/2/3 when not typing in textareas or inputs
     const targetTag = (e.target as HTMLElement).tagName;
     if (targetTag !== "TEXTAREA" && targetTag !== "INPUT") {
       if (e.key === "1") {
@@ -140,15 +139,6 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     setResults([]);
     setManualMode(false);
     setTimeout(() => minutesInputRef.current?.focus(), 50);
-  };
-
-  const startManualMode = () => {
-    setManualMode(true);
-    const nextUrl = query.startsWith("http") ? query : "";
-    setManualTitle(nextUrl ? "" : query);
-    setManualUrl(nextUrl);
-    setSelectedProblem(null);
-    setResults([]);
   };
 
   const resetForm = () => {
@@ -199,7 +189,6 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
           resetForm();
           onSuccess?.();
 
-          // Clear toast after 6s
           setTimeout(() => {
             setToast((prev) => (prev?.id === res.entryId ? null : prev));
           }, 6000);
@@ -226,14 +215,15 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     <>
       {/* Toast Notification with Undo */}
       {toast && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-lg border border-emerald-500/40 bg-zinc-950 px-4 py-2.5 shadow-2xl animate-in slide-in-from-bottom-5">
-          <div className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          <div className="text-xs text-zinc-200">
-            Logged <span className="font-semibold text-emerald-300">"{toast.title}"</span>
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 border border-border bg-background px-4 py-2.5 shadow-2xl animate-in slide-in-from-bottom-5">
+          <div className="flex h-2 w-2 bg-easy" />
+          <div className="text-xs text-foreground">
+            Logged <span className="font-semibold">{toast.title}</span>
           </div>
           <button
+            type="button"
             onClick={() => handleUndo(toast.id)}
-            className="ml-2 rounded border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300 hover:border-zinc-500 hover:text-white transition-colors"
+            className="ml-2 border border-border bg-muted px-2 py-0.5 text-xs text-foreground hover:bg-muted/80 transition-colors"
           >
             Undo
           </button>
@@ -243,8 +233,8 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       {/* Main Command Bar Container */}
       <div
         className={cn(
-          "w-full rounded-lg border border-zinc-800 bg-zinc-950/95 shadow-xl transition-all",
-          !inline && "fixed top-16 left-1/2 -translate-x-1/2 z-50 max-w-2xl backdrop-blur-md",
+          "w-full border border-border bg-background shadow-2xl transition-all",
+          !inline && "fixed top-16 left-1/2 -translate-x-1/2 z-50 max-w-2xl",
           inline && "relative"
         )}
         onKeyDown={handleFormKeyDown}
@@ -253,27 +243,27 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
         {!selectedProblem && !manualMode ? (
           <div className="p-3">
             <div className="relative flex items-center">
-              <Search className="absolute left-3 h-4 w-4 text-zinc-500" />
+              <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Type problem number (e.g. 15), title, or paste URL..."
-                className="w-full rounded-md border border-zinc-800 bg-zinc-900/90 py-2 pl-9 pr-20 text-xs font-mono text-zinc-100 placeholder-zinc-500 focus:border-emerald-500/80 focus:outline-hidden focus:ring-1 focus:ring-emerald-500/50"
+                className="w-full border border-border bg-background py-2 pl-9 pr-24 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              <div className="absolute right-3 flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
+              <div className="absolute right-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 {isSearching ? (
-                  <span>searching...</span>
+                  <span>Searching...</span>
                 ) : (
-                  <kbd className="rounded border border-zinc-800 bg-zinc-950 px-1 py-0.5">Esc to exit</kbd>
+                  <kbd className="border border-border bg-muted/40 px-1 py-0.5 text-[10px]">Esc to exit</kbd>
                 )}
               </div>
             </div>
 
             {/* Results Dropdown */}
             {results.length > 0 && (
-              <div className="mt-2 max-h-64 overflow-y-auto rounded-md border border-zinc-800 bg-zinc-900/95 divide-y divide-zinc-800/60 font-mono text-xs">
+              <div className="mt-2 max-h-64 overflow-y-auto border border-border bg-background divide-y divide-border text-xs">
                 {results.map((prob) => {
                   const diff = formatDifficulty(prob.difficulty);
                   return (
@@ -281,26 +271,30 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       key={prob.id}
                       type="button"
                       onClick={() => selectProblem(prob)}
-                      className="flex w-full items-center justify-between p-2.5 text-left hover:bg-zinc-800/80 transition-colors group"
+                      className="flex w-full items-center justify-between p-2.5 text-left hover:bg-muted/50 transition-colors group"
                     >
                       <div className="flex items-center gap-2.5 truncate">
                         {prob.number != null && (
-                          <span className="w-10 text-right text-zinc-400 text-xs">#{prob.number}</span>
+                          <span className="w-10 text-right text-muted-foreground tabular-numbers text-xs">
+                            #{prob.number}
+                          </span>
                         )}
-                        <span className="truncate font-sans font-medium text-zinc-200 group-hover:text-emerald-300">
+                        <span className="truncate font-medium text-foreground group-hover:underline">
                           {prob.title}
                         </span>
                         {prob.patterns.length > 0 && (
-                          <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                          <span className="border border-border bg-muted/40 px-1.5 py-0.2 text-[10px] text-muted-foreground">
                             {prob.patterns[0].name}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {prob.acRate != null && (
-                          <span className="text-[11px] text-zinc-500">{prob.acRate.toFixed(1)}% ac</span>
+                          <span className="text-[11px] text-muted-foreground tabular-numbers">
+                            {prob.acRate.toFixed(1)}% ac
+                          </span>
                         )}
-                        <span className={cn("rounded border px-1.5 py-0.2 text-[10px]", diff.className)}>
+                        <span className={cn("border px-1.5 py-0.2 text-[10px]", diff.className)}>
                           {diff.label}
                         </span>
                       </div>
@@ -310,35 +304,34 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
               </div>
             )}
 
-            {/* If no search results match query, display manual entry inline directly beneath search */}
+            {/* Inline Manual Entry if No Results */}
             {query.trim().length > 0 && results.length === 0 && !isSearching && (
-              <div className="mt-3 space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3.5 text-xs animate-in fade-in">
-                <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
-                  <span className="font-mono text-xs text-emerald-400">
+              <div className="mt-3 space-y-3 border border-border bg-muted/20 p-3.5 text-xs animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-border pb-2">
+                  <span className="text-xs font-semibold text-foreground">
                     {query.startsWith("http") ? "URL Problem Import" : "Manual Problem Entry"}
                   </span>
-                  <span className="text-[10px] text-zinc-500 font-mono">Not found in catalog</span>
+                  <span className="text-[11px] text-muted-foreground">Not found in catalog</span>
                 </div>
 
-                {/* Inline Title & URL & Difficulty */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div className="sm:col-span-2 space-y-1">
-                    <label className="text-[10px] font-mono text-zinc-400">Problem Title</label>
+                    <label className="text-[11px] font-medium text-muted-foreground">Problem Title</label>
                     <input
                       type="text"
                       placeholder="Title"
                       value={manualTitle || (query.startsWith("http") ? query.split("/").filter(Boolean).pop()?.replace(/[-_]+/g, " ") || "" : query)}
                       onChange={(e) => setManualTitle(e.target.value)}
-                      className="w-full rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-hidden"
+                      className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-mono text-zinc-400">Difficulty</label>
+                    <label className="text-[11px] font-medium text-muted-foreground">Difficulty</label>
                     <select
                       value={manualDifficulty}
                       onChange={(e) => setManualDifficulty(e.target.value as any)}
-                      className="w-full rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-100 focus:border-emerald-500 focus:outline-hidden"
+                      className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     >
                       <option value="EASY">Easy</option>
                       <option value="MEDIUM">Medium</option>
@@ -347,128 +340,128 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   </div>
 
                   <div className="sm:col-span-3 space-y-1">
-                    <label className="text-[10px] font-mono text-zinc-400">Problem URL (optional)</label>
+                    <label className="text-[11px] font-medium text-muted-foreground">Problem URL (optional)</label>
                     <input
                       type="text"
                       placeholder="e.g. https://practice.geeksforgeeks.org/..."
                       value={manualUrl || (query.startsWith("http") ? query : "")}
                       onChange={(e) => setManualUrl(e.target.value)}
-                      className="w-full rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-hidden"
+                      className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
                 </div>
 
-                {/* Inline 4 Hot Fields: Status, Minutes, Idea, Mistake */}
-                <div className="space-y-3 pt-2 border-t border-zinc-800/80">
+                {/* Hot Fields */}
+                <div className="space-y-3 pt-2 border-t border-border">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-zinc-400">Status</span>
+                    <span className="text-xs font-medium text-muted-foreground">Status</span>
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => setStatus("SOLVED_UNAIDED")}
                         className={cn(
-                          "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors border",
+                          "flex items-center gap-1 px-2.5 py-1 text-xs transition-colors border",
                           status === "SOLVED_UNAIDED"
-                            ? "border-emerald-700 bg-emerald-950/80 text-emerald-300"
-                            : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                            ? "border-easy/60 bg-easy/20 text-easy"
+                            : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                         )}
                       >
                         <Check className="h-3 w-3" />
                         <span>Unaided</span>
-                        <kbd className="text-[10px] opacity-70 font-mono">[1]</kbd>
+                        <kbd className="text-[10px] opacity-70">[1]</kbd>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setStatus("SOLVED_WITH_HELP")}
                         className={cn(
-                          "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors border",
+                          "flex items-center gap-1 px-2.5 py-1 text-xs transition-colors border",
                           status === "SOLVED_WITH_HELP"
-                            ? "border-sky-700 bg-sky-950/80 text-sky-300"
-                            : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                            ? "border-border bg-muted text-foreground font-medium"
+                            : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                         )}
                       >
                         <HelpCircle className="h-3 w-3" />
                         <span>With Help</span>
-                        <kbd className="text-[10px] opacity-70 font-mono">[2]</kbd>
+                        <kbd className="text-[10px] opacity-70">[2]</kbd>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setStatus("ATTEMPTED_FAILED")}
                         className={cn(
-                          "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors border",
+                          "flex items-center gap-1 px-2.5 py-1 text-xs transition-colors border",
                           status === "ATTEMPTED_FAILED"
-                            ? "border-rose-700 bg-rose-950/80 text-rose-300"
-                            : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                            ? "border-destructive/60 bg-destructive/20 text-destructive"
+                            : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                         )}
                       >
                         <AlertCircle className="h-3 w-3" />
                         <span>Failed</span>
-                        <kbd className="text-[10px] opacity-70 font-mono">[3]</kbd>
+                        <kbd className="text-[10px] opacity-70">[3]</kbd>
                       </button>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
-                      <Clock className="h-3.5 w-3.5 text-zinc-500" />
-                      <span className="text-xs font-mono text-zinc-400">Minutes</span>
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">Minutes</span>
                       <input
                         type="number"
                         min="0"
                         max="600"
                         value={minutes}
                         onChange={(e) => setMinutes(e.target.value)}
-                        placeholder="e.g. 25"
-                        className="w-20 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-zinc-100 focus:border-zinc-600 focus:outline-hidden"
+                        placeholder="25"
+                        className="w-20 border border-border bg-background px-2 py-1 text-xs tabular-numbers text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                       />
                     </div>
 
-                    <label className="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={revisit}
                         onChange={(e) => setRevisit(e.target.checked)}
-                        className="rounded border-zinc-800 bg-zinc-900 text-emerald-500 focus:ring-0"
+                        className="border-border bg-background text-foreground focus:ring-ring"
                       />
                       <span>Flag for early revisit</span>
                     </label>
                   </div>
 
                   <div className="space-y-1">
-                    <div className="text-[11px] font-mono text-zinc-400">Idea / Core insight</div>
+                    <div className="text-[11px] font-medium text-muted-foreground">Idea / Core insight</div>
                     <textarea
                       value={idea}
                       onChange={(e) => setIdea(e.target.value)}
-                      placeholder="e.g. Key observation, invariant, or technique..."
+                      placeholder="Key observation, invariant, or technique..."
                       rows={2}
-                      className="w-full rounded border border-zinc-800 bg-zinc-900/90 p-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/80 focus:outline-hidden resize-y"
+                      className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <div className="text-[11px] font-mono text-zinc-400">What I did wrong / Trap to avoid</div>
+                    <div className="text-[11px] font-medium text-muted-foreground">What I did wrong / Trap to avoid</div>
                     <textarea
                       value={mistake}
                       onChange={(e) => setMistake(e.target.value)}
-                      placeholder="e.g. Mistake made, edge case missed..."
+                      placeholder="Mistake made, edge case missed..."
                       rows={2}
-                      className="w-full rounded border border-zinc-800 bg-zinc-900/90 p-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/80 focus:outline-hidden resize-y"
+                      className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                     />
                   </div>
                 </div>
 
                 {/* Bottom Actions */}
-                <div className="flex items-center justify-between border-t border-zinc-800/80 pt-3">
-                  <div className="text-[11px] font-mono text-zinc-500">
-                    <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 py-0.5">⌘ + Enter</kbd> saves & resets
+                <div className="flex items-center justify-between border-t border-border pt-3">
+                  <div className="text-[11px] text-muted-foreground">
+                    <kbd className="border border-border bg-muted px-1 py-0.5 text-[10px]">⌘ + Enter</kbd> saves & resets
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={resetForm}
-                      className="rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                      className="border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
                     >
                       Cancel
                     </button>
@@ -481,10 +474,9 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         setManualMode(true);
                         setManualTitle(effTitle);
                         setManualUrl(effUrl);
-                        // Trigger submit
                         setTimeout(() => handleSubmit(), 10);
                       }}
-                      className="flex items-center gap-1.5 rounded bg-emerald-600 hover:bg-emerald-500 px-3 py-1 text-xs font-medium text-white transition-colors disabled:opacity-50"
+                      className="border border-primary bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50"
                     >
                       {isPending ? <span>Saving...</span> : <span>Log Solve</span>}
                     </button>
@@ -494,15 +486,17 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
             )}
           </div>
         ) : (
-          /* Step 2: The Fast Add Form (<15 sec) */
+          /* Step 2: The Fast Add Form */
           <div className="p-4 space-y-3.5">
             {/* Prefilled Problem Summary Bar */}
-            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5">
+            <div className="flex items-center justify-between border-b border-border pb-2.5">
               <div className="flex items-center gap-2.5 truncate">
                 {selectedProblem?.number != null && (
-                  <span className="font-mono text-xs text-zinc-400">#{selectedProblem.number}</span>
+                  <span className="text-xs text-muted-foreground tabular-numbers">
+                    #{selectedProblem.number}
+                  </span>
                 )}
-                <span className="font-medium text-zinc-100 truncate text-sm">
+                <span className="font-semibold text-foreground truncate text-sm">
                   {selectedProblem ? selectedProblem.title : manualTitle || "Manual Problem"}
                 </span>
                 {selectedProblem?.url && (
@@ -510,14 +504,14 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     href={selectedProblem.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-zinc-500 hover:text-zinc-300"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 )}
                 {selectedProblem?.patterns.length ? (
-                  <span className="flex items-center gap-1 rounded bg-zinc-900 border border-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400 font-mono">
-                    <Sparkles className="h-2.5 w-2.5 text-emerald-400" />
+                  <span className="flex items-center gap-1 border border-border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground">
+                    <Sparkles className="h-2.5 w-2.5 text-muted-foreground" />
                     {selectedProblem.patterns.map((p) => p.name).join(", ")}
                   </span>
                 ) : null}
@@ -525,13 +519,13 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            {/* Manual Edit Inputs if manualMode */}
+            {/* Manual Edit Inputs */}
             {manualMode && (
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <input
@@ -539,12 +533,12 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   placeholder="Problem Title"
                   value={manualTitle}
                   onChange={(e) => setManualTitle(e.target.value)}
-                  className="col-span-2 rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-200 focus:border-zinc-600 focus:outline-hidden"
+                  className="col-span-2 border border-border bg-background px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
                 <select
                   value={manualDifficulty}
                   onChange={(e) => setManualDifficulty(e.target.value as any)}
-                  className="rounded border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-zinc-200 focus:border-zinc-600 focus:outline-hidden"
+                  className="border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <option value="EASY">Easy</option>
                   <option value="MEDIUM">Medium</option>
@@ -555,69 +549,67 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   placeholder="URL (e.g. GeeksforGeeks)"
                   value={manualUrl}
                   onChange={(e) => setManualUrl(e.target.value)}
-                  className="col-span-3 rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-200 focus:border-zinc-600 focus:outline-hidden"
+                  className="col-span-3 border border-border bg-background px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
             )}
 
-            {/* The 4 Hot Fields: Status, Minutes, Idea, Mistake */}
+            {/* The 4 Hot Fields */}
             <div className="space-y-3">
-              {/* Field 1: Solve Status (Keys 1 / 2 / 3) */}
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono text-zinc-400">Status</span>
+                <span className="text-xs font-medium text-muted-foreground">Status</span>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setStatus("SOLVED_UNAIDED")}
                     className={cn(
-                      "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors border",
+                      "flex items-center gap-1.5 px-2.5 py-1 text-xs transition-colors border",
                       status === "SOLVED_UNAIDED"
-                        ? "border-emerald-700 bg-emerald-950/80 text-emerald-300"
-                        : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                        ? "border-easy/60 bg-easy/20 text-easy"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                     )}
                   >
                     <Check className="h-3 w-3" />
                     <span>Unaided</span>
-                    <kbd className="text-[10px] opacity-70 font-mono">[1]</kbd>
+                    <kbd className="text-[10px] opacity-70">[1]</kbd>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setStatus("SOLVED_WITH_HELP")}
                     className={cn(
-                      "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors border",
+                      "flex items-center gap-1.5 px-2.5 py-1 text-xs transition-colors border",
                       status === "SOLVED_WITH_HELP"
-                        ? "border-sky-700 bg-sky-950/80 text-sky-300"
-                        : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                        ? "border-border bg-muted text-foreground font-medium"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                     )}
                   >
                     <HelpCircle className="h-3 w-3" />
                     <span>With Help</span>
-                    <kbd className="text-[10px] opacity-70 font-mono">[2]</kbd>
+                    <kbd className="text-[10px] opacity-70">[2]</kbd>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setStatus("ATTEMPTED_FAILED")}
                     className={cn(
-                      "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors border",
+                      "flex items-center gap-1.5 px-2.5 py-1 text-xs transition-colors border",
                       status === "ATTEMPTED_FAILED"
-                        ? "border-rose-700 bg-rose-950/80 text-rose-300"
-                        : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                        ? "border-destructive/60 bg-destructive/20 text-destructive"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                     )}
                   >
                     <AlertCircle className="h-3 w-3" />
                     <span>Failed</span>
-                    <kbd className="text-[10px] opacity-70 font-mono">[3]</kbd>
+                    <kbd className="text-[10px] opacity-70">[3]</kbd>
                   </button>
                 </div>
               </div>
 
-              {/* Field 2: Minutes & Revisit flag */}
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5 text-zinc-500" />
-                  <span className="text-xs font-mono text-zinc-400">Minutes</span>
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">Minutes</span>
                   <input
                     ref={minutesInputRef}
                     type="number"
@@ -625,65 +617,63 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     max="600"
                     value={minutes}
                     onChange={(e) => setMinutes(e.target.value)}
-                    placeholder="e.g. 25"
-                    className="w-20 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs font-mono text-zinc-100 focus:border-zinc-600 focus:outline-hidden"
+                    placeholder="25"
+                    className="w-20 border border-border bg-background px-2 py-1 text-xs tabular-numbers text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
 
-                <label className="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={revisit}
                     onChange={(e) => setRevisit(e.target.checked)}
-                    className="rounded border-zinc-800 bg-zinc-900 text-emerald-500 focus:ring-0"
+                    className="border-border bg-background text-foreground focus:ring-ring"
                   />
                   <span>Flag for early revisit</span>
                 </label>
               </div>
 
-              {/* Field 3: Idea ("How I cracked it" - Markdown textarea) */}
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
-                  <span>Idea / Core insight (markdown)</span>
-                  <span className="text-zinc-600 text-[10px]">Tab to mistake</span>
+                <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                  <span>Idea / Core insight</span>
+                  <span className="text-muted-foreground/60 text-[10px]">Tab to mistake</span>
                 </div>
                 <textarea
                   ref={ideaRef}
                   value={idea}
                   onChange={(e) => setIdea(e.target.value)}
-                  placeholder="e.g. Sort by start interval, maintain min-heap of active end times..."
+                  placeholder="Sort by start interval, maintain min-heap of active end times..."
                   rows={2}
-                  className="w-full rounded border border-zinc-800 bg-zinc-900/90 p-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/80 focus:outline-hidden resize-y"
+                  className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                 />
               </div>
 
-              {/* Field 4: Mistake ("What I did wrong" - Markdown textarea) */}
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
                   <span>What I did wrong / Trap to avoid</span>
-                  <span className="text-zinc-600 text-[10px]">Highest-value artifact</span>
+                  <span className="text-muted-foreground/60 text-[10px]">Highest-value artifact</span>
                 </div>
                 <textarea
                   ref={mistakeRef}
                   value={mistake}
                   onChange={(e) => setMistake(e.target.value)}
-                  placeholder="e.g. Didn't handle negative numbers; missed off-by-one in binary search right boundary..."
+                  placeholder="Didn't handle negative numbers; missed off-by-one in binary search right boundary..."
                   rows={2}
-                  className="w-full rounded border border-zinc-800 bg-zinc-900/90 p-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/80 focus:outline-hidden resize-y"
+                  className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                 />
               </div>
             </div>
 
             {/* Bottom Actions Bar */}
-            <div className="flex items-center justify-between border-t border-zinc-800/80 pt-3">
-              <div className="text-[11px] font-mono text-zinc-500">
-                <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1 py-0.5">⌘ + Enter</kbd> saves & resets
+            <div className="flex items-center justify-between border-t border-border pt-3">
+              <div className="text-[11px] text-muted-foreground">
+                <kbd className="border border-border bg-muted px-1 py-0.5 text-[10px]">⌘ + Enter</kbd> saves & resets
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="rounded border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                  className="border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
                 >
                   Cancel
                 </button>
@@ -691,7 +681,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   type="button"
                   disabled={isPending}
                   onClick={handleSubmit}
-                  className="flex items-center gap-1.5 rounded bg-emerald-600 hover:bg-emerald-500 px-3 py-1 text-xs font-medium text-white transition-colors disabled:opacity-50"
+                  className="border border-primary bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50"
                 >
                   {isPending ? <span>Saving...</span> : <span>Log Solve</span>}
                 </button>
