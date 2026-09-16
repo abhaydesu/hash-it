@@ -34,71 +34,84 @@ export default async function SignInPage({
               : "Development mode is active. Use a local email to create or reuse a separate dev account without all accounts collapsing to one identity."}
           </p>
 
-          <form
-            action={async (formData: FormData) => {
-              "use server";
-              if (hasGoogleAuth) {
-                await signIn("google", { redirectTo: redirectTarget });
-                return;
-              }
+          {isProduction && !hasGoogleAuth ? (
+            <div className="border border-destructive/40 bg-destructive/10 p-3.5 text-xs text-destructive space-y-1">
+              <p className="font-semibold">Authentication Not Configured</p>
+              <p className="text-[11px] text-destructive/80">
+                Google OAuth credentials (<code>AUTH_GOOGLE_ID</code> and <code>AUTH_GOOGLE_SECRET</code>) are missing in environment variables.
+              </p>
+            </div>
+          ) : (
+            <form
+              action={async (formData: FormData) => {
+                "use server";
+                if (hasGoogleAuth) {
+                  await signIn("google", { redirectTo: redirectTarget });
+                  return;
+                }
 
-              const email = String(formData.get("email") || "dev-user-local@example.com").trim().toLowerCase();
-              const name = String(formData.get("name") || email.split("@")[0] || "Local Dev").trim() || "Local Dev";
+                if (isProduction) {
+                  throw new Error("Google authentication is required in production.");
+                }
 
-              await signIn("credentials", {
-                email,
-                name,
-                password: "dev",
-                redirectTo: redirectTarget,
-              });
-            }}
-            className="space-y-4"
-          >
-            {!hasGoogleAuth && (
-              <div className="space-y-3">
-                <label className="block text-xs font-mono text-muted-foreground ">
-                  <span className="mb-1.5 block">Local dev email</span>
-                  <input
-                    type="email"
-                    name="email"
-                    defaultValue="dev-user-local@example.com"
-                    className="w-full border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-foreground font-sans"
-                    placeholder="you@example.com"
-                  />
-                </label>
-                <label className="block text-xs font-mono text-muted-foreground ">
-                  <span className="mb-1.5 block">Display name</span>
-                  <input
-                    type="text"
-                    name="name"
-                    defaultValue="Local Dev"
-                    className="w-full border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-foreground font-sans"
-                    placeholder="Alice"
-                  />
-                </label>
-              </div>
-            )}
+                const email = String(formData.get("email") || "dev-user-local@example.com").trim().toLowerCase();
+                const name = String(formData.get("name") || email.split("@")[0] || "Local Dev").trim() || "Local Dev";
 
-            <Button
-              type="submit"
-              variant="primary"
-              className="w-full text-xs h-10"
+                await signIn("credentials", {
+                  email,
+                  name,
+                  password: "dev",
+                  redirectTo: redirectTarget,
+                });
+              }}
+              className="space-y-4"
             >
-              {hasGoogleAuth ? (
-                <div className="flex items-center justify-center gap-2">
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z" />
-                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z" />
-                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12 0 14.8s.7 5.1 1.9 7.5l3.7-2.9z" />
-                    <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z" />
-                  </svg>
-                  <span>Continue with Google</span>
+              {!hasGoogleAuth && !isProduction && (
+                <div className="space-y-3">
+                  <label className="block text-xs font-mono text-muted-foreground ">
+                    <span className="mb-1.5 block">Local dev email</span>
+                    <input
+                      type="email"
+                      name="email"
+                      defaultValue="dev-user-local@example.com"
+                      className="w-full border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-foreground font-sans"
+                      placeholder="you@example.com"
+                    />
+                  </label>
+                  <label className="block text-xs font-mono text-muted-foreground ">
+                    <span className="mb-1.5 block">Display name</span>
+                    <input
+                      type="text"
+                      name="name"
+                      defaultValue="Local Dev"
+                      className="w-full border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-foreground font-sans"
+                      placeholder="Alice"
+                    />
+                  </label>
                 </div>
-              ) : (
-                <span>Continue as local account</span>
               )}
-            </Button>
-          </form>
+
+              <Button
+                type="submit"
+                variant="primary"
+                className="w-full text-xs h-10"
+              >
+                {hasGoogleAuth ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z" />
+                      <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z" />
+                      <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12 0 14.8s.7 5.1 1.9 7.5l3.7-2.9z" />
+                      <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z" />
+                    </svg>
+                    <span>Continue with Google</span>
+                  </div>
+                ) : (
+                  <span>Continue as local account</span>
+                )}
+              </Button>
+            </form>
+          )}
         </div>
 
         <div className="pt-2 flex items-center justify-center gap-2 text-[10px] font-mono  tracking-wider text-muted-foreground border-t border-border">

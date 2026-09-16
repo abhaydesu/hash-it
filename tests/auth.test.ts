@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findOrCreateLocalUser } from "../lib/auth";
+import { findOrCreateLocalUser } from "../lib/local-auth";
 import { prisma } from "../lib/prisma";
 
 describe("local auth identity", () => {

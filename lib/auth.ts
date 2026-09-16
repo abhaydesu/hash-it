@@ -32,6 +32,7 @@ const config: NextAuthConfig = {
             name: "Local Dev",
             credentials: {
               email: { label: "Email", type: "email" },
+              name: { label: "Name", type: "text" },
               password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
