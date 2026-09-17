@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useTransition } from "react";
 import { Search, ExternalLink, Check, AlertCircle, HelpCircle, X, Sparkles, Clock } from "lucide-react";
 import { cn, formatDifficulty, safeHref } from "@/lib/utils";
 import { createEntry, deleteEntry } from "@/app/actions/entry-actions";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface SearchResult {
   id: string;
@@ -27,6 +28,7 @@ interface CommandBarProps {
 export function CommandBar({ autoFocus = false, inline = false, onSuccess }: CommandBarProps) {
   const [isOpen, setIsOpen] = useState(inline);
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounce(query, 300);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<SearchResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -83,32 +85,57 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     }
   }, [autoFocus]);
 
-  // Debounced 150ms search against local Problem table
+  // Clear results immediately when query is emptied
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
+      setIsSearching(false);
+    }
+  }, [query]);
+
+  // Debounced 300ms search with cancellation against local Problem table
+  useEffect(() => {
+    const trimmed = debouncedQuery.trim();
+    if (!trimmed) {
+      setResults([]);
+      setIsSearching(false);
       return;
     }
 
-    const timer = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const res = await fetch("/api/search/problems", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: query.trim() }),
-        });
-        const data = await res.json();
-        setResults(data.results || []);
-      } catch (err) {
-        console.error("Search error:", err);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 150);
+    const abortController = new AbortController();
+    setIsSearching(true);
 
-    return () => clearTimeout(timer);
-  }, [query]);
+    fetch("/api/search/problems", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: trimmed }),
+      signal: abortController.signal,
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Search request failed");
+        return res.json();
+      })
+      .then((data) => {
+        setResults(data.results || []);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error("Search error:", err);
+        }
+      })
+      .finally(() => {
+        if (!abortController.signal.aborted) {
+          setIsSearching(false);
+        }
+      });
+
+    return () => {
+      abortController.abort();
+    };
+  }, [debouncedQuery]);
+
+  const isDebouncing = query.trim().length > 0 && query !== debouncedQuery;
+  const isLoading = isSearching || isDebouncing;
 
   // Form Keyboard Shortcuts (Keys 1, 2, 3 for status, Cmd+Enter to save)
   const handleFormKeyDown = (e: React.KeyboardEvent) => {
@@ -253,8 +280,11 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                 className="w-full border border-border bg-background py-2 pl-9 pr-24 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <div className="absolute right-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                {isSearching ? (
-                  <span>Searching...</span>
+                {isLoading ? (
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="h-1.5 w-1.5 animate-ping bg-primary rounded-full" />
+                    Searching...
+                  </span>
                 ) : (
                   <kbd className="border border-border bg-muted/40 px-1 py-0.5 text-[10px]">Esc to exit</kbd>
                 )}
@@ -305,7 +335,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
             )}
 
             {/* Inline Manual Entry if No Results */}
-            {query.trim().length > 0 && results.length === 0 && !isSearching && (
+            {query.trim().length > 0 && results.length === 0 && !isLoading && (
               <div className="mt-3 space-y-3 border border-border bg-muted/20 p-3.5 text-xs animate-in fade-in">
                 <div className="flex items-center justify-between border-b border-border pb-2">
                   <span className="text-xs font-semibold text-foreground">
