@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { AlertTriangle, AlertCircle, HelpCircle, Clock, Check } from "lucide-react";
 import { recordReviewAttempt } from "@/app/actions/entry-actions";
-import { cn, safeHref } from "@/lib/utils";
+import { formatDifficulty, safeHref } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface ReviewQueueItem {
   entryId: string;
@@ -36,18 +38,15 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
   } | null>(null);
 
   const difficultyLabel =
-    item.difficulty === "EASY" ? "Easy" : item.difficulty === "HARD" ? "Hard" : item.difficulty === "MEDIUM" ? "Medium" : null;
-
-  const difficultyClass =
     item.difficulty === "EASY"
-      ? "border-easy bg-easy text-background"
+      ? "Easy"
       : item.difficulty === "HARD"
-      ? "border-hard bg-hard text-background"
-      : "border-medium bg-medium text-background";
+        ? "Hard"
+        : item.difficulty === "MEDIUM"
+          ? "Medium"
+          : null;
 
-  const handleOutcome = async (
-    status: "SOLVED_UNAIDED" | "SOLVED_WITH_HELP" | "ATTEMPTED_FAILED"
-  ) => {
+  const handleOutcome = async (status: "SOLVED_UNAIDED" | "SOLVED_WITH_HELP" | "ATTEMPTED_FAILED") => {
     const trimmedMinutes = minutes.trim();
     const parsedMinutes = trimmedMinutes === "" ? null : Number.parseInt(trimmedMinutes, 10);
     if (status !== "ATTEMPTED_FAILED" && parsedMinutes === null) {
@@ -78,124 +77,115 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
     }
   };
 
-  // ── Post-submit confirmation (Section 4: reveal labels here) ──────────────
   if (result) {
-    const daysUntil = Math.round(
-      (result.nextDue.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    );
+    const daysUntil = Math.round((result.nextDue.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const diff = formatDifficulty(item.difficulty);
     return (
-      <div className="w-full border border-border bg-background p-4 sm:p-5 font-mono">
-        <div className="space-y-2">
-          <div className="text-sm font-semibold text-foreground font-sans tracking-tight">{item.title}</div>
-          <div className="flex flex-wrap items-center gap-2 text-[11px] tabular-numbers text-muted-foreground  tracking-wider">
-            <span>
-              Next review in{" "}
-              <span className="font-semibold text-easy">
-                {daysUntil} day{daysUntil !== 1 ? "s" : ""}
-              </span>
-            </span>
-            {result.family && (
-              <>
-                <span className="text-border">·</span>
-                <span className="text-foreground">{result.family}</span>
-              </>
-            )}
-            {result.difficulty && (
-              <>
-                <span className="text-border">·</span>
-                <span className={cn("border px-1.5 py-0.5", difficultyClass)}>
-                  {result.difficulty}
-                </span>
-              </>
-            )}
+      <article className="border border-border bg-background p-4 sm:p-5">
+        <div className="type-heading text-foreground">{item.title}</div>
+        <p className="mt-2 type-caption">
+          Next review in{" "}
+          <span className="font-semibold text-foreground tabular-numbers">
+            {daysUntil} day{daysUntil !== 1 ? "s" : ""}
+          </span>
+          {result.family ? `. Pattern family: ${result.family}` : ""}
+          {result.difficulty ? `. Difficulty: ${result.difficulty}` : ""}.
+        </p>
+        {result.difficulty && (
+          <div className="mt-2">
+            <Badge variant={diff.variant}>{diff.label}</Badge>
           </div>
-        </div>
-      </div>
+        )}
+      </article>
     );
   }
 
+  const href = safeHref(item.url) || `/problems/${item.entryId}`;
+
   return (
-    <div className="w-full border border-border bg-background">
-      {/* Header — pattern & difficulty intentionally hidden pre-submit */}
-      <div className="border-b border-border p-4 bg-muted/20 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1 tabular-numbers font-mono  tracking-wider">
+    <article className="border border-border bg-background">
+      <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="min-w-0">
+          <div className="type-label mb-1 flex flex-wrap items-center gap-2 tabular-numbers">
             {item.number != null && <span>#{item.number}</span>}
-            <span className="text-[10px] font-medium tracking-wider">{item.platform}</span>
+            <span>{item.platform === "LEETCODE" ? "LeetCode" : item.platform}</span>
             {item.lapses >= 3 && (
-                <span className="flex items-center gap-1 border border-destructive bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive ring-1 ring-destructive">
-                <AlertTriangle className="h-3 w-3" /> Stuck problem
-              </span>
+              <Badge variant="overdue" className="gap-1">
+                <AlertTriangle className="h-3 w-3" /> Stuck
+              </Badge>
             )}
           </div>
           <a
-            href={safeHref(item.url) || `/problems/${item.entryId}`}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-base font-semibold text-foreground hover:underline transition-colors font-sans tracking-tight"
+            className="type-heading text-foreground hover:text-orange-600 transition-colors"
           >
             {item.title}
           </a>
         </div>
       </div>
 
-      <div className="p-4 sm:p-5 space-y-4 font-mono">
-        {/* Leech: pin previous mistake */}
+      <div className="space-y-4 p-4 sm:p-5">
         {item.lapses >= 3 && item.mistake && (
-          <div className="border border-destructive/30 bg-destructive/5 p-3">
-            <h3 className="text-[11px] font-semibold text-destructive mb-1 flex items-center gap-1.5">
+          <div className="border-l-2 border-warning bg-muted/30 px-3 py-2">
+            <div className="type-label mb-1 flex items-center gap-1.5 text-warning">
               <AlertCircle className="h-3.5 w-3.5" /> Previous mistake
-            </h3>
-            <div className="text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed">{item.mistake}</div>
+            </div>
+            <div className="text-sm font-mono whitespace-pre-wrap leading-relaxed text-foreground">
+              {item.mistake}
+            </div>
           </div>
         )}
 
-        <div className="text-[11px] tracking-wide text-muted-foreground font-semibold">
-          Solve this problem on {item.platform === "LEETCODE" ? "LeetCode" : item.platform}, then record your outcome.
+        <p className="type-caption">
+          Solve this problem on {item.platform === "LEETCODE" ? "LeetCode" : item.platform}, then record
+          your outcome.
+        </p>
+
+        <div className="flex items-center gap-3">
+          <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <input
+            type="number"
+            min="0"
+            placeholder="Minutes taken"
+            value={minutes}
+            onChange={(e) => setMinutes(e.target.value)}
+            className="w-full max-w-xs border border-border bg-background px-3 py-1.5 text-sm tabular-numbers text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
+            disabled={isSubmitting}
+          />
         </div>
 
-        <div className="space-y-3 pt-1">
-          <div className="flex items-center gap-3">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <input
-              type="number"
-              min="0"
-              placeholder="Minutes taken (required)"
-              value={minutes}
-              onChange={(e) => setMinutes(e.target.value)}
-              className="w-full sm:w-60 border border-border bg-background px-3 py-1.5 text-xs tabular-numbers text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => handleOutcome("SOLVED_UNAIDED")}
-              disabled={isSubmitting}
-              className="flex items-center justify-center gap-2 bg-easy text-background hover:opacity-90 px-3 py-2 text-xs font-semibold tracking-wide transition-colors disabled:opacity-50"
-            >
-              <Check className="h-4 w-4" /> Solved cold
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOutcome("SOLVED_WITH_HELP")}
-              disabled={isSubmitting}
-              className="flex items-center justify-center gap-2 bg-medium text-background hover:opacity-90 px-3 py-2 text-xs font-semibold tracking-wide transition-colors disabled:opacity-50"
-            >
-              <HelpCircle className="h-4 w-4" /> Used hint
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOutcome("ATTEMPTED_FAILED")}
-              disabled={isSubmitting}
-              className="flex items-center justify-center gap-2 bg-destructive text-destructive-foreground hover:opacity-90 px-3 py-2 text-xs font-semibold tracking-wide transition-colors disabled:opacity-50"
-            >
-              <AlertCircle className="h-4 w-4" /> Failed / Saw solution
-            </button>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outcome-good"
+            size="sm"
+            disabled={isSubmitting}
+            onClick={() => handleOutcome("SOLVED_UNAIDED")}
+          >
+            <Check className="h-3.5 w-3.5" /> Solved cold
+          </Button>
+          <Button
+            type="button"
+            variant="outcome-hard"
+            size="sm"
+            disabled={isSubmitting}
+            onClick={() => handleOutcome("SOLVED_WITH_HELP")}
+          >
+            <HelpCircle className="h-3.5 w-3.5" /> Used hint
+          </Button>
+          <Button
+            type="button"
+            variant="outcome-failed"
+            size="sm"
+            disabled={isSubmitting}
+            onClick={() => handleOutcome("ATTEMPTED_FAILED")}
+          >
+            <AlertCircle className="h-3.5 w-3.5" /> Failed
+          </Button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

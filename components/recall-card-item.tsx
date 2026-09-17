@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Brain, Check, X, Minus, ChevronDown } from "lucide-react";
+import { Brain } from "lucide-react";
 import { recordRecallAttempt } from "@/app/actions/entry-actions";
 import { safeHref } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface RecallCardItemProps {
   item: {
@@ -15,6 +16,7 @@ interface RecallCardItemProps {
   };
   onComplete: () => void;
 }
+
 export function RecallCardItem({ item, onComplete }: RecallCardItemProps) {
   const [approach, setApproach] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -39,133 +41,99 @@ export function RecallCardItem({ item, onComplete }: RecallCardItemProps) {
       setTimeout(() => onComplete(), 600);
     } catch (err) {
       console.error("Failed to record recall", err);
-      alert("Failed to record recall. See console.");
       setIsSubmitting(false);
       setRating(null);
     }
   };
 
+  const href = safeHref(item.url) || `/problems/${item.entryId}`;
+
   return (
-    <div className="w-full border border-border bg-background">
-      {/* Header */}
-      <div className="border-b border-border p-4 bg-muted/20 flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1 tabular-numbers font-mono  tracking-wider">
+    <article className="border border-border bg-background">
+      <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="min-w-0">
+          <div className="type-label mb-1 flex items-center gap-2 tabular-numbers">
             {item.number != null && <span>#{item.number}</span>}
-            <span className="flex items-center gap-1 border border-border bg-background px-1.5 py-0.5 text-[10px]">
+            <span className="inline-flex items-center gap-1 text-foreground">
               <Brain className="h-3 w-3" /> Quick recall
             </span>
           </div>
           <a
-            href={safeHref(item.url) || `/problems/${item.entryId}`}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-base font-semibold text-foreground hover:underline transition-colors font-sans tracking-tight"
+            className="type-heading text-foreground hover:text-orange-600 transition-colors"
           >
             {item.title}
           </a>
         </div>
       </div>
 
-      <div className="p-4 sm:p-5 space-y-4 font-mono">
+      <div className="space-y-4 p-4 sm:p-5">
         {!submitted ? (
-          /* Step 1: Write the approach */
           <form onSubmit={handleSubmitApproach} className="space-y-3">
-            <p className="text-xs text-muted-foreground  tracking-wide">
-              Without opening the problem, write the approach and the key invariant from memory.
-            </p>
+            <label className="type-label block">Write the approach from memory</label>
             <textarea
               value={approach}
               onChange={(e) => setApproach(e.target.value)}
-              placeholder="e.g. Two pointers shrinking from both ends. Invariant: left < right always. Sort first..."
-              rows={3}
-              className="w-full border border-border bg-background p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground resize-y font-mono"
-              autoFocus
+              rows={4}
+              placeholder="Key idea, structure, edge cases…"
+              className="w-full border border-border bg-background p-3 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y"
             />
-            <button
-              type="submit"
-              disabled={!approach.trim()}
-              className="flex items-center gap-2 border border-border bg-background hover:bg-muted px-4 py-2 text-xs font-semibold text-foreground  tracking-wide transition-colors disabled:opacity-40"
-            >
-              <ChevronDown className="h-3.5 w-3.5" /> Show stored notes
-            </button>
+            <Button type="submit" variant="primary" size="sm" disabled={!approach.trim()}>
+              Check against notes
+            </Button>
           </form>
         ) : (
-          /* Step 2: Compare and rate */
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border border border-border">
-              {/* What they wrote */}
-              <div className="bg-background flex flex-col">
-                <div className="border-b border-border bg-muted/30 px-3 py-1.5 text-[10px]  font-semibold tracking-wider text-muted-foreground">
-                  You wrote
-                </div>
-                <div className="p-3 text-xs text-foreground whitespace-pre-wrap min-h-[80px] leading-relaxed flex-grow">
-                  {approach || <span className="text-muted-foreground italic">Nothing written.</span>}
-                </div>
+            <div className="grid grid-cols-1 gap-px border border-border bg-border sm:grid-cols-2">
+              <div className="bg-background">
+                <div className="type-label border-b border-border bg-muted/30 px-3 py-1.5">You wrote</div>
+                <div className="p-3 text-sm font-mono whitespace-pre-wrap">{approach}</div>
               </div>
-
-              {/* Stored idea */}
-              <div className="bg-background flex flex-col">
-                <div className="border-b border-border bg-muted/30 px-3 py-1.5 text-[10px]  font-semibold tracking-wider text-muted-foreground">
-                  Stored idea
-                </div>
-                <div className="p-3 text-xs text-foreground whitespace-pre-wrap min-h-[80px] leading-relaxed flex-grow">
-                  {item.idea || <span className="text-muted-foreground italic">No notes saved for this problem.</span>}
+              <div className="bg-background">
+                <div className="type-label border-b border-border bg-muted/30 px-3 py-1.5">Your notes</div>
+                <div className="p-3 text-sm font-mono whitespace-pre-wrap text-muted-foreground">
+                  {item.idea || "No idea notes logged."}
                 </div>
               </div>
             </div>
 
-            <p className="text-[10px]  tracking-wide font-semibold text-muted-foreground">
-              How well did it match?
-            </p>
-
-            <div className="grid grid-cols-3 gap-2">
-              <button
+            <div className="flex flex-wrap gap-2">
+              <Button
                 type="button"
+                variant="outcome-good"
+                size="sm"
+                disabled={isSubmitting}
                 onClick={() => handleRate("GOOD")}
-                disabled={isSubmitting}
-                className={`flex flex-col items-center gap-1 border px-3 py-2 text-xs font-medium  tracking-wider transition-colors disabled:opacity-50 ${
-                  rating === "GOOD"
-                    ? "border-easy bg-easy/20 text-easy ring-1 ring-easy"
-                    : "border-border bg-background hover:bg-muted text-foreground"
-                }`}
+                className={rating === "GOOD" ? "ring-2 ring-orange-500" : undefined}
               >
-                <Check className="h-4 w-4" />
-                <span>Matched</span>
-                <span className="text-[10px] opacity-70 font-sans tracking-normal capitalize mt-0.5">→ Good</span>
-              </button>
-              <button
+                Matched
+              </Button>
+              <Button
                 type="button"
+                variant="outcome-hard"
+                size="sm"
+                disabled={isSubmitting}
                 onClick={() => handleRate("HARD")}
-                disabled={isSubmitting}
-                className={`flex flex-col items-center gap-1 border px-3 py-2 text-xs font-medium  tracking-wider transition-colors disabled:opacity-50 ${
-                  rating === "HARD"
-                    ? "border-warning bg-warning/20 text-warning ring-1 ring-warning"
-                    : "border-border bg-background hover:bg-muted text-foreground"
-                }`}
+                className={rating === "HARD" ? "ring-2 ring-orange-500" : undefined}
               >
-                <Minus className="h-4 w-4" />
-                <span>Close</span>
-                <span className="text-[10px] opacity-70 font-sans tracking-normal capitalize mt-0.5">→ Hard</span>
-              </button>
-              <button
+                Close
+              </Button>
+              <Button
                 type="button"
-                onClick={() => handleRate("AGAIN")}
+                variant="outcome-again"
+                size="sm"
                 disabled={isSubmitting}
-                className={`flex flex-col items-center gap-1 border px-3 py-2 text-xs font-medium  tracking-wider transition-colors disabled:opacity-50 ${
-                  rating === "AGAIN"
-                    ? "border-destructive bg-destructive/20 text-destructive ring-1 ring-destructive"
-                    : "border-border bg-background hover:bg-muted text-foreground"
-                }`}
+                onClick={() => handleRate("AGAIN")}
+                className={rating === "AGAIN" ? "ring-2 ring-orange-500" : undefined}
               >
-                <X className="h-4 w-4" />
-                <span>Blank</span>
-                <span className="text-[10px] opacity-70 font-sans tracking-normal capitalize mt-0.5">→ Re-solve</span>
-              </button>
+                Blank
+              </Button>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </article>
   );
 }
