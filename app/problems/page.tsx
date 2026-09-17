@@ -1,8 +1,10 @@
+import React from 'react';
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { DataTable } from "@/components/problem-grid/data-table";
 import { ProblemGridRow } from "@/components/problem-grid/columns";
 import { SheetSection } from "@/components/ui/sheet-section";
+import { normalizePatternList } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -34,11 +36,12 @@ export default async function ProblemsPage() {
     const p = entry.problem;
     const card = entry.reviewCard;
     const sheetPatterns = p.patterns.map((pp) => pp.pattern.name);
-    const effectivePatterns = entry.customPattern
+    const rawPatterns = entry.customPattern
       ? [entry.customPattern]
       : entry.patternOverride.length > 0
         ? entry.patternOverride
         : sheetPatterns;
+    const effectivePatterns = normalizePatternList(rawPatterns);
     const primaryFamily = p.patterns.length > 0 ? p.patterns[0].pattern.family : null;
 
     return {
@@ -71,7 +74,7 @@ export default async function ProblemsPage() {
       <SheetSection innerClassName="py-6">
         <h1 className="type-title text-foreground">Problems</h1>
         <p className="mt-1 type-caption">
-          Dense spreadsheet view of all logged problems. Click ideas or mistakes to edit inline.
+          Dense spreadsheet of logged problems. Click a core idea or mistake to read it; edit from the panel.
         </p>
       </SheetSection>
       <SheetSection innerClassName="pb-10 pt-2" band="none" last>

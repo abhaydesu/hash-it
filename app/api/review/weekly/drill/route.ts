@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { auth, getCurrentUser } from "@/lib/auth";
 
 const DrillSchema = z.object({
   patternId: z.string().min(1),
@@ -9,14 +9,21 @@ const DrillSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const user = session.user;
+
   try {
-    const user = await getCurrentUser();
     const data = DrillSchema.parse(await request.json());
     const pattern = await prisma.pattern.findUnique({ where: { id: data.patternId }, select: { id: true } });
 
     if (!pattern) {
       return NextResponse.json({ error: "Pattern not found" }, { status: 404 });
     }
+
+    if (!user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const drill = await prisma.patternDrill.create({
       data: { userId: user.id, patternId: data.patternId, correct: data.correct },

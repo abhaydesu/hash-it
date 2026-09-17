@@ -29,24 +29,7 @@ export interface DryRunRow {
   existingEntrySummary?: string;
 }
 
-export function parseSlugFromUrl(url: string): string | null {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    const parts = parsed.pathname.split("/").filter(Boolean);
-    const problemsIndex = parts.indexOf("problems");
-    if (problemsIndex !== -1 && problemsIndex + 1 < parts.length) {
-      return parts[problemsIndex + 1].toLowerCase().replace(/[^a-z0-9-]/g, "");
-    }
-    const last = parts[parts.length - 1];
-    return last ? last.toLowerCase().replace(/[^a-z0-9-]/g, "") : null;
-  } catch {
-    const cleanUrl = url.trim().replace(/\/+$/, "").replace(/\/(description|submissions|editorial|1)$/i, "");
-    const parts = cleanUrl.split("/");
-    const last = parts[parts.length - 1];
-    return last ? last.toLowerCase().replace(/[^a-z0-9-]/g, "") : null;
-  }
-}
+export { parseSlugFromUrl, normalizeProblemUrl, problemUrlLookupKeys, titleFromProblemUrl } from "@/lib/problem-url";
 
 export function parseLeadingNumber(title: string): number | null {
   if (!title) return null;

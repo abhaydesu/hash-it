@@ -1,4 +1,6 @@
+import React from 'react';
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { formatDifficulty, formatMinutes, safeHref } from "@/lib/utils";
@@ -62,12 +64,12 @@ export default async function ProblemDetailPage({
   return (
     <div>
       <SheetSection innerClassName="py-4">
-        <a
+        <Link
           href="/problems"
           className="inline-flex items-center gap-1.5 type-caption text-muted-foreground transition-colors hover:text-orange-600"
         >
           <ArrowLeft className="h-3 w-3" /> Back to problem grid
-        </a>
+        </Link>
       </SheetSection>
 
       <SheetSection innerClassName="space-y-3 py-6">

@@ -36,13 +36,16 @@
     --orange-800: 16 76% 26%;
     --orange-900: 14 70% 20%;
 
-    --easy: 110 22% 42%;
-    --medium: 38 40% 42%;
-    --hard: 8 48% 48%;
-    --warning: 4 78% 42%;
-    --recall: 178 54% 32%;
+    /* Semantic pigments — saturated enough to scan fast, still earthy */
+    --easy: 152 52% 34%;
+    --medium: 36 78% 40%;
+    --hard: 8 68% 44%;
+    --hint: 214 68% 42%;
+    --warning: 8 70% 44%;
+    --recall: 178 48% 32%;
 
     --sheet-max: 1040px;
+    --sheet-wide: 1360px;
   }
 
   .dark {
@@ -77,11 +80,12 @@
     --orange-800: 24 100% 78%;
     --orange-900: 24 100% 86%;
 
-    --easy: 110 28% 52%;
-    --medium: 38 42% 55%;
-    --hard: 8 55% 58%;
-    --warning: 4 70% 58%;
-    --recall: 178 45% 52%;
+    --easy: 152 48% 52%;
+    --medium: 36 72% 55%;
+    --hard: 8 62% 58%;
+    --hint: 214 62% 62%;
+    --warning: 8 65% 58%;
+    --recall: 178 42% 52%;
   }
 
   * {
@@ -124,6 +128,39 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Outcome fills — plain CSS so they never depend on Tailwind color codegen */
+  .outcome-fill-good {
+    background-color: hsl(var(--easy));
+    border: 1px solid hsl(var(--easy));
+    color: #fff;
+  }
+  .outcome-fill-good:hover {
+    filter: brightness(1.08);
+  }
+
+  .outcome-fill-hint {
+    background-color: hsl(214 72% 40%);
+    border: 1px solid hsl(214 72% 36%);
+    color: #fff;
+  }
+  .outcome-fill-hint:hover {
+    filter: brightness(1.08);
+  }
+  .dark .outcome-fill-hint {
+    background-color: hsl(214 65% 52%);
+    border-color: hsl(214 65% 58%);
+    color: #fff;
+  }
+
+  .outcome-fill-failed {
+    background-color: hsl(var(--hard));
+    border: 1px solid hsl(var(--hard));
+    color: #fff;
+  }
+  .outcome-fill-failed:hover {
+    filter: brightness(1.08);
+  }
+
   /* 1-bit ordered dither — Bayer-like via stacked radial dots (CSS only, no raster) */
   .bg-dither-25 {
     background-color: transparent;
@@ -149,14 +186,23 @@
       radial-gradient(circle, hsl(var(--foreground) / 0.34) 0.55px, transparent 0.6px);
   }
 
+  /* Ordered dither (Bayer-ish): staggered dots + soft threshold layers */
   .bg-dither-orange {
     background-color: transparent;
-    background-image: radial-gradient(circle, hsl(var(--orange-500) / 0.55) 0.55px, transparent 0.6px);
-    background-size: 5px 5px;
-    background-position: 0 0;
+    background-image:
+      radial-gradient(circle, hsl(var(--orange-500) / 0.95) 0.85px, transparent 0.9px),
+      radial-gradient(circle, hsl(var(--orange-500) / 0.7) 0.65px, transparent 0.7px),
+      radial-gradient(circle, hsl(var(--orange-400) / 0.45) 0.5px, transparent 0.55px),
+      radial-gradient(circle, hsl(var(--orange-500) / 0.28) 0.4px, transparent 0.45px);
+    background-size: 3px 3px, 3px 3px, 6px 6px, 6px 6px;
+    background-position: 0 0, 1.5px 1.5px, 0 3px, 3px 0;
   }
   .dark .bg-dither-orange {
-    background-image: radial-gradient(circle, hsl(var(--orange-500) / 0.45) 0.55px, transparent 0.6px);
+    background-image:
+      radial-gradient(circle, hsl(var(--orange-500) / 0.8) 0.85px, transparent 0.9px),
+      radial-gradient(circle, hsl(var(--orange-500) / 0.55) 0.65px, transparent 0.7px),
+      radial-gradient(circle, hsl(var(--orange-400) / 0.35) 0.5px, transparent 0.55px),
+      radial-gradient(circle, hsl(var(--orange-500) / 0.22) 0.4px, transparent 0.45px);
   }
 
   /* Mastery heatmap cells — density encodes recall, never hue chrome */
@@ -223,12 +269,37 @@
     pointer-events: none;
   }
 
+  /* Hero top-edge only — stays inside the sheet column, not full-bleed gutters */
   .sheet-band-hero {
     top: 0;
     bottom: auto;
-    height: min(42vh, 320px);
-    mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 72px;
+    transform: none;
+    mask-image: linear-gradient(
+      to bottom,
+      black 0%,
+      black 18%,
+      rgba(0, 0, 0, 0.55) 42%,
+      rgba(0, 0, 0, 0.18) 72%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      black 0%,
+      black 18%,
+      rgba(0, 0, 0, 0.55) 42%,
+      rgba(0, 0, 0, 0.18) 72%,
+      transparent 100%
+    );
+  }
+
+  @media (min-width: 640px) {
+    .sheet-band-hero {
+      height: 88px;
+    }
   }
 
   .sheet-inner {

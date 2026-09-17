@@ -8,6 +8,7 @@ import {
   mergeTwoRows,
   DryRunRow,
 } from "@/lib/import-utils";
+import { mapGfgDifficulty } from "@/lib/gfg-metadata";
 import { SolveStatus } from "@prisma/client";
 
 describe("CSV Solved-Sheet Import - Robustness & Note Preservation", () => {
@@ -58,6 +59,15 @@ Line 2 of intuition.","i did not store unique elements separately, was returning
     expect(parseSlugFromUrl("http://geeksforgeeks.org/problems/count-triplets-with-sum-smaller-than-x5549/1")).toBe(
       "count-triplets-with-sum-smaller-than-x5549"
     );
+  });
+
+  it("maps GFG difficulty labels into app difficulty enums", () => {
+    expect(mapGfgDifficulty("Easy")).toBe("EASY");
+    expect(mapGfgDifficulty("basic")).toBe("EASY");
+    expect(mapGfgDifficulty("School")).toBe("EASY");
+    expect(mapGfgDifficulty("Medium")).toBe("MEDIUM");
+    expect(mapGfgDifficulty("Hard")).toBe("HARD");
+    expect(mapGfgDifficulty("unknown")).toBeNull();
   });
 
   it("parses leading problem numbers accurately", () => {

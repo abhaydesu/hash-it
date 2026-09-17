@@ -1,4 +1,5 @@
 "use client";
+import React from 'react';
 
 import { useState, useMemo } from "react";
 import {
@@ -17,6 +18,10 @@ interface DataTableProps {
   data: ProblemGridRow[];
   patternsList: string[];
 }
+
+const filterFieldClass =
+  "h-8 w-full border border-border bg-background py-0 text-xs leading-8 text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500";
+const filterSelectClass = `${filterFieldClass} pl-2.5 pr-8`;
 
 export function DataTable({ data, patternsList }: DataTableProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "number", desc: false }]);
@@ -79,21 +84,29 @@ export function DataTable({ data, patternsList }: DataTableProps) {
   });
 
   const handleExportCsv = () => {
+    const sanitize = (val: string) => {
+      if (val && /^[=+\-@]/.test(val)) {
+        return "'" + val;
+      }
+      return val;
+    };
+
     const csvRows = filteredData.map((row) => ({
-      "Problem Name": row.number != null ? `${row.number}. ${row.title}` : row.title,
-      "Problem Link": row.url,
-      Topic: row.topicTags.join(", "),
-      Pattern: row.patterns.join(", "),
-      Idea: row.idea || "",
-      "What I did wrong": row.mistake || "",
-      Status:
+      "Problem Name": sanitize(row.number != null ? `${row.number}. ${row.title}` : row.title),
+      "Problem Link": sanitize(row.url),
+      Topic: sanitize(row.topicTags.join(", ")),
+      Pattern: sanitize(row.patterns.join(", ")),
+      Idea: sanitize(row.idea || ""),
+      "What I did wrong": sanitize(row.mistake || ""),
+      Status: sanitize(
         row.status === "SOLVED_UNAIDED"
           ? "Solved (No help)"
           : row.status === "SOLVED_WITH_HELP"
           ? "Solved (with help)"
-          : "Attempted (Failed)",
-      "Revisit?": row.revisit ? "Yes" : "No",
-      Source: row.sourceList || "hash-it",
+          : "Attempted (Failed)"
+      ),
+      "Revisit?": sanitize(row.revisit ? "Yes" : "No"),
+      Source: sanitize(row.sourceList || "hash-it"),
     }));
 
     const csv = Papa.unparse(csvRows);
@@ -143,20 +156,20 @@ export function DataTable({ data, patternsList }: DataTableProps) {
 
       <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-4 md:grid-cols-5">
         <div className="relative sm:col-span-2">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search problems, ideas, mistakes…"
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="w-full border border-border bg-background py-1.5 pl-8 pr-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className={`${filterFieldClass} pl-8 pr-2.5 placeholder:text-muted-foreground`}
           />
         </div>
 
         <select
           value={difficultyFilter}
           onChange={(e) => setDifficultyFilter(e.target.value)}
-          className="border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
+          className={filterSelectClass}
         >
           <option value="ALL">All difficulties</option>
           <option value="EASY">Easy</option>
@@ -167,7 +180,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
+          className={filterSelectClass}
         >
           <option value="ALL">All statuses</option>
           <option value="SOLVED_UNAIDED">Unaided</option>
@@ -178,7 +191,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
         <select
           value={patternFilter}
           onChange={(e) => setPatternFilter(e.target.value)}
-          className="border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
+          className={filterSelectClass}
         >
           <option value="ALL">All patterns ({patternsList.length})</option>
           {patternsList.map((p) => (
@@ -190,7 +203,12 @@ export function DataTable({ data, patternsList }: DataTableProps) {
       </div>
 
       <div className="overflow-x-auto border border-border bg-background">
-        <table className="w-full border-collapse text-left text-xs">
+        <table className="w-full min-w-[1100px] table-fixed border-collapse text-left text-xs">
+          <colgroup>
+            {table.getAllLeafColumns().map((column) => (
+              <col key={column.id} style={{ width: column.getSize() }} />
+            ))}
+          </colgroup>
           <thead className="sticky top-0 z-10 border-b border-border bg-muted/50 text-[11px] text-muted-foreground backdrop-blur-sm">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
@@ -198,7 +216,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
                   <th
                     key={header.id}
                     onClick={header.column.getToggleSortingHandler()}
-                    className="cursor-pointer select-none px-2.5 py-1.5 font-medium hover:text-foreground"
+                    className="cursor-pointer select-none border-r border-border px-2.5 py-2 font-medium last:border-r-0 hover:text-foreground"
                   >
                     <div className="flex items-center gap-1">
                       {flexRender(header.column.columnDef.header, header.getContext())}
@@ -215,7 +233,10 @@ export function DataTable({ data, patternsList }: DataTableProps) {
               table.getRowModel().rows.map((row) => (
                 <tr key={row.id} className="hover:bg-muted/40">
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-2.5 py-1 align-middle">
+                    <td
+                      key={cell.id}
+                      className="border-r border-border px-2.5 py-1.5 align-middle last:border-r-0"
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}

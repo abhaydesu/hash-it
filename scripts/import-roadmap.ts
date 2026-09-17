@@ -7,12 +7,17 @@ import { parseSlugFromUrl, parseLeadingNumber } from "../lib/import-utils";
 const prisma = new PrismaClient();
 
 export async function importRoadmapFromCSV(csvFilePath?: string) {
+  const isConfirm = process.argv.includes("--confirm");
   const targetPath =
     csvFilePath || path.join(process.cwd(), "data", "youtuber-roadmap.csv");
 
   if (!fs.existsSync(targetPath)) {
     throw new Error(`Roadmap CSV file not found at ${targetPath}`);
   }
+
+  console.log(
+    `Mode: ${isConfirm ? "CONFIRM (will replace roadmap rows)" : "DRY RUN (pass --confirm to apply)"}\n`
+  );
 
   const fileContent = fs.readFileSync(targetPath, "utf-8");
   const parsed = Papa.parse<string[]>(fileContent, {
@@ -43,6 +48,39 @@ export async function importRoadmapFromCSV(csvFilePath?: string) {
   let currentPatternName = "General Roadmap";
   let currentPatternOrder = 0;
   let itemOrderInPattern = 0;
+
+  if (!isConfirm) {
+    let previewPatterns = 0;
+    let previewItems = 0;
+    for (const row of parsed.data) {
+      if (!row || row.length < 2) continue;
+      const col0 = (row[0] || "").trim();
+      const col1 = (row[1] || "").trim();
+      const link1 = (row[2] || "").trim();
+      const link2 = (row[3] || "").trim();
+      const link3 = (row[4] || "").trim();
+      if (col0 === "Pattern" && col1 === "Question") continue;
+      if (col0.includes("INSTA Channel") || col1.includes("INSTA Channel")) continue;
+      const isHeading =
+        (!link1 && !link2 && !link3 && col1.length > 0 && !col1.startsWith("http")) ||
+        col1.toLowerCase().includes("pattern:") ||
+        col1.toLowerCase() === "tree pattern" ||
+        col1.toLowerCase() === "graphs" ||
+        col1.toLowerCase().includes("dynamic programming") ||
+        col1.toLowerCase().includes("greedy");
+      if (isHeading) {
+        previewPatterns++;
+        continue;
+      }
+      if (!col1 && !link1) continue;
+      previewItems++;
+    }
+    console.log(
+      `Would clear existing RoadmapPattern/RoadmapItem rows and import ~${previewPatterns} pattern sections / ${previewItems} items.`
+    );
+    console.log("No changes made. Run with `--confirm` to apply.");
+    return;
+  }
 
   // Clear existing roadmap data safely (does NOT touch Problem, Entry, or Attempt)
   await prisma.roadmapItem.deleteMany();

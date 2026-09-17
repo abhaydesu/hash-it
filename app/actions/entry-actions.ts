@@ -14,6 +14,7 @@ import {
 } from "@/lib/scheduler";
 import { Platform, Difficulty, SolveStatus, Rating, CardState } from "@prisma/client";
 import { LIMITS, storedHttpUrl } from "@/lib/safe";
+import { parseSlugFromUrl } from "@/lib/problem-url";
 
 const CreateEntrySchema = z.object({
   problemId: z.string().max(64).optional(),
@@ -47,20 +48,19 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
 
     const title = data.manualTitle || "Untitled Problem";
     let slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    if (data.manualUrl) {
-      try {
-        const parts = new URL(data.manualUrl).pathname.split("/").filter(Boolean);
-        if (parts.length > 0) slug = parts[parts.length - 1];
-      } catch {
-        // use derived slug
-      }
-    }
+    const urlSlug = data.manualUrl ? parseSlugFromUrl(data.manualUrl) : null;
+    if (urlSlug) slug = urlSlug;
 
     const platform = data.manualPlatform as Platform;
     const finalSlug = slug || `problem-${Date.now()}`;
     const newProblem = await prisma.problem.upsert({
       where: { platform_slug: { platform, slug: finalSlug } },
-      update: {},
+      update: {
+        ...(data.manualTitle ? { title } : {}),
+        ...(data.manualUrl ? { url: storedHttpUrl(data.manualUrl) } : {}),
+        ...(data.manualDifficulty ? { difficulty: data.manualDifficulty as Difficulty } : {}),
+        ...(data.manualTopicTags.length > 0 ? { topicTags: data.manualTopicTags } : {}),
+      },
       create: {
         platform,
         slug: finalSlug,
@@ -155,6 +155,10 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
           revisit: data.revisit,
           minutes: data.minutes ?? existingEntry.minutes,
           patternOverride: data.patternOverride.length > 0 ? data.patternOverride : existingEntry.patternOverride,
+          topic:
+            data.manualTopicTags[0] ||
+            data.patternOverride[0] ||
+            existingEntry.topic,
         },
       }),
       prisma.attempt.create({
@@ -229,6 +233,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
         revisit: data.revisit,
         firstSolvedAt: now,
         patternOverride: data.patternOverride,
+        topic: data.manualTopicTags[0] || data.patternOverride[0] || null,
       },
     });
 
@@ -563,9 +568,13 @@ export async function deleteEntry(entryId: string) {
   const user = await getCurrentUser();
   const id = z.string().max(64).parse(entryId);
 
-  await prisma.entry.deleteMany({
+  const deleted = await prisma.entry.deleteMany({
     where: { id, userId: user.id },
   });
+
+  if (deleted.count === 0) {
+    throw new Error("Entry not found or unauthorized");
+  }
 
   revalidatePath("/today");
   revalidatePath("/problems");
@@ -593,10 +602,13 @@ export async function toggleRoadmapItemSolve(params: {
     .parse(params);
 
   if (currentlySolved && entryId) {
-    // Unmark / Deselect -> Delete the Entry
-    await prisma.entry.deleteMany({
+    // Unmark / Deselect -> Delete the Entry (scoped to session user)
+    const deleted = await prisma.entry.deleteMany({
       where: { id: entryId, userId: user.id },
     });
+    if (deleted.count === 0) {
+      throw new Error("Entry not found or unauthorized");
+    }
     revalidatePath("/roadmap");
     revalidatePath("/today");
     revalidatePath("/problems");

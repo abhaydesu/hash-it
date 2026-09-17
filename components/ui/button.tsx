@@ -23,11 +23,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
               variant === "primary",
             "border border-border bg-background text-foreground hover:bg-muted": variant === "secondary",
             "text-foreground hover:bg-muted": variant === "ghost",
-            "border border-easy/50 bg-background text-easy hover:bg-easy/10": variant === "outcome-good",
-            "border border-medium/50 bg-background text-medium hover:bg-medium/10": variant === "outcome-hard",
+            "outcome-fill-good": variant === "outcome-good",
+            "outcome-fill-hint": variant === "outcome-hard",
             "border border-hard/50 bg-background text-hard hover:bg-hard/10": variant === "outcome-again",
-            "border border-destructive/50 bg-background text-destructive hover:bg-destructive/10":
-              variant === "outcome-failed",
+            "outcome-fill-failed": variant === "outcome-failed",
           },
           className
         )}

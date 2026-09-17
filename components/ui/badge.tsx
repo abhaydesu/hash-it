@@ -27,14 +27,14 @@ function Badge({ className, variant = "default", ...props }: BadgeProps) {
     outline: "border border-border text-foreground",
     pattern: "border border-border bg-muted/40 text-muted-foreground",
     flag: "border border-border text-foreground",
-    easy: "border border-easy/35 text-easy",
-    medium: "border border-medium/35 text-medium",
-    hard: "border border-hard/35 text-hard",
-    "status-unaided": "border border-easy/35 text-easy",
-    "status-help": "border border-border text-muted-foreground",
-    "status-failed": "border border-destructive/40 text-destructive",
-    overdue: "border border-warning/40 text-warning",
-    recall: "border border-recall/35 text-recall",
+    easy: "border border-easy/50 bg-easy/20 text-easy",
+    medium: "border border-medium/50 bg-medium/20 text-medium",
+    hard: "border border-hard/50 bg-hard/20 text-hard",
+    "status-unaided": "outcome-fill-good",
+    "status-help": "outcome-fill-hint",
+    "status-failed": "outcome-fill-failed",
+    overdue: "border border-warning/50 bg-warning/20 text-warning",
+    recall: "border border-recall/50 bg-recall/20 text-recall",
   };
 
   return (

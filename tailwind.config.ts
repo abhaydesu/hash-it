@@ -7,6 +7,15 @@ const config: Config = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  safelist: [
+    "bg-hint",
+    "text-hint",
+    "border-hint",
+    "bg-hint/20",
+    "bg-hint/90",
+    "border-hint/50",
+    "border-hint/60",
+  ],
   theme: {
     extend: {
       colors: {
@@ -46,6 +55,7 @@ const config: Config = {
         easy: "hsl(var(--easy))",
         medium: "hsl(var(--medium))",
         hard: "hsl(var(--hard))",
+        hint: "hsl(var(--hint))",
         warning: "hsl(var(--warning))",
         recall: "hsl(var(--recall))",
         orange: {

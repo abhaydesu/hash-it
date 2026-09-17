@@ -1,6 +1,7 @@
 "use client";
+import React from 'react';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { AlertTriangle, Hash, ExternalLink } from "lucide-react";
 import { formatDifficulty, safeHref } from "@/lib/utils";
@@ -38,12 +39,28 @@ interface StatsData {
   countByDifficulty: Record<string, number>;
   countBySourceList: Record<string, number>;
   topMistakeKeywords: Array<{ word: string; count: number }>;
+  activityMap: Record<string, number>;
 }
+
+import { Heatmap } from "@/components/ui/heatmap";
+import { Select } from "@/components/ui/select";
 
 export default function StatsPage() {
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string>("last365");
+
+  const availableYears = useMemo(() => {
+    if (!data?.activityMap) return [];
+    const years = new Set<string>();
+    Object.keys(data.activityMap).forEach((dateStr) => {
+      const y = dateStr.split("-")[0];
+      if (y) years.add(y);
+    });
+    years.add(new Date().getFullYear().toString());
+    return Array.from(years).sort().reverse();
+  }, [data?.activityMap]);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -131,6 +148,30 @@ export default function StatsPage() {
         </SpecGrid>
       </SheetSection>
 
+      <SheetSection innerClassName="space-y-4 py-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="type-heading text-foreground">Practice activity</h2>
+            <span className="type-caption">Number of problems reviewed per day</span>
+          </div>
+          <Select 
+            value={selectedYear} 
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className="w-[140px] h-8 text-xs py-1"
+          >
+            <option value="last365">Last 365 days</option>
+            {availableYears.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="border border-border bg-background p-4 sm:p-6 overflow-x-auto">
+          <Heatmap data={data.activityMap} selectedYear={selectedYear} className="w-full" />
+        </div>
+      </SheetSection>
+
       <SheetSection innerClassName="grid grid-cols-1 gap-px border-y-0 bg-transparent py-6 md:grid-cols-2 md:gap-6">
         <div className="space-y-4">
           <h2 className="type-heading text-foreground">Problems practised by difficulty</h2>
@@ -186,32 +227,7 @@ export default function StatsPage() {
         </div>
       </SheetSection>
 
-      <SheetSection innerClassName="space-y-4 py-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 type-heading text-foreground">
-            <Hash className="h-4 w-4" /> Top mistake corpus frequency
-          </h2>
-          <span className="type-caption">Derived from your mistake notes</span>
-        </div>
 
-        {data.topMistakeKeywords.length === 0 ? (
-          <div className="bg-dither-25 px-3 py-4 type-caption italic">
-            No mistake notes recorded yet.
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {data.topMistakeKeywords.map(({ word, count }) => (
-              <div
-                key={word}
-                className="flex items-center gap-2 border border-border bg-muted/20 px-2.5 py-1 text-xs text-foreground"
-              >
-                <span>{word}</span>
-                <span className="tabular-nums type-caption">{count}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </SheetSection>
 
       <SheetSection innerClassName="space-y-4 py-6">
         <div className="flex flex-wrap items-center justify-between gap-2">

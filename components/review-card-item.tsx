@@ -1,4 +1,5 @@
 "use client";
+import React from 'react';
 
 import { useState } from "react";
 import { AlertTriangle, AlertCircle, HelpCircle, Clock, Check } from "lucide-react";
@@ -156,31 +157,34 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
           />
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <Button
             type="button"
             variant="outcome-good"
-            size="sm"
+            size="md"
             disabled={isSubmitting}
             onClick={() => handleOutcome("SOLVED_UNAIDED")}
+            className="w-full justify-center"
           >
             <Check className="h-3.5 w-3.5" /> Solved cold
           </Button>
           <Button
             type="button"
             variant="outcome-hard"
-            size="sm"
+            size="md"
             disabled={isSubmitting}
             onClick={() => handleOutcome("SOLVED_WITH_HELP")}
+            className="w-full justify-center"
           >
             <HelpCircle className="h-3.5 w-3.5" /> Used hint
           </Button>
           <Button
             type="button"
             variant="outcome-failed"
-            size="sm"
+            size="md"
             disabled={isSubmitting}
             onClick={() => handleOutcome("ATTEMPTED_FAILED")}
+            className="w-full justify-center"
           >
             <AlertCircle className="h-3.5 w-3.5" /> Failed
           </Button>

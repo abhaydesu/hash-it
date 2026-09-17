@@ -36,7 +36,11 @@ const PATTERN_MAP: Record<string, string> = {
 };
 
 async function main() {
-  console.log("== Merge Duplicate Patterns ==\n");
+  const isConfirm = process.argv.includes("--confirm");
+  console.log("== Merge Duplicate Patterns ==");
+  console.log(
+    `Mode: ${isConfirm ? "CONFIRM (will merge/delete duplicates)" : "DRY RUN (pass --confirm to apply)"}\n`
+  );
 
   // 1. Read Canonical CSV
   const csvContent = fs.readFileSync(CANONICAL_CSV_PATH, "utf-8");
@@ -47,7 +51,7 @@ async function main() {
 
   console.log(`Loaded ${parsed.data.length} canonical patterns from patterns.csv.`);
 
-  // Upsert all canonical patterns first
+  // Upsert all canonical patterns first (safe / idempotent)
   const canonicalMap = new Map<string, { id: string; name: string; family: string }>();
 
   for (const row of parsed.data) {
@@ -55,6 +59,12 @@ async function main() {
     const name = row.name.trim();
     const family = row.family?.trim() || "General";
     const sortOrder = parseInt(row.sortOrder, 10) || 999;
+
+    if (!isConfirm) {
+      canonicalMap.set(name.toLowerCase(), { id: `dry-${name}`, name, family });
+      canonicalMap.set(name, { id: `dry-${name}`, name, family });
+      continue;
+    }
 
     const p = await prisma.pattern.upsert({
       where: { name },
@@ -90,7 +100,14 @@ async function main() {
       const canonicalPat = canonicalMap.get(canonicalTargetName.toLowerCase()) || canonicalMap.get(canonicalTargetName);
 
       if (canonicalPat && canonicalPat.id !== pat.id) {
-        console.log(`\nMerging "${pat.name}" (${pat.id}) -> "${canonicalPat.name}" (${canonicalPat.id})...`);
+        console.log(
+          `\n${isConfirm ? "Merging" : "Would merge"} "${pat.name}" (${pat.id}) -> "${canonicalPat.name}" (${canonicalPat.id})...`
+        );
+
+        if (!isConfirm) {
+          mergedCount++;
+          continue;
+        }
 
         // Re-link ProblemPatterns
         for (const pp of pat.problems) {
@@ -159,6 +176,14 @@ async function main() {
         console.log(`  ✓ Merged and deleted "${pat.name}"`);
       }
     }
+  }
+
+  if (!isConfirm) {
+    console.log(
+      `\nDry run complete. Would merge & delete ${mergedCount} duplicate pattern(s). No changes made.`
+    );
+    console.log("Run with `--confirm` to apply.");
+    return;
   }
 
   // 4. Print final pattern list

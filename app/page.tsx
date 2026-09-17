@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from "next/link";
 import { Search, ExternalLink } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -55,7 +56,7 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="-mx-4 bg-dither-25 p-6 sm:-mx-6 sm:p-12">
+          <div className="relative -mx-4 border-t border-border bg-dither-25 p-6 sm:-mx-8 sm:p-12">
             <div className="mx-auto max-w-2xl divide-y divide-border border border-border bg-background">
               <div className="flex items-center justify-between bg-muted/40 px-3 py-2 type-label text-muted-foreground">
                 <span>Daily queue</span>

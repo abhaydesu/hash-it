@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { auth, getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +26,15 @@ function median(nums: number[]) {
 }
 
 export async function GET() {
-  try {
-    const user = await getCurrentUser();
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const user = session.user;
 
-    const [totalAttemptsCount, coldSolveAttemptsCount, entries] = await Promise.all([
+  try {
+
+    const [totalAttemptsCount, coldSolveAttemptsCount, entries, attempts] = await Promise.all([
       prisma.attempt.count({ where: { entry: { userId: user.id } } }),
       prisma.attempt.count({
         where: { entry: { userId: user.id }, rating: { in: ["GOOD", "EASY"] } },
@@ -55,7 +60,17 @@ export async function GET() {
           reviewCard: { select: { lapses: true } },
         },
       }),
+      prisma.attempt.findMany({
+        where: { entry: { userId: user.id } },
+        select: { at: true },
+      }),
     ]);
+
+    const activityMap: Record<string, number> = {};
+    for (const a of attempts) {
+      const dateStr = a.at.toISOString().split("T")[0];
+      activityMap[dateStr] = (activityMap[dateStr] || 0) + 1;
+    }
 
     const coldSolveRate = totalAttemptsCount > 0 ? coldSolveAttemptsCount / totalAttemptsCount : 0;
 
@@ -134,6 +149,7 @@ export async function GET() {
       countByDifficulty,
       countBySourceList,
       topMistakeKeywords,
+      activityMap,
     });
   } catch (err) {
     console.error("[api/stats]", err);

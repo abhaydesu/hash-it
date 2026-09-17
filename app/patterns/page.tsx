@@ -1,6 +1,7 @@
 "use client";
+import React from 'react';
 
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, ExternalLink, Search } from "lucide-react";
@@ -64,7 +65,7 @@ function PatternsContent() {
   const [problemSearch, setProblemSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  const fetchPatterns = async () => {
+  const fetchPatterns = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -80,11 +81,11 @@ function PatternsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPatternId]);
 
   useEffect(() => {
     fetchPatterns();
-  }, []);
+  }, [fetchPatterns]);
 
   const selectedPattern = useMemo(() => {
     return patterns.find((p) => p.id === selectedPatternId) || patterns[0] || null;

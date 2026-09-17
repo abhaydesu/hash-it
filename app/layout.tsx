@@ -1,8 +1,9 @@
+import React from 'react';
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import { IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { Navbar, SidebarNav } from "@/components/navbar";
+import { AppShell } from "@/components/app-shell";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { CommandBar } from "@/components/command-bar";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -33,15 +34,9 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning className={`${manrope.variable} ${ibmPlexMono.variable}`}>
-      <body className="min-h-screen bg-background text-foreground antialiased font-sans flex flex-col selection:bg-muted selection:text-foreground">
+      <body className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased selection:bg-muted selection:text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <div className="relative min-h-screen flex flex-col w-full bg-background overflow-x-clip">
-            <div className="mx-auto w-full max-w-[1040px] border-x border-border flex-1 flex flex-col bg-background relative z-20">
-              <Navbar user={user} />
-              <SidebarNav />
-              <main className="flex-1 w-full">{children}</main>
-            </div>
-          </div>
+          <AppShell user={user}>{children}</AppShell>
           <CommandBar />
           <KeyboardShortcutsModal />
         </ThemeProvider>

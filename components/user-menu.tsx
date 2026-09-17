@@ -1,4 +1,5 @@
 "use client";
+import React from 'react';
 
 import { signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
@@ -43,7 +44,7 @@ export function UserMenu({ user }: UserMenuProps) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex items-center gap-1.5 border px-2 py-1.5 text-xs transition-colors",
+          "flex h-8 items-center gap-1.5 border px-2 text-xs transition-colors",
           open
             ? "border-border bg-muted text-foreground"
             : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"

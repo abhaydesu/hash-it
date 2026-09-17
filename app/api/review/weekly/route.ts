@@ -1,14 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { auth, getCurrentUser } from "@/lib/auth";
 import { calculateRetrievability, ReviewCardData } from "@/lib/scheduler";
 import { getPatternCue } from "@/lib/cues";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const user = session.user;
+
   try {
-    const user = await getCurrentUser();
     const now = new Date();
 
     const settings = await prisma.userSettings.findUnique({

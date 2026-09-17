@@ -1,8 +1,10 @@
 "use client";
+import React from 'react';
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import { Search, ExternalLink, Check, AlertCircle, HelpCircle, X, Sparkles, Clock } from "lucide-react";
-import { cn, formatDifficulty, safeHref } from "@/lib/utils";
+import { cn, formatDifficulty, safeHref, normalizePatternList } from "@/lib/utils";
+import { titleFromProblemUrl } from "@/lib/problem-url";
 import { createEntry, deleteEntry } from "@/app/actions/entry-actions";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -17,6 +19,89 @@ interface SearchResult {
   acRate?: number | null;
   topicTags: string[];
   patterns: { id: string; name: string; family: string }[];
+}
+
+function PatternTagsField({
+  tags,
+  onChange,
+  optionalHint = false,
+}: {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  optionalHint?: boolean;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const commitDraft = (raw: string = draft) => {
+    const next = normalizePatternList([...tags, ...normalizePatternList([raw])]);
+    if (next.length !== tags.length || next.some((t, i) => t !== tags[i])) {
+      onChange(next);
+    }
+    setDraft("");
+  };
+
+  const removeTag = (index: number) => {
+    onChange(tags.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="space-y-1 text-xs">
+      <label className="text-[11px] font-medium text-muted-foreground">
+        Pattern / topics
+        {optionalHint && !tags.length && (
+          <span className="ml-1 font-normal text-muted-foreground/70">(optional)</span>
+        )}
+      </label>
+      <div className="flex min-h-[34px] flex-wrap items-center gap-1.5 border border-border bg-background px-2 py-1.5 focus-within:ring-1 focus-within:ring-ring">
+        {tags.map((tag, index) => (
+          <span
+            key={`${tag}-${index}`}
+            className="inline-flex max-w-full items-center gap-1 border border-border bg-muted/40 px-1.5 py-0.5 text-[11px] text-foreground"
+          >
+            <span className="truncate">{tag}</span>
+            <button
+              type="button"
+              onClick={() => removeTag(index)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label={`Remove ${tag}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (/[,;|]/.test(value)) {
+              commitDraft(value);
+              return;
+            }
+            setDraft(value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === "Tab") {
+              if (draft.trim()) {
+                e.preventDefault();
+                commitDraft();
+              }
+            } else if (e.key === "Backspace" && !draft && tags.length > 0) {
+              removeTag(tags.length - 1);
+            }
+          }}
+          onBlur={() => {
+            if (draft.trim()) commitDraft();
+          }}
+          placeholder={tags.length ? "Add another…" : "e.g. Sliding Window, Strings"}
+          className="min-w-[8rem] flex-1 bg-transparent py-0.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+        />
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        Comma-separated values become separate patterns.
+      </p>
+    </div>
+  );
 }
 
 interface CommandBarProps {
@@ -43,6 +128,8 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   const [manualTitle, setManualTitle] = useState("");
   const [manualUrl, setManualUrl] = useState("");
   const [manualDifficulty, setManualDifficulty] = useState<"EASY" | "MEDIUM" | "HARD">("MEDIUM");
+  const [patternTags, setPatternTags] = useState<string[]>([]);
+  const [urlEnrichmentSource, setUrlEnrichmentSource] = useState<string | null>(null);
 
   // Undo Toast state
   const [toast, setToast] = useState<{ id: string; title: string } | null>(null);
@@ -90,8 +177,13 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     if (!query.trim()) {
       setResults([]);
       setIsSearching(false);
+      // Don't wipe pattern tags here — selecting a catalog problem clears the query
+      // but keeps prefilled pattern / topic tags for the log form.
+      if (!selectedProblem && !manualMode) {
+        setUrlEnrichmentSource(null);
+      }
     }
-  }, [query]);
+  }, [query, selectedProblem, manualMode]);
 
   // Debounced 300ms search with cancellation against local Problem table
   useEffect(() => {
@@ -117,6 +209,30 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       })
       .then((data) => {
         setResults(data.results || []);
+        const enrichment = data.enrichment as
+          | {
+              title?: string;
+              url?: string;
+              difficulty?: "EASY" | "MEDIUM" | "HARD" | null;
+              topicTags?: string[];
+              source?: string;
+            }
+          | undefined;
+
+        if (enrichment) {
+          if (enrichment.title) setManualTitle(enrichment.title);
+          if (enrichment.url) setManualUrl(enrichment.url);
+          if (enrichment.difficulty) setManualDifficulty(enrichment.difficulty);
+          setPatternTags(
+            Array.isArray(enrichment.topicTags)
+              ? normalizePatternList(enrichment.topicTags)
+              : []
+          );
+          setUrlEnrichmentSource(enrichment.source || "url");
+        } else if (trimmed.startsWith("http")) {
+          setUrlEnrichmentSource(null);
+          setPatternTags([]);
+        }
       })
       .catch((err) => {
         if (err.name !== "AbortError") {
@@ -136,6 +252,9 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
 
   const isDebouncing = query.trim().length > 0 && query !== debouncedQuery;
   const isLoading = isSearching || isDebouncing;
+
+  const inferredUrlTitle =
+    query.startsWith("http") ? titleFromProblemUrl(query) || "" : query;
 
   // Form Keyboard Shortcuts (Keys 1, 2, 3 for status, Cmd+Enter to save)
   const handleFormKeyDown = (e: React.KeyboardEvent) => {
@@ -165,6 +284,9 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     setQuery("");
     setResults([]);
     setManualMode(false);
+    // Topic tags already appear next to the title; leave pattern blank for the solve pattern.
+    setPatternTags([]);
+    setUrlEnrichmentSource(null);
     setTimeout(() => minutesInputRef.current?.focus(), 50);
   };
 
@@ -178,13 +300,29 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     setIdea("");
     setMistake("");
     setRevisit(false);
+    setManualTitle("");
+    setManualUrl("");
+    setManualDifficulty("MEDIUM");
+    setPatternTags([]);
+    setUrlEnrichmentSource(null);
     if (!inline) setIsOpen(false);
     setTimeout(() => searchInputRef.current?.focus(), 50);
   };
 
-  const handleSubmit = () => {
-    if (!selectedProblem && !manualMode) return;
-    if (manualMode && !manualTitle && !manualUrl) return;
+  const handleSubmit = (overrides?: {
+    forceManual?: boolean;
+    title?: string;
+    url?: string;
+    tags?: string[];
+  }) => {
+    const asManual = Boolean(overrides?.forceManual || manualMode);
+    if (!selectedProblem && !asManual) return;
+
+    const submitTitle = overrides?.title ?? (selectedProblem ? selectedProblem.title : manualTitle);
+    const submitUrl = overrides?.url ?? manualUrl;
+    const submitTags = normalizePatternList(overrides?.tags ?? patternTags);
+
+    if (asManual && !submitTitle && !submitUrl) return;
 
     const trimmedMinutes = minutes.trim();
     const parsedMinutes = trimmedMinutes === "" ? null : Number.parseInt(trimmedMinutes, 10);
@@ -194,16 +332,18 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       return;
     }
 
-    const probTitle = selectedProblem ? selectedProblem.title : manualTitle;
+    const probTitle = selectedProblem && !asManual ? selectedProblem.title : submitTitle;
 
     startTransition(async () => {
       try {
         const res = await createEntry({
-          problemId: selectedProblem ? selectedProblem.id : undefined,
-          manualTitle: manualMode ? manualTitle : undefined,
-          manualUrl: manualMode ? manualUrl : undefined,
-          manualPlatform: manualUrl.includes("geeksforgeeks.org") ? "GFG" : "OTHER",
+          problemId: selectedProblem && !asManual ? selectedProblem.id : undefined,
+          manualTitle: asManual ? submitTitle : undefined,
+          manualUrl: asManual ? submitUrl : undefined,
+          manualPlatform: (submitUrl || "").includes("geeksforgeeks.org") ? "GFG" : "OTHER",
           manualDifficulty: manualDifficulty,
+          manualTopicTags: asManual ? submitTags : [],
+          patternOverride: submitTags,
           status,
           minutes: parsedMinutes,
           idea: idea.trim() || null,
@@ -212,7 +352,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
         });
 
         if (res.success && res.entryId) {
-          setToast({ id: res.entryId, title: probTitle });
+          setToast({ id: res.entryId, title: probTitle || "Problem" });
           resetForm();
           onSuccess?.();
 
@@ -341,7 +481,11 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   <span className="text-xs font-semibold text-foreground">
                     {query.startsWith("http") ? "URL Problem Import" : "Manual Problem Entry"}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">Not found in catalog</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {urlEnrichmentSource === "gfg"
+                      ? "Fetched from GeeksforGeeks"
+                      : "Not found in catalog"}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -350,7 +494,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     <input
                       type="text"
                       placeholder="Title"
-                      value={manualTitle || (query.startsWith("http") ? query.split("/").filter(Boolean).pop()?.replace(/[-_]+/g, " ") || "" : query)}
+                      value={manualTitle || inferredUrlTitle}
                       onChange={(e) => setManualTitle(e.target.value)}
                       className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
@@ -379,6 +523,10 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
+
+                  <div className="sm:col-span-3">
+                    <PatternTagsField tags={patternTags} onChange={setPatternTags} />
+                  </div>
                 </div>
 
                 {/* Hot Fields */}
@@ -392,7 +540,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         className={cn(
                           "flex items-center gap-1 px-2.5 py-1 text-xs transition-colors border",
                           status === "SOLVED_UNAIDED"
-                            ? "border-easy/60 bg-easy/20 text-easy"
+                            ? "outcome-fill-good"
                             : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                         )}
                       >
@@ -407,7 +555,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         className={cn(
                           "flex items-center gap-1 px-2.5 py-1 text-xs transition-colors border",
                           status === "SOLVED_WITH_HELP"
-                            ? "border-border bg-muted text-foreground font-medium"
+                            ? "outcome-fill-hint"
                             : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                         )}
                       >
@@ -422,7 +570,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         className={cn(
                           "flex items-center gap-1 px-2.5 py-1 text-xs transition-colors border",
                           status === "ATTEMPTED_FAILED"
-                            ? "border-destructive/60 bg-destructive/20 text-destructive"
+                            ? "outcome-fill-failed"
                             : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                         )}
                       >
@@ -499,12 +647,18 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       type="button"
                       disabled={isPending}
                       onClick={() => {
-                        const effTitle = manualTitle || (query.startsWith("http") ? query.split("/").filter(Boolean).pop()?.replace(/[-_]+/g, " ") || "Untitled Problem" : query);
+                        const effTitle =
+                          manualTitle || inferredUrlTitle || "Untitled Problem";
                         const effUrl = manualUrl || (query.startsWith("http") ? query : "");
                         setManualMode(true);
                         setManualTitle(effTitle);
                         setManualUrl(effUrl);
-                        setTimeout(() => handleSubmit(), 10);
+                        handleSubmit({
+                          forceManual: true,
+                          title: effTitle,
+                          url: effUrl,
+                          tags: patternTags,
+                        });
                       }}
                       className="border border-primary bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50"
                     >
@@ -519,40 +673,55 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
           /* Step 2: The Fast Add Form */
           <div className="p-4 space-y-3.5">
             {/* Prefilled Problem Summary Bar */}
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <div className="flex items-center gap-2.5 truncate">
-                {selectedProblem?.number != null && (
-                  <span className="text-xs text-muted-foreground tabular-numbers">
-                    #{selectedProblem.number}
+            <div className="border-b border-border pb-2.5 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                  {selectedProblem?.number != null && (
+                    <span className="shrink-0 text-xs text-muted-foreground tabular-numbers">
+                      #{selectedProblem.number}
+                    </span>
+                  )}
+                  <span className="min-w-0 truncate font-semibold text-foreground text-sm">
+                    {selectedProblem ? selectedProblem.title : manualTitle || "Manual Problem"}
                   </span>
-                )}
-                <span className="font-semibold text-foreground truncate text-sm">
-                  {selectedProblem ? selectedProblem.title : manualTitle || "Manual Problem"}
-                </span>
-                {selectedProblem && safeHref(selectedProblem.url) && (
-                  <a
-                    href={safeHref(selectedProblem.url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                )}
-                {selectedProblem?.patterns.length ? (
-                  <span className="flex items-center gap-1 border border-border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground">
-                    <Sparkles className="h-2.5 w-2.5 text-muted-foreground" />
-                    {selectedProblem.patterns.map((p) => p.name).join(", ")}
-                  </span>
-                ) : null}
+                  {selectedProblem && safeHref(selectedProblem.url) && (
+                    <a
+                      href={safeHref(selectedProblem.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="shrink-0 p-1 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+
+              {selectedProblem &&
+                (selectedProblem.patterns.length > 0 || selectedProblem.topicTags.length > 0) && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Sparkles className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                    {normalizePatternList(
+                      selectedProblem.patterns.length > 0
+                        ? selectedProblem.patterns.map((p) => p.name)
+                        : selectedProblem.topicTags
+                    ).map((tag) => (
+                      <span
+                        key={tag}
+                        className="border border-border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
             </div>
 
             {/* Manual Edit Inputs */}
@@ -584,6 +753,12 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
               </div>
             )}
 
+            <PatternTagsField
+              tags={patternTags}
+              onChange={setPatternTags}
+              optionalHint
+            />
+
             {/* The 4 Hot Fields */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -595,7 +770,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     className={cn(
                       "flex items-center gap-1.5 px-2.5 py-1 text-xs transition-colors border",
                       status === "SOLVED_UNAIDED"
-                        ? "border-easy/60 bg-easy/20 text-easy"
+                        ? "outcome-fill-good"
                         : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                     )}
                   >
@@ -610,7 +785,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     className={cn(
                       "flex items-center gap-1.5 px-2.5 py-1 text-xs transition-colors border",
                       status === "SOLVED_WITH_HELP"
-                        ? "border-border bg-muted text-foreground font-medium"
+                        ? "outcome-fill-hint"
                         : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                     )}
                   >
@@ -625,7 +800,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     className={cn(
                       "flex items-center gap-1.5 px-2.5 py-1 text-xs transition-colors border",
                       status === "ATTEMPTED_FAILED"
-                        ? "border-destructive/60 bg-destructive/20 text-destructive"
+                        ? "outcome-fill-failed"
                         : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
                     )}
                   >
@@ -710,7 +885,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                 <button
                   type="button"
                   disabled={isPending}
-                  onClick={handleSubmit}
+                  onClick={() => handleSubmit()}
                   className="border border-primary bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50"
                 >
                   {isPending ? <span>Saving...</span> : <span>Log Solve</span>}

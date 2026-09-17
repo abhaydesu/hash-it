@@ -1,10 +1,18 @@
 "use client";
+import React from 'react';
 
 import { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
-import { createPortal } from "react-dom";
-import { ExternalLink, Check, HelpCircle, XCircle, AlertTriangle } from "lucide-react";
-import { formatDifficulty, formatMinutes, safeHref } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
+import { ExternalLink, Check, HelpCircle, XCircle, Pencil } from "lucide-react";
+import {
+  cn,
+  formatDifficulty,
+  formatMinutes,
+  formatStatus,
+  normalizePatternList,
+  patternClayStyle,
+  safeHref,
+} from "@/lib/utils";
 import { updateEntryInline } from "@/app/actions/entry-actions";
 
 export interface ProblemGridRow {
@@ -41,16 +49,35 @@ function InlineEditCell({
   initialValue?: string | null;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [isPreviewPinned, setIsPreviewPinned] = useState(false);
-  const [previewPosition, setPreviewPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
   const [value, setValue] = useState(initialValue || "");
   const [isSaving, setIsSaving] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isOpen]);
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
       await updateEntryInline({ entryId, field, value: value.trim() || null });
       setIsEditing(false);
+      setIsOpen(false);
     } catch (err) {
       console.error("Save error:", err);
     } finally {
@@ -58,26 +85,9 @@ function InlineEditCell({
     }
   };
 
-  const updatePreviewPosition = (clientX: number, clientY: number) => {
-    setPreviewPosition({
-      x: Math.max(8, Math.min(clientX + 16, window.innerWidth - 368)),
-      y: Math.max(8, Math.min(clientY + 16, window.innerHeight - 248)),
-    });
-  };
-
-  const handleCellClick = () => {
-    if (isPreviewPinned) {
-      setIsEditing(true);
-      setIsPreviewPinned(false);
-      setPreviewPosition(null);
-      return;
-    }
-    setIsPreviewPinned(true);
-  };
-
   if (isEditing) {
     return (
-      <div className="flex items-center gap-1.5 min-w-[200px]" onClick={(e) => e.stopPropagation()}>
+      <div className="flex min-w-[200px] items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
         <input
           type="text"
           value={value}
@@ -103,40 +113,46 @@ function InlineEditCell({
   }
 
   return (
-    <>
-      <div
-        onClick={handleCellClick}
-        onMouseEnter={(event) => updatePreviewPosition(event.clientX, event.clientY)}
-        onMouseMove={(event) => updatePreviewPosition(event.clientX, event.clientY)}
-        onMouseLeave={() => {
-          if (!isPreviewPinned) setPreviewPosition(null);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") handleCellClick();
-          if (event.key === "Escape") {
-            setIsPreviewPinned(false);
-            setPreviewPosition(null);
+    <div ref={rootRef} className="relative min-w-0 max-w-[260px]">
+      <button
+        type="button"
+        onClick={() => {
+          if (!initialValue) {
+            setIsEditing(true);
+            return;
           }
+          setIsOpen((open) => !open);
         }}
-        role="button"
-        tabIndex={0}
-        aria-label={`${field === "idea" ? "Core idea" : "Mistake"}. Activate again to edit.`}
-        title="Hover to read. Tap again to edit."
-        className="truncate max-w-[220px] cursor-pointer px-1.5 py-0.5 text-foreground hover:bg-muted/50 transition-colors focus-visible:bg-muted/50"
+        aria-expanded={isOpen}
+        aria-label={`${field === "idea" ? "Core idea" : "Mistake"}. Click to read or edit.`}
+        className="w-full truncate px-1.5 py-0.5 text-left text-foreground transition-colors hover:bg-muted/50 focus-visible:bg-muted/50"
       >
-      {initialValue ? initialValue : <span className="text-muted-foreground italic">—</span>}
-      </div>
-      {initialValue && previewPosition && !isEditing && typeof document !== "undefined" && createPortal(
-        <div
-          className="idea-preview fixed z-[100] pointer-events-none w-[352px] max-w-[calc(100vw-16px)] max-h-56 overflow-y-auto border border-border bg-background px-4 py-3 text-sm leading-relaxed text-foreground shadow-lg"
-          style={{ left: previewPosition.x, top: previewPosition.y }}
-          role="tooltip"
-        >
-          {initialValue}
-        </div>,
-        document.body
+        {initialValue ? initialValue : <span className="italic text-muted-foreground">—</span>}
+      </button>
+
+      {isOpen && initialValue && (
+        <div className="absolute left-0 top-[calc(100%+4px)] z-50 w-[min(22rem,70vw)] border border-border bg-background shadow-lg">
+          <div className="max-h-56 overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-foreground">
+            <p className="whitespace-pre-wrap">{initialValue}</p>
+          </div>
+          <div className="flex items-center justify-between border-t border-border px-3 py-2">
+            <span className="type-label">
+              {field === "idea" ? "Core idea" : "Mistake log"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setIsEditing(true);
+              }}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 transition-colors hover:text-orange-700"
+            >
+              <Pencil className="h-3 w-3" /> Edit
+            </button>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -144,10 +160,11 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
   {
     accessorKey: "number",
     header: "#",
+    size: 64,
     cell: ({ row }) => {
       const num = row.original.number;
       return (
-        <span className="tabular-numbers text-muted-foreground text-xs">
+        <span className="text-xs tabular-numbers text-muted-foreground">
           {num != null ? `#${num}` : "—"}
         </span>
       );
@@ -156,13 +173,14 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
   {
     accessorKey: "title",
     header: "Problem",
+    size: 260,
     cell: ({ row }) => {
       const item = row.original;
       return (
-        <div className="flex items-center gap-2 max-w-[280px]">
+        <div className="flex max-w-[280px] items-center gap-2">
           <a
             href={`/problems/${item.id}`}
-            className="font-medium text-foreground hover:underline truncate"
+            className="truncate font-medium text-foreground hover:underline"
           >
             {item.title}
           </a>
@@ -171,7 +189,7 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
               href={safeHref(item.url)}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+              className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
               title="Open problem link"
             >
               <ExternalLink className="h-3 w-3" />
@@ -179,7 +197,7 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
           )}
           {item.revisit && (
             <span
-              className="border border-hard bg-hard px-1 py-0.2 text-[10px] text-background"
+              className="border border-hard/40 bg-hard/15 px-1 text-[10px] text-hard"
               title="Flagged for revisit"
             >
               rev
@@ -187,7 +205,7 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
           )}
           {item.lapses >= 3 && (
             <span
-              className="border border-hard bg-hard px-1 py-0.2 text-[10px] text-background"
+              className="border border-hard/40 bg-hard/15 px-1 text-[10px] text-hard"
               title="Leech problem (≥3 lapses)"
             >
               leech
@@ -200,10 +218,11 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
   {
     accessorKey: "difficulty",
     header: "Diff",
+    size: 88,
     cell: ({ row }) => {
       const diff = formatDifficulty(row.original.difficulty);
       return (
-        <span className={`inline-block px-1.5 py-0.5 text-[10px] font-medium ${diff.className}`}>
+        <span className={cn("inline-block px-1.5 py-0.5 text-[10px] font-medium", diff.className)}>
           {diff.label}
         </span>
       );
@@ -212,25 +231,24 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
   {
     accessorKey: "status",
     header: "Status",
+    size: 110,
     cell: ({ row }) => {
-      const s = row.original.status;
-      if (s === "SOLVED_UNAIDED") {
-        return (
-          <span className="flex items-center gap-1 text-[11px] text-easy">
-            <Check className="h-3 w-3" /> Unaided
-          </span>
-        );
-      }
-      if (s === "SOLVED_WITH_HELP") {
-        return (
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <HelpCircle className="h-3 w-3" /> With Help
-          </span>
-        );
-      }
+      const status = formatStatus(row.original.status);
+      const Icon =
+        row.original.status === "SOLVED_UNAIDED"
+          ? Check
+          : row.original.status === "SOLVED_WITH_HELP"
+            ? HelpCircle
+            : XCircle;
       return (
-        <span className="flex items-center gap-1 text-[11px] text-destructive">
-          <XCircle className="h-3 w-3" /> Failed
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium",
+            status.className
+          )}
+        >
+          <Icon className="h-3 w-3" />
+          {status.short}
         </span>
       );
     },
@@ -238,17 +256,19 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
   {
     accessorKey: "patterns",
     header: "Pattern",
+    size: 180,
     cell: ({ row }) => {
-      const patterns = row.original.patterns;
-      if (!patterns || patterns.length === 0) {
-        return <span className="text-muted-foreground text-xs italic">—</span>;
+      const patterns = normalizePatternList(row.original.patterns);
+      if (patterns.length === 0) {
+        return <span className="text-xs italic text-muted-foreground">—</span>;
       }
       return (
-        <div className="flex flex-wrap gap-1 max-w-[180px]">
+        <div className="flex max-w-[220px] flex-wrap gap-1">
           {patterns.map((p) => (
             <span
               key={p}
-              className="border border-border bg-muted/30 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+              className="border px-1.5 py-0.5 text-[10px] font-semibold"
+              style={patternClayStyle(p)}
             >
               {p}
             </span>
@@ -260,8 +280,9 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
   {
     accessorKey: "minutes",
     header: "Time",
+    size: 72,
     cell: ({ row }) => (
-      <span className="tabular-numbers text-muted-foreground text-xs">
+      <span className="text-xs tabular-numbers text-muted-foreground">
         {formatMinutes(row.original.minutes)}
       </span>
     ),
@@ -269,17 +290,15 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
   {
     accessorKey: "idea",
     header: "Core idea",
+    size: 220,
     cell: ({ row }) => (
-      <InlineEditCell
-        entryId={row.original.id}
-        field="idea"
-        initialValue={row.original.idea}
-      />
+      <InlineEditCell entryId={row.original.id} field="idea" initialValue={row.original.idea} />
     ),
   },
   {
     accessorKey: "mistake",
     header: "Mistake log",
+    size: 220,
     cell: ({ row }) => (
       <InlineEditCell
         entryId={row.original.id}
@@ -291,10 +310,11 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
   {
     accessorKey: "firstSolvedAt",
     header: "Solved",
+    size: 88,
     cell: ({ row }) => {
       const d = new Date(row.original.firstSolvedAt);
       return (
-        <span className="tabular-numbers text-muted-foreground text-[11px]">
+        <span className="text-[11px] tabular-numbers text-muted-foreground">
           {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
         </span>
       );
@@ -303,16 +323,18 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
   {
     accessorKey: "due",
     header: "Next due",
+    size: 96,
     cell: ({ row }) => {
       const dueStr = row.original.due;
-      if (!dueStr) return <span className="text-muted-foreground text-xs">—</span>;
+      if (!dueStr) return <span className="text-xs text-muted-foreground">—</span>;
       const due = new Date(dueStr);
       const isOverdue = due.getTime() <= Date.now();
       return (
         <span
-          className={`tabular-numbers text-[11px] ${
-            isOverdue ? "text-destructive font-semibold" : "text-muted-foreground"
-          }`}
+          className={cn(
+            "text-[11px] tabular-numbers",
+            isOverdue ? "font-semibold text-hard" : "text-muted-foreground"
+          )}
         >
           {due.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
           {isOverdue && " (!)"}

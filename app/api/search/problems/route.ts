@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Platform } from "@prisma/client";
 import { LIMITS } from "@/lib/safe";
+import { parseSlugFromUrl, problemUrlLookupKeys } from "@/lib/problem-url";
+import { fetchGfgProblemMetadata } from "@/lib/gfg-metadata";
 
 const problemSelect = {
   id: true,
@@ -70,42 +72,126 @@ export async function POST(request: Request) {
     if (raw.startsWith("http://") || raw.startsWith("https://")) {
       try {
         const parsedUrl = new URL(raw);
+        urlSlug = parseSlugFromUrl(raw);
         if (parsedUrl.hostname.includes("leetcode.com")) {
-          const parts = parsedUrl.pathname.split("/").filter(Boolean);
-          const probIdx = parts.indexOf("problems");
-          if (probIdx !== -1 && parts[probIdx + 1]) {
-            urlSlug = parts[probIdx + 1];
-            urlPlatform = Platform.LEETCODE;
-          }
+          urlPlatform = Platform.LEETCODE;
         } else if (parsedUrl.hostname.includes("geeksforgeeks.org")) {
-          const parts = parsedUrl.pathname.split("/").filter(Boolean);
-          if (parts.length > 0) {
-            urlSlug = parts[parts.length - 1];
-            urlPlatform = Platform.GFG;
-          }
+          urlPlatform = Platform.GFG;
         } else {
-          const parts = parsedUrl.pathname.split("/").filter(Boolean);
-          if (parts.length > 0) {
-            urlSlug = parts[parts.length - 1];
-            urlPlatform = Platform.OTHER;
-          }
+          urlPlatform = Platform.OTHER;
         }
       } catch {
         // Not a valid URL, treat as plain text
       }
     }
 
-    if (urlSlug) {
+    if (urlSlug || urlPlatform) {
+      const urlKeys = problemUrlLookupKeys(raw);
       const match = await prisma.problem.findFirst({
         where: {
-          slug: urlSlug,
-          ...(urlPlatform ? { platform: urlPlatform } : {}),
+          OR: [
+            ...(urlSlug
+              ? [
+                  { slug: urlSlug, ...(urlPlatform ? { platform: urlPlatform } : {}) },
+                  { slug: urlSlug },
+                ]
+              : []),
+            ...urlKeys.map((u) => ({ url: { equals: u, mode: "insensitive" as const } })),
+          ],
         },
         select: problemSelect,
       });
 
       if (match) {
-        return NextResponse.json({ results: [serializeProblem(match)] });
+        // Backfill missing GFG difficulty/topics from practice API when catalog row is sparse
+        const needsGfgEnrichment =
+          match.platform === Platform.GFG &&
+          (!match.difficulty || match.topicTags.length === 0) &&
+          urlSlug;
+
+        if (needsGfgEnrichment) {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 4_000);
+          try {
+            const meta = await fetchGfgProblemMetadata(urlSlug!, { signal: controller.signal });
+            if (meta) {
+              const nextDifficulty = match.difficulty || meta.difficulty;
+            const nextTags = match.topicTags.length > 0 ? match.topicTags : meta.topicTags;
+            if (
+              (nextDifficulty && nextDifficulty !== match.difficulty) ||
+              (nextTags.length > 0 && match.topicTags.length === 0)
+            ) {
+              await prisma.problem.update({
+                where: { id: match.id },
+                data: {
+                  ...(nextDifficulty && !match.difficulty ? { difficulty: nextDifficulty } : {}),
+                  ...(match.topicTags.length === 0 && nextTags.length > 0
+                    ? { topicTags: nextTags }
+                    : {}),
+                  ...(meta.title && match.title !== meta.title ? { title: meta.title } : {}),
+                },
+              });
+            }
+
+            return NextResponse.json({
+              results: [
+                serializeProblem({
+                  ...match,
+                  title: meta.title || match.title,
+                  difficulty: nextDifficulty,
+                  topicTags: nextTags,
+                }),
+              ],
+            });
+          }
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+
+      return NextResponse.json({ results: [serializeProblem(match)] });
+      }
+
+      if (urlPlatform === Platform.GFG && urlSlug) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4_000);
+        try {
+          const meta = await fetchGfgProblemMetadata(urlSlug, { signal: controller.signal });
+          if (meta) {
+            const roadmapHit = await prisma.roadmapItem.findFirst({
+              where: {
+                primaryUrl: { contains: urlSlug, mode: "insensitive" },
+              },
+              select: {
+                roadmapPattern: { select: { name: true } },
+              },
+            });
+
+            const topicTags = [...meta.topicTags];
+            const patternName = roadmapHit?.roadmapPattern?.name;
+            if (
+              patternName &&
+              !topicTags.some((t) => t.toLowerCase() === patternName.toLowerCase())
+            ) {
+              topicTags.push(patternName);
+            }
+
+            return NextResponse.json({
+              results: [],
+              enrichment: {
+                title: meta.title,
+                slug: meta.slug,
+                url: raw,
+                platform: "GFG",
+                difficulty: meta.difficulty,
+                topicTags,
+                source: "gfg",
+              },
+            });
+          }
+        } finally {
+          clearTimeout(timeout);
+        }
       }
     }
 

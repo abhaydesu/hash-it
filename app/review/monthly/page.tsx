@@ -1,7 +1,9 @@
 "use client";
+import React from 'react';
 
-import { useEffect, useState, useRef } from "react";
-import { Timer, Check, HelpCircle, AlertCircle, Play, RotateCcw, Award, ExternalLink } from "lucide-react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Timer, Check, HelpCircle, AlertCircle, Play, Pause, RotateCcw, Award, ExternalLink } from "lucide-react";
 import { recordReviewAttempt, createEntry } from "@/app/actions/entry-actions";
 import { formatDifficulty, safeHref } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -9,41 +11,36 @@ import { Badge } from "@/components/ui/badge";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { PageSkeleton } from "@/components/ui/loader";
-
-interface MockProblem {
-  id: string;
-  entryId?: string;
-  title: string;
-  number: number | null;
-  url: string;
-  platform: string;
-  patternName: string;
-  difficulty: "EASY" | "MEDIUM" | "HARD" | null;
-}
-
-interface AttemptResult {
-  problemId: string;
-  status: "SOLVED_UNAIDED" | "SOLVED_WITH_HELP" | "ATTEMPTED_FAILED";
-  minutes: number;
-}
+import {
+  formatMockClock,
+  useMonthlyMock,
+  type MonthlyMockProblem,
+} from "@/components/monthly-mock-provider";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function MonthlyMockPage() {
-  const [problems, setProblems] = useState<MockProblem[]>([]);
+  const {
+    phase,
+    problems,
+    currentIndex,
+    results,
+    problemMinutes,
+    elapsedSeconds,
+    isActive,
+    startSession,
+    pause,
+    resume,
+    discard,
+    resetToIdle,
+    setProblemMinutes,
+    advanceAfterRecord,
+  } = useMonthlyMock();
+
+  const [catalog, setCatalog] = useState<MonthlyMockProblem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [started, setStarted] = useState(false);
-  const [finished, setFinished] = useState(false);
-
-  const [totalSeconds, setTotalSeconds] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-
-  const [problemMinutes, setProblemMinutes] = useState<string>("");
-  const [results, setResults] = useState<Record<string, AttemptResult>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const fetchMockSet = async () => {
     setLoading(true);
@@ -52,7 +49,7 @@ export default function MonthlyMockPage() {
       const res = await fetch("/api/review/monthly");
       if (!res.ok) throw new Error("Failed to generate mock set");
       const data = await res.json();
-      setProblems(data.problems || []);
+      setCatalog(data.problems || []);
     } catch (err) {
       setError(String(err));
     } finally {
@@ -61,27 +58,12 @@ export default function MonthlyMockPage() {
   };
 
   useEffect(() => {
-    fetchMockSet();
-  }, []);
-
-  useEffect(() => {
-    if (isTimerRunning) {
-      timerRef.current = setInterval(() => {
-        setTotalSeconds((prev) => prev + 1);
-      }, 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
+    if (!isActive && phase !== "finished") {
+      fetchMockSet();
+    } else {
+      setLoading(false);
     }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isTimerRunning]);
-
-  const startMock = () => {
-    setStarted(true);
-    setIsTimerRunning(true);
-    setTotalSeconds(0);
-  };
+  }, [isActive, phase]);
 
   const handleRecordProblem = async (
     status: "SOLVED_UNAIDED" | "SOLVED_WITH_HELP" | "ATTEMPTED_FAILED"
@@ -91,7 +73,7 @@ export default function MonthlyMockPage() {
 
     const mins = problemMinutes
       ? parseInt(problemMinutes, 10)
-      : Math.max(1, Math.round(totalSeconds / 60));
+      : Math.max(1, Math.round(elapsedSeconds / 60));
     setIsSubmitting(true);
 
     try {
@@ -114,23 +96,11 @@ export default function MonthlyMockPage() {
         });
       }
 
-      setResults((prev) => ({
-        ...prev,
-        [p.id]: {
-          problemId: p.id,
-          status,
-          minutes: mins,
-        },
-      }));
-
-      setProblemMinutes("");
-
-      if (currentIndex + 1 < problems.length) {
-        setCurrentIndex((prev) => prev + 1);
-      } else {
-        setIsTimerRunning(false);
-        setFinished(true);
-      }
+      advanceAfterRecord(p.id, {
+        problemId: p.id,
+        status,
+        minutes: mins,
+      });
     } catch (err) {
       console.error("Failed to record attempt in mock", err);
       alert("Failed to record problem result. See console.");
@@ -139,13 +109,7 @@ export default function MonthlyMockPage() {
     }
   };
 
-  const formatTime = (secs: number) => {
-    const mins = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
-
-  if (loading) {
+  if (loading && !isActive && phase !== "finished") {
     return (
       <SheetSection band="none" last>
         <PageSkeleton rows={3} />
@@ -153,7 +117,7 @@ export default function MonthlyMockPage() {
     );
   }
 
-  if (error || problems.length === 0) {
+  if (!isActive && phase !== "finished" && (error || catalog.length === 0)) {
     return (
       <SheetSection
         band="none"
@@ -173,7 +137,7 @@ export default function MonthlyMockPage() {
     );
   }
 
-  if (!started) {
+  if (phase === "idle" || (!isActive && phase !== "finished")) {
     return (
       <SheetSection innerClassName="mx-auto max-w-2xl space-y-5 py-8" last>
         <div className="flex items-center gap-2 type-label text-muted-foreground">
@@ -203,11 +167,12 @@ export default function MonthlyMockPage() {
             <li>Open each problem on the platform and solve unaided.</li>
             <li>Record your outcome: Solved cold, Used hint, or Attempted / failed.</li>
             <li>Attempts are automatically integrated into your FSRS review schedule.</li>
+            <li>You can leave this page — the timer stays in the navbar until you pause or discard it.</li>
           </ul>
         </div>
 
         <div className="pt-2">
-          <Button variant="primary" onClick={startMock}>
+          <Button variant="primary" onClick={() => startSession(catalog)} disabled={catalog.length === 0}>
             <Play className="mr-2 h-3.5 w-3.5 fill-current" /> Start assessment
           </Button>
         </div>
@@ -215,7 +180,7 @@ export default function MonthlyMockPage() {
     );
   }
 
-  if (finished) {
+  if (phase === "finished") {
     const coldCount = Object.values(results).filter((r) => r.status === "SOLVED_UNAIDED").length;
     const hintCount = Object.values(results).filter((r) => r.status === "SOLVED_WITH_HELP").length;
     const failCount = Object.values(results).filter((r) => r.status === "ATTEMPTED_FAILED").length;
@@ -233,7 +198,7 @@ export default function MonthlyMockPage() {
           <div className="text-right">
             <div className="type-label">Total duration</div>
             <div className="text-lg font-semibold tabular-nums text-foreground">
-              {formatTime(totalSeconds)}
+              {formatMockClock(elapsedSeconds)}
             </div>
           </div>
         </div>
@@ -300,16 +265,13 @@ export default function MonthlyMockPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <a href="/problems" className="type-caption text-orange-600 hover:text-orange-700">
+          <Link href="/problems" className="type-caption text-orange-600 hover:text-orange-700">
             Back to problem grid
-          </a>
+          </Link>
           <Button
             variant="secondary"
             onClick={() => {
-              setStarted(false);
-              setFinished(false);
-              setResults({});
-              setCurrentIndex(0);
+              resetToIdle();
               fetchMockSet();
             }}
           >
@@ -321,6 +283,11 @@ export default function MonthlyMockPage() {
   }
 
   const currentProblem = problems[currentIndex];
+  if (!currentProblem) {
+    return null;
+  }
+
+  const paused = phase === "paused";
 
   return (
     <SheetSection innerClassName="mx-auto max-w-2xl space-y-6 py-8" last>
@@ -331,11 +298,36 @@ export default function MonthlyMockPage() {
           </span>
           <span className="text-border">|</span>
           <span className="type-caption">{currentProblem.platform}</span>
+          {paused && <span className="type-label text-orange-600">Paused</span>}
         </div>
 
-        <div className="flex items-center gap-2 border border-border bg-background px-3 py-1 text-foreground">
-          <Timer className="h-3.5 w-3.5 animate-pulse text-foreground" />
-          <span className="font-semibold tabular-nums">{formatTime(totalSeconds)}</span>
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 items-center gap-1.5 border border-border bg-background px-3 text-foreground">
+            <Timer
+              className={`h-3.5 w-3.5 ${paused ? "text-muted-foreground" : "animate-pulse text-orange-600"}`}
+            />
+            <span className="font-semibold tabular-nums">{formatMockClock(elapsedSeconds)}</span>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => (paused ? resume() : pause())}>
+            {paused ? (
+              <>
+                <Play className="h-3.5 w-3.5 fill-current" />
+                <span>Resume</span>
+              </>
+            ) : (
+              <>
+                <Pause className="h-3.5 w-3.5" />
+                <span>Pause</span>
+              </>
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowConfirm(true)}
+          >
+            Discard
+          </Button>
         </div>
       </div>
 
@@ -367,9 +359,7 @@ export default function MonthlyMockPage() {
             {currentProblem.platform === "LEETCODE" ? "LeetCode" : currentProblem.platform} without
             looking at discussion or related tags.
           </p>
-          <p>
-            Pattern cue and difficulty will be revealed upon completion of the 5-problem set.
-          </p>
+          <p>Pattern cue and difficulty will be revealed upon completion of the 5-problem set.</p>
         </div>
 
         <div className="space-y-3 pt-2">
@@ -382,7 +372,7 @@ export default function MonthlyMockPage() {
               value={problemMinutes}
               onChange={(e) => setProblemMinutes(e.target.value)}
               className="w-28 border border-border bg-background px-2.5 py-1 text-xs tabular-nums text-foreground focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
-              disabled={isSubmitting}
+              disabled={isSubmitting || paused}
             />
           </div>
 
@@ -390,30 +380,40 @@ export default function MonthlyMockPage() {
             <Button
               variant="outcome-good"
               onClick={() => handleRecordProblem("SOLVED_UNAIDED")}
-              disabled={isSubmitting}
+              disabled={isSubmitting || paused}
               className="justify-center"
             >
-              <Check className="mr-1.5 h-3.5 w-3.5" /> Solved cold
+              <Check className="h-3.5 w-3.5" /> <span>Solved cold</span>
             </Button>
             <Button
               variant="outcome-hard"
               onClick={() => handleRecordProblem("SOLVED_WITH_HELP")}
-              disabled={isSubmitting}
+              disabled={isSubmitting || paused}
               className="justify-center"
             >
-              <HelpCircle className="mr-1.5 h-3.5 w-3.5" /> Used hint
+              <HelpCircle className="h-3.5 w-3.5" /> <span>Used hint</span>
             </Button>
             <Button
               variant="outcome-failed"
               onClick={() => handleRecordProblem("ATTEMPTED_FAILED")}
-              disabled={isSubmitting}
+              disabled={isSubmitting || paused}
               className="justify-center"
             >
-              <AlertCircle className="mr-1.5 h-3.5 w-3.5" /> Failed / saw solution
+              <AlertCircle className="h-3.5 w-3.5" /> <span>Failed / saw solution</span>
             </Button>
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showConfirm}
+        onOpenChange={setShowConfirm}
+        title="Discard progress?"
+        description="Are you sure you want to end this monthly mock? Your progress will be lost."
+        confirmText="Discard"
+        cancelText="Cancel"
+        onConfirm={discard}
+      />
     </SheetSection>
   );
 }

@@ -1,12 +1,15 @@
 "use client";
+import React from 'react';
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SheetSection } from "@/components/ui/sheet-section";
+import { MonthlyMockNavControls } from "@/components/monthly-mock-nav";
 
 interface NavbarProps {
   user?: {
@@ -63,7 +66,7 @@ export function SidebarNav() {
 
 export function Navbar({ user }: NavbarProps) {
   const pathname = usePathname();
-  const isLandingPage = pathname === "/";
+  const isMarketingPage = pathname === "/" || pathname === "/auth/signin";
 
   return (
     <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-sm">
@@ -73,19 +76,19 @@ export function Navbar({ user }: NavbarProps) {
             href="/"
             className="flex items-center gap-2 text-orange-600 transition-colors hover:text-orange-700"
           >
-            <img src="/logo-2.svg" alt="" className="h-6 w-6 object-contain dark:hidden" />
-            <img src="/logo-1.svg" alt="" className="hidden h-6 w-6 object-contain dark:block" />
+            <Image src="/logo-2.svg" alt="" width={24} height={24} className="h-6 w-6 object-contain dark:hidden" />
+            <Image src="/logo-1.svg" alt="" width={24} height={24} className="hidden h-6 w-6 object-contain dark:block" />
           </Link>
 
           <div className="flex items-center gap-2">
-            {!isLandingPage && (
+            {!isMarketingPage && (
               <>
                 <button
                   type="button"
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("open-command-bar"));
                   }}
-                  className="hidden items-center gap-2 border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:flex"
+                  className="hidden h-8 items-center gap-2 border border-border bg-background px-2.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:flex"
                 >
                   <Search className="h-3.5 w-3.5" />
                   <span className="font-medium">Log problem</span>
@@ -93,37 +96,28 @@ export function Navbar({ user }: NavbarProps) {
                     ⌘K
                   </kbd>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" }));
-                  }}
-                  className="hidden h-7 w-7 items-center justify-center border border-border bg-background text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:flex"
-                  title="Keyboard shortcuts (?)"
-                >
-                  ?
-                </button>
               </>
             )}
 
-            {isLandingPage && (
+            {isMarketingPage && (
               <Link
-                href="/roadmap"
-                className="hidden border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:inline-flex"
+                href="/today"
+                className="hidden h-8 items-center border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:inline-flex"
               >
-                Roadmap
+                Dashboard
               </Link>
             )}
 
-            <ThemeToggle className="h-7 w-7" />
+            {!isMarketingPage && <MonthlyMockNavControls />}
+
+            <ThemeToggle className="h-8 w-8" />
 
             {user ? (
               <UserMenu user={user} />
             ) : (
               <Link
                 href="/auth/signin"
-                className="inline-flex items-center border border-orange-500 bg-orange-500 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-orange-600"
+                className="inline-flex h-8 items-center border border-orange-500 bg-orange-500 px-2.5 text-xs font-medium text-white transition-colors hover:bg-orange-600"
               >
                 Sign in
               </Link>
