@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, vi } from "vitest";
 
+process.env.AUTH_SECRET = "test-secret-at-least-16-chars-long";
+
 // Global network guard: fail any test attempting a real external network request
 const originalFetch = globalThis.fetch;
 globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {

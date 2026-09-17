@@ -111,8 +111,18 @@ export default function MonthlyMockPage() {
 
   if (loading && !isActive && phase !== "finished") {
     return (
-      <SheetSection band="none" last>
-        <PageSkeleton rows={3} />
+      <SheetSection innerClassName="mx-auto max-w-2xl space-y-5 py-8" last>
+        <div className="animate-pulse space-y-5">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 bg-muted rounded"></div>
+            <div className="h-4 w-36 bg-muted rounded"></div>
+          </div>
+          <div className="h-8 w-96 bg-muted rounded"></div>
+          <div className="h-4 w-full bg-muted rounded"></div>
+          <div className="h-4 w-5/6 bg-muted rounded"></div>
+          <div className="h-24 w-full bg-muted/40 border border-border p-4"></div>
+          <div className="h-10 w-36 bg-muted rounded"></div>
+        </div>
       </SheetSection>
     );
   }

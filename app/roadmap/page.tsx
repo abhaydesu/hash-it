@@ -16,9 +16,27 @@ export default function RoadmapPage() {
   return (
     <Suspense
       fallback={
-        <SheetSection band="none" last>
-          <PageSkeleton rows={8} />
-        </SheetSection>
+        <div className="animate-pulse">
+          <SheetSection innerClassName="flex flex-col gap-3 py-6 sm:flex-row sm:items-baseline sm:justify-between">
+            <div>
+              <div className="h-7 w-48 bg-muted rounded"></div>
+              <div className="mt-2 h-4 w-96 bg-muted rounded"></div>
+            </div>
+            <div className="h-8 w-24 bg-muted rounded"></div>
+          </SheetSection>
+          <SheetSection innerClassName="py-6" band="none" last>
+            <div className="space-y-6">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="border border-border">
+                  <div className="flex h-12 items-center justify-between bg-muted/20 px-4">
+                    <div className="h-5 w-48 bg-muted rounded"></div>
+                    <div className="h-4 w-12 bg-muted rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SheetSection>
+        </div>
       }
     >
       <RoadmapData />

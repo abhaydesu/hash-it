@@ -9,7 +9,7 @@ export function SpecCell({
   className,
   children,
 }: {
-  label: string;
+  label: React.ReactNode;
   value?: React.ReactNode;
   subvalue?: React.ReactNode;
   className?: string;
