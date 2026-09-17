@@ -3,10 +3,14 @@
 import { useEffect, useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { RefreshCw, Sparkles, AlertTriangle, ExternalLink, Search } from "lucide-react";
+import { AlertTriangle, ExternalLink, Search } from "lucide-react";
 import { formatDifficulty, formatSolveStatus, safeHref } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { SheetSection } from "@/components/ui/sheet-section";
+import { FigureCaption } from "@/components/ui/spec-sheet";
+import { PageSkeleton } from "@/components/ui/loader";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface ProblemItem {
   problemId: string;
@@ -38,6 +42,15 @@ interface PatternData {
   meanRetrievability: number | null;
   lastDrilledAt: string | null;
   problems: ProblemItem[];
+}
+
+/** Map mean retrievability → dither density (0 empty/low … 4 high). */
+function masteryLevel(r: number | null): 0 | 1 | 2 | 3 | 4 {
+  if (r === null) return 0;
+  if (r < 0.6) return 1;
+  if (r < 0.8) return 2;
+  if (r < 0.9) return 3;
+  return 4;
 }
 
 function PatternsContent() {
@@ -101,175 +114,120 @@ function PatternsContent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3 font-mono">
-        <div className="h-6 w-48 bg-dither-25" />
-        <span className="text-xs text-muted-foreground tracking-wider ">Computing pattern heatmap...</span>
-      </div>
+      <SheetSection band="none" last>
+        <PageSkeleton rows={5} />
+      </SheetSection>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
-        <div className="text-destructive font-mono text-xs">{error}</div>
-        <button
-          onClick={fetchPatterns}
-          className="rounded-none border border-border bg-background px-3 py-1 text-xs font-mono text-foreground hover:bg-muted"
-        >
+      <SheetSection band="none" last innerClassName="flex flex-col items-center justify-center min-h-[50vh] gap-3 py-12">
+        <div className="type-caption text-destructive">{error}</div>
+        <Button variant="secondary" size="sm" onClick={fetchPatterns}>
           Retry
-        </button>
-      </div>
+        </Button>
+      </SheetSection>
     );
   }
 
-  // Mastery score color badge helper
-  const getMasteryVisuals = (r: number | null) => {
-    if (r === null) {
-      return {
-        bg: "bg-background hover:bg-muted/40 border-border text-muted-foreground",
-        texture: "",
-        bar: "bg-muted-foreground",
-        label: "new",
-        textColor: "text-muted-foreground",
-      };
-    }
-    if (r >= 0.9) {
-      return {
-        bg: "bg-background hover:bg-muted/60 border-border text-foreground",
-        texture: "bg-dither-25",
-        bar: "bg-foreground",
-        label: `${(r * 100).toFixed(0)}%`,
-        textColor: "text-foreground font-semibold",
-      };
-    }
-    if (r >= 0.8) {
-      return {
-        bg: "bg-background hover:bg-muted/50 border-border text-foreground",
-        texture: "bg-dither-25",
-        bar: "bg-foreground/80",
-        label: `${(r * 100).toFixed(0)}%`,
-        textColor: "text-foreground font-medium",
-      };
-    }
-    if (r >= 0.6) {
-      return {
-        bg: "bg-background hover:bg-muted/30 border-border text-foreground",
-        texture: "bg-dither-50",
-        bar: "bg-foreground/60",
-        label: `${(r * 100).toFixed(0)}%`,
-        textColor: "text-muted-foreground",
-      };
-    }
-    return {
-      bg: "bg-background hover:bg-muted/70 border-border text-foreground",
-      texture: "bg-dither-50",
-      bar: "bg-foreground/40",
-      label: `${(r * 100).toFixed(0)}%`,
-      textColor: "text-foreground",
-    };
-  };
-
   return (
-    <div className="pb-12">
+    <div>
       <SheetSection innerClassName="flex flex-wrap items-center justify-between gap-4 py-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Pattern mastery
-          </h1>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h1 className="type-title text-foreground">Pattern mastery</h1>
+          <p className="mt-1 type-caption">
             FSRS mean retrievability across the pattern taxonomy. Select a pattern to inspect weak spots.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 text-[11px] font-mono  text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 bg-foreground" /> strong (≥90%)</span>
-          <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 bg-foreground/60" /> medium (60-89%)</span>
-          <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 bg-foreground/40" /> weak (&lt;60%)</span>
-          <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 bg-muted-foreground" /> new</span>
+        <div className="flex flex-wrap items-center gap-3 type-caption">
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 dither-mastery-4 border border-border" /> Strong
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 dither-mastery-2 border border-border" /> Medium
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 dither-mastery-1 border border-border" /> Weak
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 dither-mastery-0 border border-border" /> New
+          </span>
         </div>
       </SheetSection>
 
-      {/* Hero: Pattern Mastery Grid */}
-      <SheetSection innerClassName="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 py-6" band="none">
-        {patterns.map((pattern) => {
-          const isSelected = selectedPattern?.id === pattern.id;
-          const visuals = getMasteryVisuals(pattern.meanRetrievability);
-          const percent = pattern.meanRetrievability != null ? Math.round(pattern.meanRetrievability * 100) : 0;
+      <SheetSection innerClassName="py-6" band="none">
+        <div className="grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {patterns.map((pattern) => {
+            const isSelected = selectedPattern?.id === pattern.id;
+            const level = masteryLevel(pattern.meanRetrievability);
+            const label =
+              pattern.meanRetrievability != null
+                ? `${Math.round(pattern.meanRetrievability * 100)}%`
+                : "New";
 
-          return (
-            <button
-              key={pattern.id}
-              onClick={() => setSelectedPatternId(pattern.id)}
-              className={cn(
-                "relative text-left p-3 border transition-all flex flex-col justify-between overflow-hidden rounded-none",
-                visuals.bg,
-                isSelected ? "border-foreground ring-1 ring-foreground z-10" : ""
-              )}
-            >
-              {visuals.texture && <span aria-hidden="true" className={cn("pointer-events-none absolute inset-0", visuals.texture)} />}
-              <div className="relative z-10">
-                <div className="flex items-center justify-between text-[10px] font-mono mb-1">
-                  <span className="text-muted-foreground  truncate max-w-[80px]">{pattern.family}</span>
-                  <span className={cn(visuals.textColor)}>
-                    {visuals.label}
+            return (
+              <button
+                key={pattern.id}
+                type="button"
+                onClick={() => setSelectedPatternId(pattern.id)}
+                className={cn(
+                  "relative flex flex-col justify-between overflow-hidden bg-background p-3 text-left transition-colors hover:bg-muted/40",
+                  `dither-mastery-${level}`,
+                  isSelected && "ring-1 ring-inset ring-orange-500"
+                )}
+              >
+                <div className="relative z-10">
+                  <div className="mb-1 flex items-center justify-between gap-2 type-label">
+                    <span className="truncate text-muted-foreground">{pattern.family}</span>
+                    <span className="tabular-nums text-foreground">{label}</span>
+                  </div>
+                  <div className="type-heading line-clamp-1 text-foreground">{pattern.name}</div>
+                </div>
+
+                <div className="relative z-10 mt-3 flex items-center justify-between type-caption tabular-nums">
+                  <span>
+                    {pattern.solvedCount}/{pattern.totalProblems} solved
                   </span>
-                </div>
-                <div className="text-xs font-medium text-foreground line-clamp-1">
-                  {pattern.name}
-                </div>
-              </div>
-
-              <div className="relative z-10 mt-3 space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground tabular-numbers">
-                  <span>{pattern.solvedCount}/{pattern.totalProblems} solved</span>
                   {pattern.leechCount > 0 && (
-                    <span className="text-destructive font-medium flex items-center gap-0.5">
+                    <span className="flex items-center gap-0.5 font-medium text-destructive">
                       <AlertTriangle className="h-2.5 w-2.5" /> {pattern.leechCount}
                     </span>
                   )}
                 </div>
-
-                {/* Mini retrievability progress bar */}
-                <div className="w-full bg-muted border border-border h-1.5 overflow-hidden rounded-none">
-                  <div
-                    className={cn("h-full transition-all duration-300 rounded-none", visuals.bar)}
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
-              </div>
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
+        </div>
+        <FigureCaption fig={1} title="Pattern mastery by mean retrievability." />
       </SheetSection>
 
-      {/* Detail Section: Selected Pattern Problem List */}
       {selectedPattern && (
-        <SheetSection innerClassName="space-y-4 py-6">
+        <SheetSection innerClassName="space-y-4 py-6" last>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 font-mono">
-                <h2 className="text-base font-semibold text-foreground">
-                  {selectedPattern.name}
-                </h2>
-                <span className="border border-border bg-muted/30 px-2 py-0.5 text-[11px] font-mono text-muted-foreground ">
-                  {selectedPattern.family}
-                </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="type-heading text-foreground">{selectedPattern.name}</h2>
+                <Badge variant="pattern">{selectedPattern.family}</Badge>
                 {selectedPattern.meanRetrievability != null && (
-                  <span className="border border-border bg-background px-2 py-0.5 text-[11px] font-mono text-foreground font-semibold">
-                    {(selectedPattern.meanRetrievability * 100).toFixed(0)}% Retrievability
-                  </span>
+                  <Badge variant="outline" className="tabular-nums">
+                    {Math.round(selectedPattern.meanRetrievability * 100)}% retrievability
+                  </Badge>
                 )}
-                <span className="text-[11px] text-muted-foreground">
-                  Last drilled: {selectedPattern.lastDrilledAt ? new Date(selectedPattern.lastDrilledAt).toLocaleDateString() : "Never"}
+                <span className="type-caption">
+                  Last drilled:{" "}
+                  {selectedPattern.lastDrilledAt
+                    ? new Date(selectedPattern.lastDrilledAt).toLocaleDateString()
+                    : "Never"}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1.5 italic max-w-2xl font-sans">
-                "{selectedPattern.cue}"
+              <p className="mt-1.5 max-w-2xl type-body italic text-muted-foreground">
+                &ldquo;{selectedPattern.cue}&rdquo;
               </p>
             </div>
 
-            {/* Filter and Search Bar */}
-            <div className="flex items-center gap-2 font-mono text-xs">
+            <div className="flex items-center gap-2 text-xs">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
                 <input
@@ -277,41 +235,40 @@ function PatternsContent() {
                   placeholder="Filter problems..."
                   value={problemSearch}
                   onChange={(e) => setProblemSearch(e.target.value)}
-                  className="rounded-none border border-border bg-background pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="rounded-none border border-border bg-background py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
                 />
               </div>
 
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-none border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                className="rounded-none border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
               >
                 <option value="ALL">All status</option>
                 <option value="SOLVED">Solved</option>
-                <option value="UNSOLVED">Unsolved / Failed</option>
+                <option value="UNSOLVED">Unsolved / failed</option>
                 <option value="LEECH">Leeches only</option>
               </select>
             </div>
           </div>
 
-          {/* Problem Table */}
-          <div className="border border-border rounded-none overflow-hidden bg-background font-mono text-xs">
+          <div className="overflow-hidden border border-border bg-background text-xs">
             <table className="w-full text-left">
-              <thead className="bg-muted/40 border-b border-border text-[11px] text-muted-foreground  font-mono">
+              <thead className="border-b border-border bg-muted/40 type-label text-muted-foreground">
                 <tr>
-                  <th className="py-2.5 px-4 font-medium">#</th>
-                  <th className="py-2.5 px-4 font-medium">Problem</th>
-                  <th className="py-2.5 px-4 font-medium">Difficulty</th>
-                  <th className="py-2.5 px-4 font-medium">Status</th>
-                  <th className="py-2.5 px-4 text-center font-medium">Retrievability</th>
-                  <th className="py-2.5 px-4 text-center font-medium">Lapses</th>
-                  <th className="py-2.5 px-4 text-right font-medium">Actions</th>
+                  <th className="px-4 py-2.5 font-medium">#</th>
+                  <th className="px-4 py-2.5 font-medium">Problem</th>
+                  <th className="px-4 py-2.5 font-medium">Difficulty</th>
+                  <th className="px-4 py-2.5 font-medium">Status</th>
+                  <th className="px-4 py-2.5 text-center font-medium">Retrievability</th>
+                  <th className="px-4 py-2.5 text-center font-medium">Lapses</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredProblems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground font-sans text-xs">
+                    <td colSpan={7} className="py-8 text-center type-caption">
                       No problems found matching filters for this pattern.
                     </td>
                   </tr>
@@ -321,90 +278,69 @@ function PatternsContent() {
                     const statusInfo = formatSolveStatus(prob.status);
 
                     return (
-                      <tr key={prob.problemId} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-2.5 px-4 text-muted-foreground tabular-numbers">
-                          {prob.number != null ? `#${prob.number}` : "-"}
+                      <tr key={prob.problemId} className="transition-colors hover:bg-muted/30">
+                        <td className="px-4 py-2.5 tabular-nums text-muted-foreground">
+                          {prob.number != null ? `#${prob.number}` : "—"}
                         </td>
-                        <td className="py-2.5 px-4 font-sans">
+                        <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2">
                             {safeHref(prob.url) ? (
-                            <a
-                              href={safeHref(prob.url)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-medium text-foreground hover:underline transition-colors flex items-center gap-1 font-sans text-xs"
-                            >
-                              {prob.title}
-                              <ExternalLink className="h-3 w-3 opacity-40 hover:opacity-100" />
-                            </a>
+                              <a
+                                href={safeHref(prob.url)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-xs font-medium text-foreground transition-colors hover:text-orange-600"
+                              >
+                                {prob.title}
+                                <ExternalLink className="h-3 w-3 opacity-40 hover:opacity-100" />
+                              </a>
                             ) : (
-                              <span className="font-medium text-foreground font-sans text-xs">{prob.title}</span>
+                              <span className="text-xs font-medium text-foreground">{prob.title}</span>
                             )}
-                            {prob.revisit && (
-                              <span className="rounded-none bg-muted border border-border px-1.5 py-0.2 text-[9px] font-mono text-foreground ">
-                                Revisit
-                              </span>
-                            )}
+                            {prob.revisit && <Badge variant="overdue">Revisit</Badge>}
                           </div>
                         </td>
-                        <td className="py-2.5 px-4">
-                          <span className={cn("rounded-none border px-1.5 py-0.2 text-[10px]  font-mono", diff.className)}>
-                            {diff.label}
-                          </span>
+                        <td className="px-4 py-2.5">
+                          <Badge variant={diff.variant}>{diff.label}</Badge>
                         </td>
-                        <td className="py-2.5 px-4">
+                        <td className="px-4 py-2.5">
                           {prob.status ? (
-                            <span className={cn("rounded-none px-2 py-0.5 text-[10px] border font-mono ", statusInfo.className)}>
-                              {statusInfo.label}
-                            </span>
+                            <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                           ) : (
-                            <span className="text-muted-foreground text-[10px]  font-mono">Unattempted</span>
+                            <span className="type-caption">Unattempted</span>
                           )}
                         </td>
-                        <td className="py-2.5 px-4 text-center tabular-numbers">
+                        <td className="px-4 py-2.5 text-center tabular-nums">
                           {prob.retrievability != null ? (
-                            <span
-                              className={cn(
-                                "font-semibold font-mono",
-                                prob.retrievability >= 0.8
-                                  ? "text-foreground"
-                                  : prob.retrievability >= 0.6
-                                  ? "text-foreground/80"
-                                  : "text-muted-foreground"
-                              )}
-                            >
-                              {(prob.retrievability * 100).toFixed(0)}%
+                            <span className="font-semibold text-foreground">
+                              {Math.round(prob.retrievability * 100)}%
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">-</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
-                        <td className="py-2.5 px-4 text-center tabular-numbers">
+                        <td className="px-4 py-2.5 text-center tabular-nums">
                           {prob.lapses != null && prob.lapses > 0 ? (
-                            <span
-                              className={cn(
-                                "rounded-none px-1.5 py-0.2 text-[10px] font-mono",
-                                prob.lapses >= 3
-                                  ? "bg-destructive/10 border border-destructive/40 text-destructive font-semibold"
-                                  : "text-muted-foreground"
-                              )}
-                            >
-                              {prob.lapses >= 3 ? `Leech (${prob.lapses})` : prob.lapses}
-                            </span>
+                            prob.lapses >= 3 ? (
+                              <Badge variant="status-failed">Leech ({prob.lapses})</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">{prob.lapses}</span>
+                            )
                           ) : (
                             <span className="text-muted-foreground">0</span>
                           )}
                         </td>
-                        <td className="py-2.5 px-4 text-right">
+                        <td className="px-4 py-2.5 text-right">
                           {prob.entryId ? (
                             <Link
                               href={`/problems/${prob.entryId}`}
-                              className="rounded-none border border-border bg-background px-2.5 py-1 text-[11px] text-foreground hover:bg-muted transition-colors font-mono"
+                              className="inline-flex border border-border bg-background px-2.5 py-1 text-[11px] text-foreground transition-colors hover:bg-muted"
                             >
                               Detail
                             </Link>
                           ) : (
                             <button
+                              type="button"
                               onClick={() => {
                                 window.dispatchEvent(
                                   new CustomEvent("open-command-bar-with-query", {
@@ -412,9 +348,9 @@ function PatternsContent() {
                                   })
                                 );
                               }}
-                              className="rounded-none border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-mono"
+                              className="inline-flex border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             >
-                              + Log
+                              Log
                             </button>
                           )}
                         </td>
@@ -435,14 +371,12 @@ export default function PatternsPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3 font-mono">
-          <RefreshCw className="h-5 w-5 text-foreground animate-spin" />
-          <span className="text-xs text-muted-foreground tracking-wider ">Computing pattern heatmap...</span>
-        </div>
+        <SheetSection band="none" last>
+          <PageSkeleton rows={5} />
+        </SheetSection>
       }
     >
       <PatternsContent />
     </Suspense>
   );
 }
-
