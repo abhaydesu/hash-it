@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { RefreshCw, Target, Eye, AlertTriangle, Clock, CheckCircle2, ChevronRight } from "lucide-react";
-import { cn, safeHref } from "@/lib/utils";
+import { Eye, CheckCircle2 } from "lucide-react";
+import { safeHref } from "@/lib/utils";
 import { SheetSection } from "@/components/ui/sheet-section";
+import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
+import { PageSkeleton } from "@/components/ui/loader";
+import { Button } from "@/components/ui/button";
 
 interface PatternItem {
   id: string;
@@ -98,140 +101,151 @@ export default function WeeklyReviewPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3 font-mono">
-        <div className="h-6 w-48 animate-pulse bg-muted" />
-        <div className="h-3 w-72 animate-pulse bg-muted" />
-      </div>
+      <SheetSection band="none" last>
+        <PageSkeleton rows={4} />
+      </SheetSection>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
-        <div className="text-destructive font-mono text-xs">{error || "Failed to load drill"}</div>
-        <button
-          onClick={fetchData}
-          className="rounded-none border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-muted font-mono"
-        >
+      <SheetSection band="none" last innerClassName="flex flex-col items-center justify-center min-h-[50vh] gap-3 py-12">
+        <div className="type-caption text-destructive">{error || "Failed to load drill"}</div>
+        <Button variant="secondary" size="sm" onClick={fetchData}>
           Retry
-        </button>
-      </div>
+        </Button>
+      </SheetSection>
     );
   }
 
   return (
-    <div className="pb-12">
-      {/* Header */}
+    <div>
       <SheetSection innerClassName="py-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Pattern recognition drill
-            </h1>
-            <p className="text-xs text-muted-foreground mt-1">
+            <h1 className="type-title text-foreground">Pattern recognition drill</h1>
+            <p className="mt-1 type-caption">
               Read the description, name the technique. Tests recognition, not implementation.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 rounded-none border border-border bg-muted/20 px-3 py-1 font-mono text-xs text-muted-foreground">
-              <span>Target:</span>
-              <span className="font-semibold text-foreground tabular-numbers">you should recall {Math.round(data.targetRetention * 10)} in 10</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="type-caption">
+              Target: you should recall{" "}
+              <span className="font-semibold tabular-nums text-foreground">
+                {Math.round(data.targetRetention * 10)}
+              </span>{" "}
+              in 10
             </div>
             {data.belowTarget.length > 0 && (
-              <button
-                onClick={revealAll}
-                className="rounded-none border border-border bg-background px-3 py-1 text-xs font-mono text-foreground hover:bg-muted transition-colors"
-              >
+              <Button variant="secondary" size="sm" onClick={revealAll}>
                 Reveal all
-              </button>
+              </Button>
             )}
-          </div>
-        </div>
-
-        {/* Stats summary bar */}
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 border border-border divide-x divide-y divide-border bg-border/40 text-xs">
-          <div className="bg-background px-3 py-2">
-            <span className="text-foreground font-semibold tabular-numbers">{data.summary.belowTargetCount}</span>
-            <span className="text-muted-foreground ml-1.5 font-sans">need review</span>
-          </div>
-          <div className="bg-background px-3 py-2">
-            <span className="text-foreground font-semibold tabular-numbers">{data.summary.untouchedCount}</span>
-            <span className="text-muted-foreground ml-1.5 font-sans">not practised in 2 weeks</span>
-          </div>
-          <div className="bg-background px-3 py-2">
-            <span className="text-foreground font-semibold tabular-numbers">{data.summary.healthyCount}</span>
-            <span className="text-muted-foreground ml-1.5 font-sans">solid</span>
-          </div>
-          <div className="bg-background px-3 py-2">
-            <span className="text-muted-foreground font-semibold tabular-numbers">{data.summary.unpracticedCount}</span>
-            <span className="text-muted-foreground ml-1.5 font-sans">never practised</span>
           </div>
         </div>
       </SheetSection>
 
-      {/* Section 1: Weak Patterns (< Target Retrievability) Cue Flashcards */}
-      <SheetSection innerClassName="py-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 tracking-tight">
-            Patterns that need review
-          </h2>
-          <span className="text-xs text-muted-foreground font-mono tabular-numbers">
-            {data.belowTarget.length} need review
-          </span>
+      <SheetSection innerClassName="py-6" band="neutral">
+        <SpecGrid columns={4}>
+          <SpecCell label="Need review" value={data.summary.belowTargetCount} />
+          <SpecCell label="Not practised in 2 weeks" value={data.summary.untouchedCount} />
+          <SpecCell label="Solid" value={data.summary.healthyCount} />
+          <SpecCell label="Never practised" value={data.summary.unpracticedCount} />
+        </SpecGrid>
+      </SheetSection>
+
+      <SheetSection innerClassName="space-y-4 py-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="type-heading text-foreground">Patterns that need review</h2>
+          <span className="type-caption tabular-nums">{data.belowTarget.length} need review</span>
         </div>
 
         {data.belowTarget.length === 0 ? (
-          <div className="border border-border bg-dither-25 p-6 text-center">
-            <CheckCircle2 className="mx-auto h-5 w-5 text-foreground mb-2" />
-            <p className="text-sm font-medium text-foreground">All reviewed patterns are above target retention!</p>
-            <p className="text-xs text-muted-foreground mt-1">Check untouched patterns or log new problems to expand your repertoire.</p>
+          <div className="border border-border bg-dither-25 px-4 py-8 text-center">
+            <CheckCircle2 className="mx-auto mb-2 h-5 w-5 text-foreground" />
+            <p className="text-sm font-medium text-foreground">
+              All reviewed patterns are above target retention.
+            </p>
+            <p className="mt-1 type-caption">
+              Check untouched patterns or log new problems to expand your repertoire.
+            </p>
           </div>
         ) : (
-          <div className="border border-border divide-y divide-border bg-background">
+          <div className="divide-y divide-border border border-border bg-background">
             {data.belowTarget.map((pattern) => {
               const isRevealed = revealedPatterns[pattern.id];
               const answer = answers[pattern.id];
-              const retrievabilityPct = (pattern.avgRetrievability * 100).toFixed(0);
+              const retrievabilityPct = Math.round(pattern.avgRetrievability * 100);
 
               return (
-                <div key={pattern.id} className="grid gap-4 p-4 sm:grid-cols-[1fr_150px_auto] sm:items-center">
-                  <div className="space-y-2">
-                    <p className="text-xs text-foreground leading-relaxed italic">"{pattern.cue}"</p>
-                    {isRevealed && (
-                      <div className="text-sm font-semibold text-foreground">
-                        {pattern.name} <span className="text-xs font-normal text-muted-foreground">({pattern.family})</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 text-xs text-muted-foreground sm:text-right">
-                    <div className="text-[11px]">Recall estimate</div>
-                    <div className="whitespace-nowrap font-semibold tabular-numbers text-foreground">{retrievabilityPct}% chance you&apos;d recall this</div>
-                  </div>
-                  <div>
-                    {!isRevealed ? (
-                      <button
-                        onClick={() => toggleReveal(pattern.id)}
-                        className="inline-flex items-center justify-center gap-2 border border-border bg-background px-3 py-2 text-xs text-foreground hover:border-orange-500 hover:text-orange-600 transition-colors"
-                      >
-                        <Eye className="h-3.5 w-3.5" /> Reveal pattern
-                      </button>
-                    ) : answer == null ? (
-                      <div className="space-y-2 text-xs">
-                        <div className="text-muted-foreground">Did you name it?</div>
-                        <div className="flex gap-2">
-                          <button onClick={() => answerPattern(pattern.id, true)} className="border border-orange-500 bg-orange-50 px-3 py-1.5 text-orange-700 hover:bg-orange-100">Yes</button>
-                          <button onClick={() => answerPattern(pattern.id, false)} className="border border-border px-3 py-1.5 text-foreground hover:border-orange-500">No</button>
+                <div key={pattern.id} className="space-y-4 p-4 sm:p-5">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(140px,180px)_auto] lg:items-start">
+                    <div className="min-w-0 space-y-2">
+                      <p className="type-body italic leading-relaxed text-foreground">
+                        &ldquo;{pattern.cue}&rdquo;
+                      </p>
+                      {isRevealed && (
+                        <div className="type-heading text-foreground">
+                          {pattern.name}{" "}
+                          <span className="type-caption font-normal">({pattern.family})</span>
                         </div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Answered — {pattern.name}</span>
-                    )}
+                      )}
+                    </div>
+
+                    <SpecCell
+                      label="Retrievability"
+                      value={`${retrievabilityPct}%`}
+                      subvalue="Chance you'd recall this"
+                      className="bg-transparent p-0"
+                    />
+
+                    <div className="shrink-0">
+                      {!isRevealed ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => toggleReveal(pattern.id)}
+                          className="hover:border-orange-500 hover:text-orange-600"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> Reveal pattern
+                        </Button>
+                      ) : answer == null ? (
+                        <div className="space-y-2 text-xs">
+                          <div className="type-label">Did you name it?</div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => answerPattern(pattern.id, true)}
+                            >
+                              Yes
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => answerPattern(pattern.id, false)}
+                            >
+                              No
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="type-caption">Answered — {pattern.name}</span>
+                      )}
+                    </div>
                   </div>
+
                   {isRevealed && pattern.sampleProblems.length > 0 && (
-                    <div className="sm:col-span-3 flex flex-wrap gap-2 border-t border-border pt-3 text-xs">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-border pt-3 type-caption">
                       {pattern.sampleProblems.map((sp) => (
-                        <a key={sp.id} href={safeHref(sp.url) || "#"} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline">
+                        <a
+                          key={sp.id}
+                          href={safeHref(sp.url) || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-orange-600 hover:text-orange-700 hover:underline"
+                        >
                           {sp.number ? `#${sp.number}` : sp.title}
                         </a>
                       ))}
@@ -244,42 +258,40 @@ export default function WeeklyReviewPage() {
         )}
       </SheetSection>
 
-      {/* Section 2: Not practised in 2 weeks */}
-      <SheetSection innerClassName="py-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 tracking-tight">
-            Not practised in 2 weeks
-          </h2>
-          <span className="text-xs text-muted-foreground font-mono tabular-numbers">
+      <SheetSection innerClassName="space-y-4 py-6" last>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="type-heading text-foreground">Not practised in 2 weeks</h2>
+          <span className="type-caption tabular-nums">
             {data.untouched14Days.length} need practice
           </span>
         </div>
 
         {data.untouched14Days.length === 0 ? (
-          <div className="border border-border bg-dither-25 p-4 text-xs font-mono text-muted-foreground">
-            No patterns have been idle for more than 14 days. Good consistency!
+          <div className="border border-border bg-dither-25 px-4 py-6 type-caption">
+            No patterns have been idle for more than 14 days. Good consistency.
           </div>
         ) : (
-          <div className="border border-border divide-y divide-border bg-background">
+          <div className="divide-y divide-border border border-border bg-background">
             {data.untouched14Days.map((pattern) => (
-              <div
-                key={pattern.id}
-                className="grid gap-2 p-3.5 sm:grid-cols-[1fr_auto]"
-              >
-                <div className="flex items-center justify-between gap-3 text-xs font-mono">
-                  <span className="font-medium text-foreground font-sans">{pattern.name}</span>
-                  <span className="text-muted-foreground tabular-numbers">
-                    {pattern.daysSinceReview != null ? `${pattern.daysSinceReview}d ago` : "Never reviewed"}
+              <div key={pattern.id} className="space-y-2 p-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="type-heading text-foreground">{pattern.name}</span>
+                  <span className="type-caption tabular-nums">
+                    {pattern.daysSinceReview != null
+                      ? `${pattern.daysSinceReview}d ago`
+                      : "Never reviewed"}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-2 italic font-sans">"{pattern.cue}"</p>
-                <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground pt-1 sm:col-span-2 border-t border-border">
-                  <span>Family: {pattern.family}</span>
+                <p className="type-caption italic line-clamp-2">
+                  &ldquo;{pattern.cue}&rdquo;
+                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 type-caption">
+                  <span>{pattern.family}</span>
                   <Link
                     href={`/patterns?selected=${pattern.id}`}
-                    className="text-foreground hover:underline flex items-center gap-0.5 font-medium"
+                    className="font-medium text-orange-600 hover:text-orange-700 hover:underline"
                   >
-                    View problems <ChevronRight className="h-3 w-3" />
+                    View problems
                   </Link>
                 </div>
               </div>
