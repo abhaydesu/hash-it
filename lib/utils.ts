@@ -5,6 +5,29 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Allow only http(s) URLs or same-origin relative paths. */
+export function safeHref(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "#") return undefined;
+  if (trimmed.length > 2_000) return undefined;
+
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//") && !trimmed.includes("\\")) {
+    if (trimmed.includes("://")) return undefined;
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.href;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
 export function formatMinutes(minutes?: number | null): string {
   if (minutes == null) return "-";
   if (minutes < 60) return `${minutes}m`;

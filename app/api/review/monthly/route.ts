@@ -14,12 +14,18 @@ export async function GET() {
     const patterns = await prisma.pattern.findMany({
       include: {
         problems: {
-          include: {
+          select: {
             problem: {
-              include: {
+              select: {
+                id: true,
+                title: true,
+                number: true,
+                url: true,
+                platform: true,
+                difficulty: true,
                 entries: {
                   where: { userId: user.id },
-                  include: { reviewCard: true },
+                  select: { id: true, reviewCard: true },
                 },
               },
             },
@@ -77,19 +83,9 @@ export async function GET() {
         usedProblemIds.add(candidate.id);
         usedFamilies.add(pat.family);
 
-        // Check if user already has an entry
-        const entry = await prisma.entry.findUnique({
-          where: {
-            userId_problemId: {
-              userId: user.id,
-              problemId: candidate.id,
-            },
-          },
-        });
-
         selectedProblems.push({
           id: candidate.id,
-          entryId: entry?.id,
+          entryId: candidate.entries[0]?.id,
           title: candidate.title,
           number: candidate.number,
           url: candidate.url,
@@ -105,9 +101,15 @@ export async function GET() {
       const fillerProblems = await prisma.problem.findMany({
         where: { id: { notIn: Array.from(usedProblemIds) } },
         take: 5 - selectedProblems.length,
-        include: {
-          patterns: { include: { pattern: true } },
-          entries: { where: { userId: user.id } },
+        select: {
+          id: true,
+          title: true,
+          number: true,
+          url: true,
+          platform: true,
+          difficulty: true,
+          patterns: { select: { pattern: { select: { name: true } } }, take: 1 },
+          entries: { where: { userId: user.id }, select: { id: true }, take: 1 },
         },
       });
 
@@ -132,6 +134,6 @@ export async function GET() {
     });
   } catch (err) {
     console.error("[api/review/monthly]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load monthly mock" }, { status: 500 });
   }
 }

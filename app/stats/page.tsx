@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { RefreshCw, BarChart2, AlertTriangle, Hash, ExternalLink } from "lucide-react";
-import { formatDifficulty } from "@/lib/utils";
+import { formatDifficulty, safeHref } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
@@ -263,14 +263,19 @@ export default function StatsPage() {
                       <span className={`border px-1.5 py-0.2 text-[10px] font-mono ${diff.className}`}>
                         {diff.label}
                       </span>
+                      {safeHref(leech.url) && (
                       <a
-                        href={leech.url}
+                        href={safeHref(leech.url)}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="text-foreground hover:text-muted-foreground font-medium transition-colors flex items-center gap-1"
                       >
                         {leech.title} <ExternalLink className="h-3 w-3 opacity-60" />
                       </a>
+                      )}
+                      {!safeHref(leech.url) && (
+                        <span className="text-foreground font-medium">{leech.title}</span>
+                      )}
                     </div>
                     <Link
                       href={`/problems/${leech.entryId}`}

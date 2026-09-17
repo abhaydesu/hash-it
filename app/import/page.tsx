@@ -22,7 +22,7 @@ import {
   DuplicateGroup,
   mergeTwoRows,
 } from "@/app/actions/import-actions";
-import { cn } from "@/lib/utils";
+import { cn, safeHref } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
@@ -41,6 +41,12 @@ export default function ImportPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
+      if (selected.size > 2_000_000) {
+        setError("CSV file is too large (max 2 MB).");
+        setFile(null);
+        setCsvText("");
+        return;
+      }
       setFile(selected);
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -593,15 +599,19 @@ export default function ImportPage() {
                     <span className="text-muted-foreground text-[10px] font-mono  tracking-wider block mb-1">
                       Problem link
                     </span>
+                    {safeHref(selectedRowForDetail.rawLink) ? (
                     <a
-                      href={selectedRowForDetail.rawLink}
+                      href={safeHref(selectedRowForDetail.rawLink)}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="text-foreground underline underline-offset-2 hover:text-muted-foreground flex items-center gap-1.5"
                     >
                       {selectedRowForDetail.rawLink}
                       <ExternalLink className="h-3 w-3" />
                     </a>
+                    ) : (
+                      <span className="text-muted-foreground">{selectedRowForDetail.rawLink || "—"}</span>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">

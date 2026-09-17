@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { RefreshCw, Sparkles, AlertTriangle, ExternalLink, Search } from "lucide-react";
-import { formatDifficulty, formatSolveStatus } from "@/lib/utils";
+import { formatDifficulty, formatSolveStatus, safeHref } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { SheetSection } from "@/components/ui/sheet-section";
 
@@ -327,15 +327,19 @@ function PatternsContent() {
                         </td>
                         <td className="py-2.5 px-4 font-sans">
                           <div className="flex items-center gap-2">
+                            {safeHref(prob.url) ? (
                             <a
-                              href={prob.url}
+                              href={safeHref(prob.url)}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               className="font-medium text-foreground hover:underline transition-colors flex items-center gap-1 font-sans text-xs"
                             >
                               {prob.title}
                               <ExternalLink className="h-3 w-3 opacity-40 hover:opacity-100" />
                             </a>
+                            ) : (
+                              <span className="font-medium text-foreground font-sans text-xs">{prob.title}</span>
+                            )}
                             {prob.revisit && (
                               <span className="rounded-none bg-muted border border-border px-1.5 py-0.2 text-[9px] font-mono text-foreground ">
                                 Revisit

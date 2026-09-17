@@ -23,14 +23,20 @@ export async function GET() {
           where: { userId: user.id },
           orderBy: { at: "desc" },
           take: 1,
+          select: { at: true, correct: true },
         },
         problems: {
-          include: {
+          select: {
             problem: {
-              include: {
+              select: {
+                id: true,
+                title: true,
+                number: true,
+                url: true,
+                difficulty: true,
                 entries: {
                   where: { userId: user.id },
-                  include: { reviewCard: true },
+                  select: { reviewCard: true },
                 },
               },
             },
@@ -116,6 +122,6 @@ export async function GET() {
     });
   } catch (err) {
     console.error("[api/review/weekly]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load weekly review" }, { status: 500 });
   }
 }

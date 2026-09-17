@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { Platform, SolveStatus } from "@prisma/client";
 import Papa from "papaparse";
+import { z } from "zod";
 import { seedCard, spreadImportDueDates } from "@/lib/scheduler";
+import { LIMITS, storedHttpUrl } from "@/lib/safe";
 import {
   DryRunRow,
   parseSlugFromUrl,
@@ -45,16 +47,17 @@ export interface DryRunSummary {
 }
 
 export async function searchCatalogProblems(query: string) {
+  await getCurrentUser();
   if (!query || query.trim().length < 2) return [];
-  const q = query.trim().toLowerCase();
+  const q = query.trim().slice(0, LIMITS.searchQuery).toLowerCase();
   const num = parseInt(q, 10);
 
   return await prisma.problem.findMany({
     where: {
       OR: [
-        ...(isNaN(num) ? [] : [{ number: num }]),
-        { title: { contains: q, mode: "insensitive" } },
-        { slug: { contains: q, mode: "insensitive" } },
+        ...(Number.isInteger(num) && num >= 0 && num <= 100_000 && /^\d+$/.test(q) ? [{ number: num }] : []),
+        { title: { contains: q, mode: "insensitive" as const } },
+        { slug: { contains: q, mode: "insensitive" as const } },
       ],
     },
     take: 10,
@@ -72,6 +75,9 @@ export async function searchCatalogProblems(query: string) {
 
 export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
   const user = await getCurrentUser();
+  if (typeof csvText !== "string" || csvText.length > LIMITS.csvChars) {
+    throw new Error("CSV is too large to import.");
+  }
 
   const parsed = Papa.parse<Record<string, string>>(csvText, {
     header: true,
@@ -79,11 +85,21 @@ export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
     dynamicTyping: false,
   });
 
+  if (parsed.data.length > LIMITS.importRows) {
+    throw new Error(`CSV has too many rows (max ${LIMITS.importRows}).`);
+  }
+
   const [allProblems, userEntries] = await Promise.all([
-    prisma.problem.findMany(),
+    prisma.problem.findMany({
+      select: { id: true, title: true, number: true, slug: true, platform: true, url: true },
+    }),
     prisma.entry.findMany({
       where: { userId: user.id },
-      include: { problem: true },
+      select: {
+        problemId: true,
+        status: true,
+        firstSolvedAt: true,
+      },
     }),
   ]);
 
@@ -271,15 +287,47 @@ export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
   };
 }
 
+const CommitRowSchema = z.object({
+  rowIndex: z.number().int(),
+  rawName: z.string().max(LIMITS.title),
+  rawLink: z.string().max(LIMITS.url),
+  rawTopic: z.string().max(200).optional(),
+  rawPattern: z.string().max(120).optional(),
+  rawIdea: z.string().max(LIMITS.note).optional(),
+  rawMistake: z.string().max(LIMITS.note).optional(),
+  rawStatus: z.string().max(80).optional(),
+  rawRevisit: z.string().max(20).optional(),
+  rawSource: z.string().max(200).optional(),
+  matchedProblemId: z.string().max(64).optional(),
+  parsedStatus: z.nativeEnum(SolveStatus),
+  parsedRevisit: z.boolean(),
+  isDuplicateInCSV: z.boolean().optional(),
+});
+
 export async function commitImportBatch(params: {
   rows: DryRunRow[];
   filename?: string;
   conflictStrategy?: "SKIP" | "OVERWRITE";
 }) {
   const user = await getCurrentUser();
-  const { rows, filename = "sheet_import.csv", conflictStrategy = "SKIP" } = params;
+  const filename = z.string().max(255).optional().parse(params.filename) ?? "sheet_import.csv";
+  const conflictStrategy = z.enum(["SKIP", "OVERWRITE"]).parse(params.conflictStrategy ?? "SKIP");
+  if (!Array.isArray(params.rows) || params.rows.length > LIMITS.importRows) {
+    throw new Error(`Too many rows to import (max ${LIMITS.importRows}).`);
+  }
+  const rows = params.rows.map((row) => CommitRowSchema.parse(row));
 
-  const existingPatterns = await prisma.pattern.findMany();
+  const claimedIds = [...new Set(rows.map((r) => r.matchedProblemId).filter(Boolean))] as string[];
+  const existingProblems =
+    claimedIds.length > 0
+      ? await prisma.problem.findMany({
+          where: { id: { in: claimedIds } },
+          select: { id: true },
+        })
+      : [];
+  const validProblemIds = new Set(existingProblems.map((p) => p.id));
+
+  const existingPatterns = await prisma.pattern.findMany({ select: { id: true, name: true } });
   const patternLookup = new Map<string, (typeof existingPatterns)[0]>();
   for (const p of existingPatterns) {
     patternLookup.set(p.name.trim().toLowerCase().replace(/\s+/g, " "), p);
@@ -287,13 +335,15 @@ export async function commitImportBatch(params: {
 
   for (const row of rows) {
     if (row.rawPattern) {
-      const normalizedName = row.rawPattern.trim().replace(/\s+/g, " ");
+      const normalizedName = row.rawPattern.trim().replace(/\s+/g, " ").slice(0, 120);
       if (normalizedName) {
         const key = normalizedName.toLowerCase();
         let matched = patternLookup.get(key);
         if (!matched) {
-          matched = await prisma.pattern.create({
-            data: {
+          matched = await prisma.pattern.upsert({
+            where: { name: normalizedName },
+            update: {},
+            create: {
               name: normalizedName,
               family: "Imported",
               sortOrder: 999,
@@ -308,7 +358,6 @@ export async function commitImportBatch(params: {
 
   return await prisma.$transaction(
     async (tx) => {
-      // 1. Create ImportBatch
       const importBatch = await tx.importBatch.create({
         data: {
           userId: user.id,
@@ -318,25 +367,35 @@ export async function commitImportBatch(params: {
         },
       });
 
-      // Pre-fetch all user entries in ONE query to eliminate 100+ round trips
       const userExistingEntries = await tx.entry.findMany({
         where: { userId: user.id },
+        select: {
+          id: true,
+          problemId: true,
+          idea: true,
+          mistake: true,
+          topic: true,
+          customPattern: true,
+          patternOverride: true,
+          customUrl: true,
+          sourceList: true,
+        },
       });
       const existingEntryMap = new Map(userExistingEntries.map((e) => [e.problemId, e]));
 
       const entriesToSeed: Array<{ id: string; status: SolveStatus; revisit: boolean }> = [];
       const processedProblemIds = new Set<string>();
 
-      // 2. Process rows
       for (const row of rows) {
-        // If row was explicitly marked unresolved duplicate, skip
         if (row.isDuplicateInCSV && processedProblemIds.has(row.matchedProblemId || row.rawName)) {
           continue;
         }
 
         let problemId = row.matchedProblemId;
+        if (problemId && !validProblemIds.has(problemId)) {
+          problemId = undefined;
+        }
 
-        // If unmatched, create GFG or OTHER problem preserving spreadsheet data
         if (!problemId) {
           const cleanSlug = (row.rawName || "unnamed")
             .toLowerCase()
@@ -350,9 +409,9 @@ export async function commitImportBatch(params: {
             data: {
               platform,
               slug: `${cleanSlug}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-              title: row.rawName || "Untitled Problem",
-              url: row.rawLink || "#",
-              topicTags: row.rawTopic ? [row.rawTopic] : [],
+              title: (row.rawName || "Untitled Problem").slice(0, LIMITS.title),
+              url: storedHttpUrl(row.rawLink) || "",
+              topicTags: row.rawTopic ? [row.rawTopic.slice(0, 80)] : [],
             },
           });
           problemId = newProb.id;
@@ -360,16 +419,14 @@ export async function commitImportBatch(params: {
 
         processedProblemIds.add(problemId);
 
-        // Check if entry already exists in DB
         const existingEntry = existingEntryMap.get(problemId);
+        const safeLink = storedHttpUrl(row.rawLink) || undefined;
 
         if (existingEntry) {
           if (conflictStrategy === "SKIP") {
-            // Do not overwrite existing entry!
             continue;
           }
 
-          // OVERWRITE mode: update fields
           const updated = await tx.entry.update({
             where: { id: existingEntry.id },
             data: {
@@ -379,7 +436,7 @@ export async function commitImportBatch(params: {
               topic: row.rawTopic || existingEntry.topic,
               customPattern: row.rawPattern || existingEntry.customPattern,
               patternOverride: row.rawPattern ? [row.rawPattern] : existingEntry.patternOverride,
-              customUrl: row.rawLink || existingEntry.customUrl,
+              customUrl: safeLink || existingEntry.customUrl,
               sourceList: row.rawSource || existingEntry.sourceList,
               revisit: row.parsedRevisit,
               importBatchId: importBatch.id,
@@ -394,7 +451,6 @@ export async function commitImportBatch(params: {
           continue;
         }
 
-        // Create brand-new entry preserving all 9 columns
         const entry = await tx.entry.create({
           data: {
             userId: user.id,
@@ -405,7 +461,7 @@ export async function commitImportBatch(params: {
             topic: row.rawTopic,
             customPattern: row.rawPattern,
             patternOverride: row.rawPattern ? [row.rawPattern] : [],
-            customUrl: row.rawLink,
+            customUrl: safeLink,
             sourceList: row.rawSource || "csv-import",
             revisit: row.parsedRevisit,
             firstSolvedAt: new Date(),
@@ -420,11 +476,11 @@ export async function commitImportBatch(params: {
         });
       }
 
-      // 3. 21-Day Import Spread & Card Seeding for all new/updated entries
       const spreadResults = spreadImportDueDates(entriesToSeed, new Date());
+      const seedById = new Map(entriesToSeed.map((e) => [e.id, e]));
 
       for (const spread of spreadResults) {
-        const item = entriesToSeed.find((e) => e.id === spread.id);
+        const item = seedById.get(spread.id);
         const seeded = seedCard({
           entryId: spread.id,
           status: item?.status || SolveStatus.SOLVED_UNAIDED,

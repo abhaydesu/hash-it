@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { formatDifficulty, formatMinutes } from "@/lib/utils";
+import { formatDifficulty, formatMinutes, safeHref } from "@/lib/utils";
 import { ExternalLink, Sparkles, ArrowLeft } from "lucide-react";
 import { calculateRetrievability, isLeech } from "@/lib/scheduler";
 import { ScheduleReviewToggle } from "@/components/schedule-review-toggle";
@@ -90,11 +90,11 @@ export default async function ProblemDetailPage({
             <span className={`rounded-none border px-2 py-0.5 text-xs font-mono  ${diff.className}`}>
               {diff.label}
             </span>
-            {p.url && (
+            {safeHref(p.url) && (
               <a
-                href={p.url}
+                href={safeHref(p.url)}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="flex items-center gap-1 rounded-none border border-border bg-background px-2.5 py-1 text-xs text-foreground hover:bg-muted transition-colors font-mono"
               >
                 <span>Solve</span>

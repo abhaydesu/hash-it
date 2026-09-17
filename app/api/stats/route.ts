@@ -1,73 +1,86 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { calculateRetrievability, ReviewCardData } from "@/lib/scheduler";
 
 export const dynamic = "force-dynamic";
+
+const STOPWORDS = new Set([
+  "i", "me", "my", "myself", "we", "our", "ours", "you", "your", "yours", "he", "him",
+  "his", "she", "her", "it", "its", "they", "them", "their", "what", "which", "who",
+  "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be",
+  "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a",
+  "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at",
+  "by", "for", "with", "about", "against", "between", "into", "through", "during", "before",
+  "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over",
+  "under", "again", "further", "then", "once", "here", "there", "when", "where", "why",
+  "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such",
+  "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can",
+  "will", "just", "don", "should", "now", "forgot", "used", "to", "didnt", "wrong", "use",
+]);
+
+function median(nums: number[]) {
+  if (nums.length === 0) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
 
 export async function GET() {
   try {
     const user = await getCurrentUser();
-    const now = new Date();
 
-    // Fetch all attempts for user
-    const attempts = await prisma.attempt.findMany({
-      where: { entry: { userId: user.id } },
-      orderBy: { at: "desc" },
-      include: {
-        entry: {
-          include: { problem: true },
-        },
-      },
-    });
-
-    // Fetch all entries for user
-    const entries = await prisma.entry.findMany({
-      where: { userId: user.id },
-      include: {
-        problem: {
-          include: {
-            patterns: { include: { pattern: true } },
+    const [totalAttemptsCount, coldSolveAttemptsCount, entries] = await Promise.all([
+      prisma.attempt.count({ where: { entry: { userId: user.id } } }),
+      prisma.attempt.count({
+        where: { entry: { userId: user.id }, rating: { in: ["GOOD", "EASY"] } },
+      }),
+      prisma.entry.findMany({
+        where: { userId: user.id },
+        select: {
+          id: true,
+          minutes: true,
+          sourceList: true,
+          mistake: true,
+          idea: true,
+          problem: {
+            select: {
+              id: true,
+              title: true,
+              number: true,
+              url: true,
+              difficulty: true,
+              platform: true,
+            },
           },
+          reviewCard: { select: { lapses: true } },
         },
-        reviewCard: true,
-        attempts: true,
-      },
-    });
+      }),
+    ]);
 
-    // 1. Headline: Cold-Solve Rate (Good or Easy rating share over total attempts)
-    const totalAttemptsCount = attempts.length;
-    const coldSolveAttemptsCount = attempts.filter(
-      (a) => a.rating === "GOOD" || a.rating === "EASY"
-    ).length;
     const coldSolveRate = totalAttemptsCount > 0 ? coldSolveAttemptsCount / totalAttemptsCount : 0;
 
-    // 2. Median minutes to solve by difficulty (EASY, MEDIUM, HARD)
     const minutesByDiff: Record<string, number[]> = { EASY: [], MEDIUM: [], HARD: [] };
-    entries.forEach((e) => {
+    const countByDifficulty: Record<string, number> = { EASY: 0, MEDIUM: 0, HARD: 0 };
+    const countBySourceList: Record<string, number> = {};
+    const reviewCards: Array<{ lapses: number }> = [];
+
+    for (const e of entries) {
       const diff = e.problem.difficulty || "MEDIUM";
       if (e.minutes != null && e.minutes > 0) {
-        minutesByDiff[diff].push(e.minutes);
+        (minutesByDiff[diff] ??= []).push(e.minutes);
       }
-    });
 
-    const getMedian = (nums: number[]) => {
-      if (nums.length === 0) return 0;
-      const sorted = [...nums].sort((a, b) => a - b);
-      const mid = Math.floor(sorted.length / 2);
-      return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-    };
+      const diffKey = e.problem.difficulty || "UNSPECIFIED";
+      countByDifficulty[diffKey] = (countByDifficulty[diffKey] || 0) + 1;
 
-    const medianMinutes = {
-      EASY: getMedian(minutesByDiff.EASY),
-      MEDIUM: getMedian(minutesByDiff.MEDIUM),
-      HARD: getMedian(minutesByDiff.HARD),
-    };
+      const source = e.sourceList || "Uncategorized";
+      countBySourceList[source] = (countBySourceList[source] || 0) + 1;
 
-    // 3. Lapse rate & Current Leech List (lapses >= 3)
-    const reviewCards = entries.map((e) => e.reviewCard).filter(Boolean);
+      if (e.reviewCard) reviewCards.push(e.reviewCard);
+    }
+
     const totalCardsCount = reviewCards.length;
-    const totalLapsesCount = reviewCards.reduce((acc, c) => acc + (c?.lapses || 0), 0);
+    const totalLapsesCount = reviewCards.reduce((acc, c) => acc + c.lapses, 0);
     const lapseRate = totalCardsCount > 0 ? totalLapsesCount / totalCardsCount : 0;
 
     const leechEntries = entries
@@ -85,45 +98,18 @@ export async function GET() {
         idea: e.idea,
       }));
 
-    // 4. Solved count breakdown by difficulty & by source list
-    const countByDifficulty: Record<string, number> = { EASY: 0, MEDIUM: 0, HARD: 0 };
-    const countBySourceList: Record<string, number> = {};
-
-    entries.forEach((e) => {
-      const diff = e.problem.difficulty || "UNSPECIFIED";
-      countByDifficulty[diff] = (countByDifficulty[diff] || 0) + 1;
-
-      const source = e.sourceList || "Uncategorized";
-      countBySourceList[source] = (countBySourceList[source] || 0) + 1;
-    });
-
-    // 5. Most frequent words/tags in the mistake column (plain frequency count)
     const mistakeText = entries
       .map((e) => e.mistake)
       .filter(Boolean)
       .join(" ");
 
-    const stopwords = new Set([
-      "i", "me", "my", "myself", "we", "our", "ours", "you", "your", "yours", "he", "him",
-      "his", "she", "her", "it", "its", "they", "them", "their", "what", "which", "who",
-      "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be",
-      "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a",
-      "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at",
-      "by", "for", "with", "about", "against", "between", "into", "through", "during", "before",
-      "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over",
-      "under", "again", "further", "then", "once", "here", "there", "when", "where", "why",
-      "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such",
-      "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can",
-      "will", "just", "don", "should", "now", "forgot", "used", "to", "didnt", "wrong", "use"
-    ]);
-
     const wordFreq: Record<string, number> = {};
     const words = mistakeText.toLowerCase().replace(/[^a-z0-9\s-]/g, "").split(/\s+/);
-    words.forEach((w) => {
-      if (w.length > 2 && !stopwords.has(w)) {
+    for (const w of words) {
+      if (w.length > 2 && !STOPWORDS.has(w)) {
         wordFreq[w] = (wordFreq[w] || 0) + 1;
       }
-    });
+    }
 
     const topMistakeKeywords = Object.entries(wordFreq)
       .sort((a, b) => b[1] - a[1])
@@ -137,7 +123,11 @@ export async function GET() {
       totalEntries: entries.length,
       totalCards: totalCardsCount,
       totalLapses: totalLapsesCount,
-      medianMinutes,
+      medianMinutes: {
+        EASY: median(minutesByDiff.EASY),
+        MEDIUM: median(minutesByDiff.MEDIUM),
+        HARD: median(minutesByDiff.HARD),
+      },
       lapseRate,
       leechCount: leechEntries.length,
       leechEntries,
@@ -147,6 +137,6 @@ export async function GET() {
     });
   } catch (err) {
     console.error("[api/stats]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load stats" }, { status: 500 });
   }
 }

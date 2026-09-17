@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, AlertCircle, HelpCircle, Clock, Check } from "lucide-react";
 import { recordReviewAttempt } from "@/app/actions/entry-actions";
-import { cn } from "@/lib/utils";
+import { cn, safeHref } from "@/lib/utils";
 
 interface ReviewQueueItem {
   entryId: string;
@@ -129,9 +129,9 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
             )}
           </div>
           <a
-            href={item.url || `/problems/${item.entryId}`}
+            href={safeHref(item.url) || `/problems/${item.entryId}`}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="text-base font-semibold text-foreground hover:underline transition-colors font-sans tracking-tight"
           >
             {item.title}

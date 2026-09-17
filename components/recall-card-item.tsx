@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Brain, Check, X, Minus, ChevronDown } from "lucide-react";
 import { recordRecallAttempt } from "@/app/actions/entry-actions";
+import { safeHref } from "@/lib/utils";
 
 interface RecallCardItemProps {
   item: {
@@ -56,9 +57,9 @@ export function RecallCardItem({ item, onComplete }: RecallCardItemProps) {
             </span>
           </div>
           <a
-            href={item.url || `/problems/${item.entryId}`}
+            href={safeHref(item.url) || `/problems/${item.entryId}`}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="text-base font-semibold text-foreground hover:underline transition-colors font-sans tracking-tight"
           >
             {item.title}

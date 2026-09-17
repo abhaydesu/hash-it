@@ -32,8 +32,11 @@ const config: NextAuthConfig = {
               password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-              const email = String(credentials?.email ?? "dev-user-local@example.com").trim().toLowerCase();
-              const name = String(credentials?.name ?? email.split("@")[0] ?? "Local Dev").trim() || "Local Dev";
+              const emailRaw = String(credentials?.email ?? "dev-user-local@example.com").trim().toLowerCase();
+              const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)
+                ? emailRaw.slice(0, 254)
+                : "dev-user-local@example.com";
+              const name = String(credentials?.name ?? email.split("@")[0] ?? "Local Dev").trim().slice(0, 80) || "Local Dev";
               const user = await findOrCreateLocalUser(email, name);
               return {
                 id: user.id,

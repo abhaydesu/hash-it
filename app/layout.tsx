@@ -18,6 +18,9 @@ const ibmPlexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Hash-It — Practice log & recall schedule for LeetCode",
   description: "A practice log for LeetCode that decides when you should solve each problem again.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default async function RootLayout({

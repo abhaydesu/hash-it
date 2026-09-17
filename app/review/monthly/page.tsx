@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Timer, Check, HelpCircle, AlertCircle, Play, RotateCcw, Award, ExternalLink } from "lucide-react";
 import { recordReviewAttempt, createEntry } from "@/app/actions/entry-actions";
-import { formatDifficulty } from "@/lib/utils";
+import { formatDifficulty, safeHref } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
@@ -271,14 +271,18 @@ export default function MonthlyMockPage() {
                           {p.patternName}
                         </Badge>
                       </div>
+                      {safeHref(p.url) ? (
                       <a
-                        href={p.url}
+                        href={safeHref(p.url)}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="text-foreground hover:text-muted-foreground font-medium transition-colors flex items-center gap-1"
                       >
                         {p.title} <ExternalLink className="h-3 w-3 opacity-60" />
                       </a>
+                      ) : (
+                        <span className="text-foreground font-medium">{p.title}</span>
+                      )}
                     </div>
 
                     <div className="text-right">
@@ -353,15 +357,21 @@ export default function MonthlyMockPage() {
             <div className="text-[11px] font-mono text-muted-foreground">
               {currentProblem.number != null && `Problem #${currentProblem.number}`}
             </div>
+            {safeHref(currentProblem.url) ? (
             <a
-              href={currentProblem.url}
+              href={safeHref(currentProblem.url)}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="text-xl font-bold tracking-tight text-foreground hover:text-muted-foreground transition-colors flex items-center gap-2"
             >
               {currentProblem.title}
               <ExternalLink className="h-4 w-4 opacity-70" />
             </a>
+            ) : (
+              <span className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                {currentProblem.title}
+              </span>
+            )}
           </div>
 
           <div className="bg-dither-25 p-3.5 text-xs text-muted-foreground space-y-1">

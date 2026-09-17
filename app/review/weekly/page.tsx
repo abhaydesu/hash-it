@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { RefreshCw, Target, Eye, AlertTriangle, Clock, CheckCircle2, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeHref } from "@/lib/utils";
 import { SheetSection } from "@/components/ui/sheet-section";
 
 interface PatternItem {
@@ -231,7 +231,7 @@ export default function WeeklyReviewPage() {
                   {isRevealed && pattern.sampleProblems.length > 0 && (
                     <div className="sm:col-span-3 flex flex-wrap gap-2 border-t border-border pt-3 text-xs">
                       {pattern.sampleProblems.map((sp) => (
-                        <a key={sp.id} href={sp.url} target="_blank" rel="noreferrer" className="text-orange-600 hover:underline">
+                        <a key={sp.id} href={safeHref(sp.url) || "#"} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline">
                           {sp.number ? `#${sp.number}` : sp.title}
                         </a>
                       ))}

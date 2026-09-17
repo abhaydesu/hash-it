@@ -13,23 +13,24 @@ import {
   type AppRating,
 } from "@/lib/scheduler";
 import { Platform, Difficulty, SolveStatus, Rating, CardState } from "@prisma/client";
+import { LIMITS, storedHttpUrl } from "@/lib/safe";
 
 const CreateEntrySchema = z.object({
-  problemId: z.string().optional(),
+  problemId: z.string().max(64).optional(),
   // For manual problem creation if problemId is omitted:
-  manualTitle: z.string().optional(),
-  manualUrl: z.string().optional(),
+  manualTitle: z.string().max(LIMITS.title).optional(),
+  manualUrl: z.string().max(LIMITS.url).optional(),
   manualPlatform: z.enum(["LEETCODE", "GFG", "OTHER"]).default("OTHER"),
   manualDifficulty: z.enum(["EASY", "MEDIUM", "HARD"]).optional(),
-  manualTopicTags: z.array(z.string()).default([]),
+  manualTopicTags: z.array(z.string().max(80)).max(30).default([]),
 
   status: z.enum(["SOLVED_UNAIDED", "SOLVED_WITH_HELP", "ATTEMPTED_FAILED"]),
   minutes: z.number().int().min(0).max(1000).optional().nullable(),
-  idea: z.string().optional().nullable(),
-  mistake: z.string().optional().nullable(),
-  sourceList: z.string().optional().nullable(),
+  idea: z.string().max(LIMITS.note).optional().nullable(),
+  mistake: z.string().max(LIMITS.note).optional().nullable(),
+  sourceList: z.string().max(200).optional().nullable(),
   revisit: z.boolean().default(false),
-  patternOverride: z.array(z.string()).default([]),
+  patternOverride: z.array(z.string().max(120)).max(20).default([]),
 });
 
 export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
@@ -55,12 +56,16 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
       }
     }
 
-    const newProblem = await prisma.problem.create({
-      data: {
-        platform: data.manualPlatform as Platform,
-        slug: slug || `problem-${Date.now()}`,
+    const platform = data.manualPlatform as Platform;
+    const finalSlug = slug || `problem-${Date.now()}`;
+    const newProblem = await prisma.problem.upsert({
+      where: { platform_slug: { platform, slug: finalSlug } },
+      update: {},
+      create: {
+        platform,
+        slug: finalSlug,
         title,
-        url: data.manualUrl || "",
+        url: storedHttpUrl(data.manualUrl),
         difficulty: data.manualDifficulty as Difficulty | null,
         topicTags: data.manualTopicTags,
       },
@@ -71,6 +76,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
   // Look up problem to get difficulty for baselines
   const problem = await prisma.problem.findUniqueOrThrow({
     where: { id: targetProblemId },
+    select: { id: true, difficulty: true },
   });
 
   // Check if entry already exists
@@ -208,11 +214,6 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
     minutes: data.minutes,
     usedHint: data.status === "SOLVED_WITH_HELP",
     difficulty: problem.difficulty as ProblemDifficulty | null,
-    baselines: {
-      easy: problem.difficulty === "EASY" ? 15 : 15,
-      medium: problem.difficulty === "MEDIUM" ? 30 : 30,
-      hard: problem.difficulty === "HARD" ? 45 : 45,
-    },
   });
 
   const result = await prisma.$transaction(async (tx) => {
@@ -270,12 +271,12 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
 }
 
 const RecordReviewSchema = z.object({
-  entryId: z.string(),
+  entryId: z.string().max(64),
   status: z.enum(["SOLVED_UNAIDED", "SOLVED_WITH_HELP", "ATTEMPTED_FAILED"]),
   minutes: z.number().int().min(0).max(1000).optional().nullable(),
   usedHint: z.boolean().default(false),
-  note: z.string().optional().nullable(),
-  newMistake: z.string().optional().nullable(),
+  note: z.string().max(LIMITS.note).optional().nullable(),
+  newMistake: z.string().max(LIMITS.note).optional().nullable(),
 });
 
 export async function recordReviewAttempt(input: z.input<typeof RecordReviewSchema>) {
@@ -392,9 +393,9 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
 }
 
 const RecordRecallSchema = z.object({
-  entryId: z.string(),
+  entryId: z.string().max(64),
   rating: z.enum(["AGAIN", "HARD", "GOOD"]),
-  wroteApproach: z.string().optional().nullable(),
+  wroteApproach: z.string().max(LIMITS.note).optional().nullable(),
 });
 
 /**
@@ -480,24 +481,29 @@ export async function recordRecallAttempt(input: z.input<typeof RecordRecallSche
   return { success: true, rating: data.rating, nextDue: updatedCard.due };
 }
 
-export async function updateEntryInline(params: {
-  entryId: string;
-  field: "idea" | "mistake" | "revisit" | "status";
-  value: any;
-}) {
+const UpdateInlineSchema = z.discriminatedUnion("field", [
+  z.object({ entryId: z.string().max(64), field: z.literal("idea"), value: z.string().max(LIMITS.note).nullable() }),
+  z.object({ entryId: z.string().max(64), field: z.literal("mistake"), value: z.string().max(LIMITS.note).nullable() }),
+  z.object({ entryId: z.string().max(64), field: z.literal("revisit"), value: z.boolean() }),
+  z.object({
+    entryId: z.string().max(64),
+    field: z.literal("status"),
+    value: z.enum(["SOLVED_UNAIDED", "SOLVED_WITH_HELP", "ATTEMPTED_FAILED"]),
+  }),
+]);
+
+export async function updateEntryInline(params: z.input<typeof UpdateInlineSchema>) {
   const user = await getCurrentUser();
-  const { entryId, field, value } = params;
+  const { entryId, field, value } = UpdateInlineSchema.parse(params);
 
-  await prisma.entry.findFirstOrThrow({
+  const result = await prisma.entry.updateMany({
     where: { id: entryId, userId: user.id },
+    data: { [field]: value },
   });
 
-  await prisma.entry.update({
-    where: { id: entryId },
-    data: {
-      [field]: value,
-    },
-  });
+  if (result.count === 0) {
+    throw new Error("Entry not found");
+  }
 
   revalidatePath("/problems");
   revalidatePath(`/problems/${entryId}`);
@@ -506,9 +512,10 @@ export async function updateEntryInline(params: {
 
 export async function toggleScheduleReview(entryId: string, schedule: boolean) {
   const user = await getCurrentUser();
+  const id = z.string().max(64).parse(entryId);
   const entry = await prisma.entry.findFirstOrThrow({
-    where: { id: entryId, userId: user.id },
-    include: { reviewCard: true, problem: true, attempts: { orderBy: { at: "desc" }, take: 1 } },
+    where: { id, userId: user.id },
+    include: { reviewCard: true },
   });
 
   if (schedule) {
@@ -554,9 +561,10 @@ export async function toggleScheduleReview(entryId: string, schedule: boolean) {
 
 export async function deleteEntry(entryId: string) {
   const user = await getCurrentUser();
+  const id = z.string().max(64).parse(entryId);
 
   await prisma.entry.deleteMany({
-    where: { id: entryId, userId: user.id },
+    where: { id, userId: user.id },
   });
 
   revalidatePath("/today");
@@ -574,7 +582,15 @@ export async function toggleRoadmapItemSolve(params: {
   entryId?: string | null;
 }) {
   const user = await getCurrentUser();
-  const { canonicalProblemId, itemTitle, itemPrimaryUrl, currentlySolved, entryId } = params;
+  const { canonicalProblemId, itemTitle, itemPrimaryUrl, currentlySolved, entryId } = z
+    .object({
+      canonicalProblemId: z.string().max(64).nullable().optional(),
+      itemTitle: z.string().max(LIMITS.title),
+      itemPrimaryUrl: z.string().max(LIMITS.url).nullable().optional(),
+      currentlySolved: z.boolean(),
+      entryId: z.string().max(64).nullable().optional(),
+    })
+    .parse(params);
 
   if (currentlySolved && entryId) {
     // Unmark / Deselect -> Delete the Entry
@@ -600,12 +616,13 @@ export async function toggleRoadmapItemSolve(params: {
         ? Platform.LEETCODE
         : Platform.OTHER;
 
+      const slug = `${cleanSlug}-${Date.now().toString(36)}`;
       const prob = await prisma.problem.create({
         data: {
           platform,
-          slug: `${cleanSlug}-${Date.now().toString(36)}`,
+          slug,
           title,
-          url: itemPrimaryUrl || "#",
+          url: storedHttpUrl(itemPrimaryUrl) || "",
           topicTags: [],
         },
       });
@@ -620,29 +637,33 @@ export async function toggleRoadmapItemSolve(params: {
       now,
     });
 
-    const entry = await prisma.entry.create({
-      data: {
-        userId: user.id,
-        problemId: targetProblemId,
-        status: SolveStatus.SOLVED_UNAIDED,
-        firstSolvedAt: now,
-        sourceList: "Roadmap Check",
-      },
-    });
+    const entry = await prisma.$transaction(async (tx) => {
+      const created = await tx.entry.create({
+        data: {
+          userId: user.id,
+          problemId: targetProblemId,
+          status: SolveStatus.SOLVED_UNAIDED,
+          firstSolvedAt: now,
+          sourceList: "Roadmap Check",
+        },
+      });
 
-    await prisma.reviewCard.create({
-      data: {
-        entryId: entry.id,
-        due: seeded.due,
-        stability: seeded.stability,
-        difficulty: seeded.difficulty,
-        elapsedDays: seeded.elapsedDays,
-        scheduledDays: seeded.scheduledDays,
-        reps: seeded.reps,
-        lapses: seeded.lapses,
-        state: seeded.state as CardState,
-        lastReview: now,
-      },
+      await tx.reviewCard.create({
+        data: {
+          entryId: created.id,
+          due: seeded.due,
+          stability: seeded.stability,
+          difficulty: seeded.difficulty,
+          elapsedDays: seeded.elapsedDays,
+          scheduledDays: seeded.scheduledDays,
+          reps: seeded.reps,
+          lapses: seeded.lapses,
+          state: seeded.state as CardState,
+          lastReview: now,
+        },
+      });
+
+      return created;
     });
 
     revalidatePath("/roadmap");

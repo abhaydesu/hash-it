@@ -25,6 +25,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: drill.id, at: drill.at });
   } catch (err) {
     console.error("[api/review/weekly/drill]", err);
-    return NextResponse.json({ error: String(err) }, { status: 400 });
+    return NextResponse.json({ error: "Failed to record drill" }, { status: 400 });
   }
 }

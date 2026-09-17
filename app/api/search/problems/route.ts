@@ -1,17 +1,69 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { Platform } from "@prisma/client";
+import { LIMITS } from "@/lib/safe";
+
+const problemSelect = {
+  id: true,
+  platform: true,
+  number: true,
+  title: true,
+  slug: true,
+  url: true,
+  difficulty: true,
+  acRate: true,
+  topicTags: true,
+  patterns: {
+    include: { pattern: { select: { id: true, name: true, family: true } } },
+  },
+} as const;
+
+function serializeProblem(p: {
+  id: string;
+  platform: Platform;
+  number: number | null;
+  title: string;
+  slug: string;
+  url: string;
+  difficulty: string | null;
+  acRate: number | null;
+  topicTags: string[];
+  patterns: Array<{ pattern: { id: string; name: string; family: string } }>;
+}) {
+  return {
+    id: p.id,
+    platform: p.platform,
+    number: p.number,
+    title: p.title,
+    slug: p.slug,
+    url: p.url,
+    difficulty: p.difficulty,
+    acRate: p.acRate,
+    topicTags: p.topicTags,
+    patterns: p.patterns.map((pp) => ({
+      id: pp.pattern.id,
+      name: pp.pattern.name,
+      family: pp.pattern.family,
+    })),
+  };
+}
 
 export async function POST(request: Request) {
   try {
-    const { query } = await request.json();
-    const raw = typeof query === "string" ? query.trim() : "";
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json().catch(() => null);
+    const rawInput = typeof body?.query === "string" ? body.query.trim() : "";
+    const raw = rawInput.slice(0, LIMITS.searchQuery);
 
     if (!raw) {
       return NextResponse.json({ results: [] });
     }
 
-    // 1. Check if input is a URL
     let urlSlug: string | null = null;
     let urlPlatform: Platform | null = null;
 
@@ -43,69 +95,37 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. If it is a known slug from URL, lookup directly
     if (urlSlug) {
       const match = await prisma.problem.findFirst({
         where: {
           slug: urlSlug,
           ...(urlPlatform ? { platform: urlPlatform } : {}),
         },
-        include: {
-          patterns: {
-            include: { pattern: true },
-          },
-        },
+        select: problemSelect,
       });
 
       if (match) {
-        return NextResponse.json({
-          results: [
-            {
-              id: match.id,
-              platform: match.platform,
-              number: match.number,
-              title: match.title,
-              slug: match.slug,
-              url: match.url,
-              difficulty: match.difficulty,
-              acRate: match.acRate,
-              topicTags: match.topicTags,
-              patterns: match.patterns.map((p) => ({
-                id: p.pattern.id,
-                name: p.pattern.name,
-                family: p.pattern.family,
-              })),
-            },
-          ],
-        });
+        return NextResponse.json({ results: [serializeProblem(match)] });
       }
     }
 
-    // 3. Check for numeric match first (number === query)
     const asNum = parseInt(raw, 10);
-    const isPureNumber = !isNaN(asNum) && /^\d+$/.test(raw);
+    const isPureNumber = Number.isInteger(asNum) && asNum >= 0 && asNum <= 100_000 && /^\d+$/.test(raw);
 
-    let numberMatches: any[] = [];
-    if (isPureNumber) {
-      numberMatches = await prisma.problem.findMany({
-        where: { number: asNum },
-        take: 5,
-        include: {
-          patterns: {
-            include: { pattern: true },
-          },
-        },
-      });
-    }
+    const numberMatches = isPureNumber
+      ? await prisma.problem.findMany({
+          where: { number: asNum },
+          take: 5,
+          select: problemSelect,
+        })
+      : [];
 
-    // 4. Text matches: title starts with or contains query, or slug starts with query
     const textMatches = await prisma.problem.findMany({
       where: {
         AND: [
-          isPureNumber ? { id: { notIn: numberMatches.map((m) => m.id) } } : {},
+          isPureNumber && numberMatches.length > 0 ? { id: { notIn: numberMatches.map((m) => m.id) } } : {},
           {
             OR: [
-              { title: { startsWith: raw, mode: "insensitive" } },
               { title: { contains: raw, mode: "insensitive" } },
               { slug: { startsWith: raw.toLowerCase() } },
             ],
@@ -114,35 +134,14 @@ export async function POST(request: Request) {
       },
       take: 10 - numberMatches.length,
       orderBy: [{ number: "asc" }],
-      include: {
-        patterns: {
-          include: { pattern: true },
-        },
-      },
+      select: problemSelect,
     });
 
-    const combined = [...numberMatches, ...textMatches];
-
-    const results = combined.map((p) => ({
-      id: p.id,
-      platform: p.platform,
-      number: p.number,
-      title: p.title,
-      slug: p.slug,
-      url: p.url,
-      difficulty: p.difficulty,
-      acRate: p.acRate,
-      topicTags: p.topicTags,
-      patterns: p.patterns.map((pp: any) => ({
-        id: pp.pattern.id,
-        name: pp.pattern.name,
-        family: pp.pattern.family,
-      })),
-    }));
-
-    return NextResponse.json({ results });
+    return NextResponse.json({
+      results: [...numberMatches, ...textMatches].map(serializeProblem),
+    });
   } catch (err) {
     console.error("[api/search/problems]", err);
-    return NextResponse.json({ results: [], error: String(err) }, { status: 500 });
+    return NextResponse.json({ results: [], error: "Search failed" }, { status: 500 });
   }
 }

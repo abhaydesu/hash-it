@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SheetSection } from "@/components/ui/sheet-section";
+import { Logo } from "@/components/logo";
 
 interface NavbarProps {
   user?: {
@@ -70,9 +71,8 @@ export function Navbar({ user }: NavbarProps) {
     <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-sm">
       <SheetSection>
         <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 text-orange-600 transition-colors hover:text-orange-700">
-          <img src="/logo-2.svg" alt="" className="h-6 w-6 object-contain dark:hidden" />
-          <img src="/logo-1.svg" alt="" className="hidden h-6 w-6 object-contain dark:block" />
+        <Link href="/" className="flex items-center gap-2 text-foreground transition-colors hover:opacity-80">
+          <Logo className="h-6 w-6" />
         </Link>
 
         <div className="flex items-center gap-2">

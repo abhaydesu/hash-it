@@ -1,6 +1,7 @@
 import { signIn } from "@/lib/auth";
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +19,8 @@ export default async function SignInPage({
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
       <div className="w-full max-w-md border border-border bg-background p-8 space-y-6">
         <div className="space-y-3 text-center border-b border-border pb-6">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center border border-border bg-muted text-sm font-mono font-bold text-foreground">
-            #
+          <div className="mx-auto flex h-12 w-12 items-center justify-center border border-border bg-muted/40 p-2.5">
+            <Logo className="h-full w-full text-foreground" />
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-foreground">Hash-It</h1>

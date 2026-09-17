@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import { Search, ExternalLink, Check, AlertCircle, HelpCircle, X, Sparkles, Clock } from "lucide-react";
-import { cn, formatDifficulty } from "@/lib/utils";
+import { cn, formatDifficulty, safeHref } from "@/lib/utils";
 import { createEntry, deleteEntry } from "@/app/actions/entry-actions";
 
 interface SearchResult {
@@ -499,11 +499,11 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                 <span className="font-semibold text-foreground truncate text-sm">
                   {selectedProblem ? selectedProblem.title : manualTitle || "Manual Problem"}
                 </span>
-                {selectedProblem?.url && (
+                {selectedProblem && safeHref(selectedProblem.url) && (
                   <a
-                    href={selectedProblem.url}
+                    href={safeHref(selectedProblem.url)}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />

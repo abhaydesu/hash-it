@@ -4,7 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { ExternalLink, Check, HelpCircle, XCircle, AlertTriangle } from "lucide-react";
-import { formatDifficulty, formatMinutes } from "@/lib/utils";
+import { formatDifficulty, formatMinutes, safeHref } from "@/lib/utils";
 import { updateEntryInline } from "@/app/actions/entry-actions";
 
 export interface ProblemGridRow {
@@ -166,11 +166,11 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
           >
             {item.title}
           </a>
-          {item.url && (
+          {safeHref(item.url) && (
             <a
-              href={item.url}
+              href={safeHref(item.url)}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
               title="Open problem link"
             >
