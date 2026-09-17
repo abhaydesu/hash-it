@@ -1,28 +1,75 @@
-import React from 'react';
+import React, { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { DataTable } from "@/components/problem-grid/data-table";
 import { ProblemGridRow } from "@/components/problem-grid/columns";
 import { SheetSection } from "@/components/ui/sheet-section";
+import { PageSkeleton } from "@/components/ui/loader";
 import { normalizePatternList } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProblemsPage() {
+export default function ProblemsPage() {
+  return (
+    <div>
+      <SheetSection innerClassName="py-6">
+        <h1 className="type-title text-foreground">Problems</h1>
+        <p className="mt-1 type-caption">
+          Dense spreadsheet of logged problems. Click a core idea or mistake to read it; edit from the panel.
+        </p>
+      </SheetSection>
+      <Suspense
+        fallback={
+          <SheetSection innerClassName="pb-10 pt-2" band="none" last>
+            <PageSkeleton rows={8} />
+          </SheetSection>
+        }
+      >
+        <ProblemsTable />
+      </Suspense>
+    </div>
+  );
+}
+
+async function ProblemsTable() {
   const user = await getCurrentUser();
 
   const [entries, allPatterns] = await Promise.all([
     prisma.entry.findMany({
       where: { userId: user.id },
-      include: {
+      select: {
+        id: true,
+        customUrl: true,
+        customPattern: true,
+        patternOverride: true,
+        status: true,
+        revisit: true,
+        minutes: true,
+        idea: true,
+        mistake: true,
+        topic: true,
+        firstSolvedAt: true,
+        sourceList: true,
         problem: {
-          include: {
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            slug: true,
+            url: true,
+            platform: true,
+            difficulty: true,
+            topicTags: true,
             patterns: {
-              include: { pattern: true },
+              select: {
+                pattern: { select: { name: true, family: true } },
+              },
             },
           },
         },
-        reviewCard: true,
+        reviewCard: {
+          select: { due: true, lapses: true, reps: true },
+        },
       },
       orderBy: [{ firstSolvedAt: "desc" }],
     }),
@@ -70,16 +117,8 @@ export default async function ProblemsPage() {
   });
 
   return (
-    <div>
-      <SheetSection innerClassName="py-6">
-        <h1 className="type-title text-foreground">Problems</h1>
-        <p className="mt-1 type-caption">
-          Dense spreadsheet of logged problems. Click a core idea or mistake to read it; edit from the panel.
-        </p>
-      </SheetSection>
-      <SheetSection innerClassName="pb-10 pt-2" band="none" last>
-        <DataTable data={rows} patternsList={allPatterns.map((p) => p.name)} />
-      </SheetSection>
-    </div>
+    <SheetSection innerClassName="pb-10 pt-2" band="none" last>
+      <DataTable data={rows} patternsList={allPatterns.map((p) => p.name)} />
+    </SheetSection>
   );
 }

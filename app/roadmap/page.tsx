@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { parseSlugFromUrl } from "@/lib/import-utils";
@@ -7,10 +7,26 @@ import {
   RoadmapPatternData,
   RoadmapItemData,
 } from "@/components/roadmap/roadmap-client";
+import { PageSkeleton } from "@/components/ui/loader";
+import { SheetSection } from "@/components/ui/sheet-section";
 
 export const dynamic = "force-dynamic";
 
-export default async function RoadmapPage() {
+export default function RoadmapPage() {
+  return (
+    <Suspense
+      fallback={
+        <SheetSection band="none" last>
+          <PageSkeleton rows={8} />
+        </SheetSection>
+      }
+    >
+      <RoadmapData />
+    </Suspense>
+  );
+}
+
+async function RoadmapData() {
   const user = await getCurrentUser();
 
   const [patterns, userEntries] = await Promise.all([
@@ -20,25 +36,29 @@ export default async function RoadmapPage() {
         items: {
           orderBy: { order: "asc" },
           include: {
-            canonicalProblem: true,
+            canonicalProblem: { select: { number: true } },
           },
         },
       },
     }),
     prisma.entry.findMany({
       where: { userId: user.id },
-      include: {
-        problem: true,
+      select: {
+        id: true,
+        status: true,
+        customUrl: true,
+        problemId: true,
+        problem: { select: { slug: true, url: true } },
       },
     }),
   ]);
 
-  // Build lookup sets and maps for multi-dimensional matching
   const solvedProblemIds = new Set<string>();
   const solvedSlugs = new Set<string>();
   const solvedUrls = new Set<string>();
-  const entryByProblemId = new Map<string, typeof userEntries[0]>();
-  const entryBySlug = new Map<string, typeof userEntries[0]>();
+  const entryByProblemId = new Map<string, (typeof userEntries)[0]>();
+  const entryBySlug = new Map<string, (typeof userEntries)[0]>();
+  const entryByUrl = new Map<string, (typeof userEntries)[0]>();
 
   userEntries.forEach((e) => {
     solvedProblemIds.add(e.problemId);
@@ -50,28 +70,25 @@ export default async function RoadmapPage() {
       entryBySlug.set(s, e);
     }
 
-    if (e.problem.url) {
-      solvedUrls.add(e.problem.url.trim().toLowerCase().replace(/\/$/, ""));
-    }
-    if (e.customUrl) {
-      solvedUrls.add(e.customUrl.trim().toLowerCase().replace(/\/$/, ""));
-    }
+    const registerUrl = (raw: string) => {
+      const clean = raw.trim().toLowerCase().replace(/\/$/, "");
+      solvedUrls.add(clean);
+      entryByUrl.set(clean, e);
+    };
+
+    if (e.problem.url) registerUrl(e.problem.url);
+    if (e.customUrl) registerUrl(e.customUrl);
   });
 
-  const checkItemSolved = (item: typeof patterns[0]["items"][0]) => {
-    // 1. Direct canonical problem ID match
+  const checkItemSolved = (item: (typeof patterns)[0]["items"][0]) => {
     if (item.canonicalProblemId && solvedProblemIds.has(item.canonicalProblemId)) {
       return entryByProblemId.get(item.canonicalProblemId);
     }
 
-    // 2. Primary URL direct match or slug match
     if (item.primaryUrl) {
       const cleanUrl = item.primaryUrl.trim().toLowerCase().replace(/\/$/, "");
       if (solvedUrls.has(cleanUrl)) {
-        const matchingEntry = userEntries.find(
-          (e) => (e.customUrl || e.problem.url).trim().toLowerCase().replace(/\/$/, "") === cleanUrl
-        );
-        if (matchingEntry) return matchingEntry;
+        return entryByUrl.get(cleanUrl);
       }
 
       const slug = parseSlugFromUrl(item.primaryUrl);
@@ -80,14 +97,10 @@ export default async function RoadmapPage() {
       }
     }
 
-    // 3. Additional URLs match
     for (const url of item.additionalUrls) {
       const cleanUrl = url.trim().toLowerCase().replace(/\/$/, "");
       if (solvedUrls.has(cleanUrl)) {
-        const matchingEntry = userEntries.find(
-          (e) => (e.customUrl || e.problem.url).trim().toLowerCase().replace(/\/$/, "") === cleanUrl
-        );
-        if (matchingEntry) return matchingEntry;
+        return entryByUrl.get(cleanUrl);
       }
 
       const slug = parseSlugFromUrl(url);

@@ -13,13 +13,15 @@ import { MonthlyMockProvider } from "@/components/monthly-mock-provider";
 export function AppShell({
   children,
   user,
+  userMenu,
 }: {
   children: ReactNode;
-  user: {
+  user?: {
     name?: string | null;
     email?: string | null;
     image?: string | null;
   } | null;
+  userMenu?: ReactNode;
 }) {
   const pathname = usePathname();
   const wide = pathname.startsWith("/problems");
@@ -33,7 +35,7 @@ export function AppShell({
             wide ? "max-w-[1360px]" : "max-w-[1040px]"
           )}
         >
-          <Navbar user={user} />
+          <Navbar user={user} userMenu={userMenu} />
           <SidebarNav />
           <main className="w-full flex-1">{children}</main>
         </div>

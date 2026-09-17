@@ -1,9 +1,11 @@
 "use client";
-import React from 'react';
+import React from "react";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/user-menu";
@@ -17,6 +19,7 @@ interface NavbarProps {
     email?: string | null;
     image?: string | null;
   } | null;
+  userMenu?: ReactNode;
 }
 
 const navItems = [
@@ -32,6 +35,11 @@ const navItems = [
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   if (pathname === "/" || pathname === "/auth/signin") {
     return null;
@@ -43,16 +51,21 @@ export function SidebarNav() {
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          const isPending = pendingHref === item.href && !isActive;
 
           return (
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => {
+                if (!isActive) setPendingHref(item.href);
+              }}
               className={cn(
                 "whitespace-nowrap border px-2.5 py-1 transition-colors",
                 isActive
                   ? "border-orange-500 bg-orange-50 text-orange-700 font-medium dark:bg-orange-500/10 dark:text-orange-400"
-                  : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                  : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                isPending && "bg-muted/60 text-foreground"
               )}
             >
               {item.label}
@@ -64,7 +77,7 @@ export function SidebarNav() {
   );
 }
 
-export function Navbar({ user }: NavbarProps) {
+export function Navbar({ user, userMenu }: NavbarProps) {
   const pathname = usePathname();
   const isMarketingPage = pathname === "/" || pathname === "/auth/signin";
 
@@ -112,16 +125,17 @@ export function Navbar({ user }: NavbarProps) {
 
             <ThemeToggle className="h-8 w-8" />
 
-            {user ? (
-              <UserMenu user={user} />
-            ) : (
-              <Link
-                href="/auth/signin"
-                className="inline-flex h-8 items-center border border-orange-500 bg-orange-500 px-2.5 text-xs font-medium text-white transition-colors hover:bg-orange-600"
-              >
-                Sign in
-              </Link>
-            )}
+            {userMenu ??
+              (user ? (
+                <UserMenu user={user} />
+              ) : (
+                <Link
+                  href="/auth/signin"
+                  className="inline-flex h-8 items-center border border-orange-500 bg-orange-500 px-2.5 text-xs font-medium text-white transition-colors hover:bg-orange-600"
+                >
+                  Sign in
+                </Link>
+              ))}
           </div>
         </div>
       </SheetSection>
