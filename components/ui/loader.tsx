@@ -1,45 +1,46 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 export interface LoaderProps extends React.HTMLAttributes<HTMLDivElement> {
-  size?: "sm" | "md" | "lg"
+  size?: "sm" | "md" | "lg";
 }
 
+/** Content-shaped skeleton. Prefer this over spinners. */
 function Loader({ className, size = "md", ...props }: LoaderProps) {
   return (
     <div
       className={cn(
-        "animate-pulse bg-muted",
+        "bg-dither-25",
         {
-          "h-4 w-1/4": size === "sm",
-          "h-8 w-1/2": size === "md",
-          "h-32 w-full": size === "lg",
+          "h-3 w-24": size === "sm",
+          "h-8 w-48": size === "md",
+          "h-40 w-full": size === "lg",
         },
         className
       )}
       {...props}
     />
-  )
+  );
 }
 
-function Spinner({ className, ...props }: React.HTMLAttributes<SVGElement>) {
+function PageSkeleton({ rows = 4 }: { rows?: number }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={cn("animate-spin text-muted-foreground", className)}
-      {...props}
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-  )
+    <div className="space-y-6 py-6">
+      <div className="space-y-2">
+        <Loader className="h-8 w-40" />
+        <Loader className="h-3 w-64" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px border border-border bg-border">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-background p-4 space-y-2">
+            <Loader className="h-3 w-20" />
+            <Loader className="h-7 w-14" />
+          </div>
+        ))}
+      </div>
+      <div className="border border-border bg-dither-25" style={{ height: `${rows * 4}rem` }} />
+    </div>
+  );
 }
 
-export { Loader, Spinner }
+export { Loader, PageSkeleton };

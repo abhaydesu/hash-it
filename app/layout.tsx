@@ -36,11 +36,10 @@ export default async function RootLayout({
       <body className="min-h-screen bg-background text-foreground antialiased font-sans flex flex-col selection:bg-muted selection:text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <div className="relative min-h-screen flex flex-col w-full bg-background overflow-x-clip">
-            {/* One continuous sheet column: header, nav, and content share its rules. */}
             <div className="mx-auto w-full max-w-[1040px] border-x border-border flex-1 flex flex-col bg-background relative z-20">
               <Navbar user={user} />
               <SidebarNav />
-              <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+              <main className="flex-1 w-full">{children}</main>
             </div>
           </div>
           <CommandBar />

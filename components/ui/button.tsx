@@ -1,33 +1,41 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "easy" | "medium" | "hard" | "failed"
+  variant?: "primary" | "secondary" | "ghost" | "outcome-good" | "outcome-hard" | "outcome-again" | "outcome-failed";
+  size?: "sm" | "md" | "lg";
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", ...props }, ref) => {
+  ({ className, variant = "primary", size = "md", ...props }, ref) => {
     return (
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2",
+          "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-40",
           {
-            "bg-primary text-primary-foreground hover:bg-primary/90": variant === "primary",
-            "border border-border bg-background hover:bg-muted text-foreground": variant === "secondary",
-            "hover:bg-muted text-foreground": variant === "ghost",
-            "bg-easy text-background hover:opacity-90": variant === "easy",
-            "bg-medium text-background hover:opacity-90": variant === "medium",
-            "bg-hard text-background hover:opacity-90": variant === "hard",
-            "bg-destructive text-destructive-foreground hover:opacity-90": variant === "failed",
+            "h-8 px-3 text-xs": size === "sm",
+            "h-9 px-4 text-sm": size === "md",
+            "h-10 px-5 text-sm": size === "lg",
+          },
+          {
+            "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-500 dark:text-background dark:hover:bg-orange-400":
+              variant === "primary",
+            "border border-border bg-background text-foreground hover:bg-muted": variant === "secondary",
+            "text-foreground hover:bg-muted": variant === "ghost",
+            "border border-easy/50 bg-background text-easy hover:bg-easy/10": variant === "outcome-good",
+            "border border-medium/50 bg-background text-medium hover:bg-medium/10": variant === "outcome-hard",
+            "border border-hard/50 bg-background text-hard hover:bg-hard/10": variant === "outcome-again",
+            "border border-destructive/50 bg-background text-destructive hover:bg-destructive/10":
+              variant === "outcome-failed",
           },
           className
         )}
         {...props}
       />
-    )
+    );
   }
-)
-Button.displayName = "Button"
+);
+Button.displayName = "Button";
 
-export { Button }
+export { Button };

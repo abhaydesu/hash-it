@@ -1,10 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * SpecCell: A single spec-sheet cell divided by hairlines holding one fact.
- * Strictly no rounded corners. Technical metadata block.
- */
+/** One fact: label above, value below. No rounded corners. */
 export function SpecCell({
   label,
   value,
@@ -19,25 +16,19 @@ export function SpecCell({
   children?: React.ReactNode;
 }) {
   return (
-    <div className={cn("p-3 sm:p-4 bg-background border-border flex flex-col justify-between", className)}>
-      <div className="text-[11px] font-medium tracking-[0.04em] text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-1.5 tabular-numbers text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+    <div className={cn("flex flex-col justify-between bg-background p-3 sm:p-4", className)}>
+      <div className="type-label">{label}</div>
+      <div className="mt-1.5 text-xl sm:text-2xl font-semibold tracking-tight text-foreground tabular-numbers">
         {value ?? children}
       </div>
-      {subvalue && (
-        <div className="mt-1 text-xs text-muted-foreground">
-          {subvalue}
-        </div>
+      {subvalue != null && subvalue !== false && (
+        <div className="mt-1 text-xs text-muted-foreground">{subvalue}</div>
       )}
     </div>
   );
 }
 
-/**
- * SpecGrid: A grid of spec-sheet cells divided by hairlines.
- */
+/** Grid of SpecCells — outer border owns the edge; gap-px draws hairlines between cells. */
 export function SpecGrid({
   children,
   columns = 4,
@@ -55,15 +46,13 @@ export function SpecGrid({
   }[columns];
 
   return (
-    <div className={cn("grid border border-border bg-border gap-px", colClass, className)}>
+    <div className={cn("grid gap-px border border-border bg-border", colClass, className)}>
       {children}
     </div>
   );
 }
 
-/**
- * FigureCaption: Technical-drawing vernacular caption, e.g. "Fig. 1. Daily review queue."
- */
+/** Technical-drawing caption. Accent on the fig mark. */
 export function FigureCaption({
   fig,
   title,
@@ -74,11 +63,9 @@ export function FigureCaption({
   className?: string;
 }) {
   return (
-    <div className={cn("mt-2.5 flex items-baseline gap-2 text-xs text-muted-foreground", className)}>
-      <span className="font-semibold text-foreground tracking-tight">
-        Fig. {fig}.
-      </span>
+    <p className={cn("mt-2.5 type-caption", className)}>
+      <span className="font-semibold text-orange-600 dark:text-orange-400">Fig. {fig}.</span>{" "}
       <span>{title}</span>
-    </div>
+    </p>
   );
 }

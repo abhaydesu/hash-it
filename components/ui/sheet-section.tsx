@@ -1,21 +1,43 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+type Band = "none" | "neutral" | "dense" | "accent" | "hero";
+
+/**
+ * Full-bleed section primitive.
+ * Outer wrapper owns the full-bleed hairline (and optional dither band).
+ * Inner constrains content padding inside the sheet column.
+ */
 export function SheetSection({
   children,
   className,
   innerClassName,
-  band = "neutral",
+  band = "none",
+  last = false,
+  as: Tag = "section",
 }: {
   children: React.ReactNode;
   className?: string;
   innerClassName?: string;
-  band?: "none" | "neutral" | "accent";
+  band?: Band;
+  last?: boolean;
+  as?: "section" | "div" | "header" | "footer";
 }) {
+  const bandClass =
+    band === "accent"
+      ? "sheet-band bg-dither-orange"
+      : band === "dense"
+        ? "sheet-band bg-dither-50"
+        : band === "hero"
+          ? "sheet-band sheet-band-hero bg-dither-orange"
+          : band === "neutral"
+            ? "sheet-band bg-dither-25"
+            : null;
+
   return (
-    <section className={cn("sheet-section", className)}>
-      <div className={cn("relative z-10", innerClassName)}>{children}</div>
-      {band !== "none" && <div aria-hidden="true" className={cn("sheet-band", band === "accent" ? "bg-dither-orange" : "bg-dither-25")} />}
-    </section>
+    <Tag className={cn("sheet-section", last && "sheet-section-last", className)}>
+      {bandClass ? <div aria-hidden="true" className={bandClass} /> : null}
+      <div className={cn("sheet-inner", innerClassName)}>{children}</div>
+    </Tag>
   );
 }

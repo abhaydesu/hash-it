@@ -36,37 +36,47 @@ export function formatMinutes(minutes?: number | null): string {
   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
 }
 
-export function formatDifficulty(diff?: string | null): { label: string; className: string } {
+export function formatDifficulty(diff?: string | null): { label: string; className: string; variant: "easy" | "medium" | "hard" | "outline" } {
   switch (diff) {
     case "EASY":
       return {
         label: "Easy",
-        className: "border border-easy bg-easy text-background",
+        className: "border border-easy/35 text-easy",
+        variant: "easy",
       };
     case "MEDIUM":
       return {
         label: "Medium",
-        className: "border border-medium bg-medium text-background",
+        className: "border border-medium/35 text-medium",
+        variant: "medium",
       };
     case "HARD":
       return {
         label: "Hard",
-        className: "border border-hard bg-hard text-background",
+        className: "border border-hard/35 text-hard",
+        variant: "hard",
       };
     default:
       return {
         label: "Unknown",
-        className: "border border-border text-muted-foreground bg-muted/40",
+        className: "border border-border text-muted-foreground",
+        variant: "outline",
       };
   }
 }
 
-export function formatStatus(status?: string | null): { label: string; short: string; className: string } {
+export function formatStatus(status?: string | null): {
+  label: string;
+  short: string;
+  className: string;
+  variant: "status-unaided" | "status-help" | "status-failed" | "outline";
+} {
   if (!status) {
     return {
       label: "Unattempted",
       short: "Unattempted",
-      className: "border border-border text-muted-foreground bg-muted/30",
+      className: "border border-border text-muted-foreground",
+      variant: "outline",
     };
   }
   switch (status) {
@@ -74,25 +84,29 @@ export function formatStatus(status?: string | null): { label: string; short: st
       return {
         label: "Unaided",
         short: "Unaided",
-        className: "border border-easy/40 text-easy bg-easy/10",
+        className: "border border-easy/35 text-easy",
+        variant: "status-unaided",
       };
     case "SOLVED_WITH_HELP":
       return {
-        label: "With Help",
-        short: "With Help",
-        className: "border border-border text-foreground bg-muted/50",
+        label: "With help",
+        short: "With help",
+        className: "border border-border text-muted-foreground",
+        variant: "status-help",
       };
     case "ATTEMPTED_FAILED":
       return {
         label: "Failed",
         short: "Failed",
-        className: "border border-destructive/40 text-destructive bg-destructive/10",
+        className: "border border-destructive/40 text-destructive",
+        variant: "status-failed",
       };
     default:
       return {
         label: status,
         short: status,
-        className: "border border-border text-muted-foreground bg-muted/30",
+        className: "border border-border text-muted-foreground",
+        variant: "outline",
       };
   }
 }

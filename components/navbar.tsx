@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SheetSection } from "@/components/ui/sheet-section";
-import { Logo } from "@/components/logo";
 
 interface NavbarProps {
   user?: {
@@ -36,28 +35,27 @@ export function SidebarNav() {
   }
 
   return (
-    <SheetSection className="bg-background/95 backdrop-blur-sm">
-      <nav>
-        <div className="flex items-center gap-1 overflow-x-auto px-4 sm:px-6 py-2 scrollbar-none text-xs">
+    <SheetSection className="bg-background/95 backdrop-blur-sm" band="none">
+      <nav className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          const isActive =
+            pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
 
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "whitespace-nowrap px-2.5 py-1 transition-colors border text-xs",
+                "whitespace-nowrap border px-2.5 py-1 transition-colors",
                 isActive
-                  ? "border-orange-500 bg-orange-50 text-orange-700 font-medium"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                  ? "border-orange-500 bg-orange-50 text-orange-700 font-medium dark:bg-orange-500/10 dark:text-orange-400"
+                  : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground"
               )}
             >
               {item.label}
             </Link>
           );
         })}
-        </div>
       </nav>
     </SheetSection>
   );
@@ -69,62 +67,68 @@ export function Navbar({ user }: NavbarProps) {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-sm">
-      <SheetSection>
-        <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 text-foreground transition-colors hover:opacity-80">
-          <Logo className="h-6 w-6" />
-        </Link>
+      <SheetSection band="none">
+        <div className="flex h-14 items-center justify-between gap-4">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-orange-600 transition-colors hover:text-orange-700"
+          >
+            <img src="/logo-2.svg" alt="" className="h-6 w-6 object-contain dark:hidden" />
+            <img src="/logo-1.svg" alt="" className="hidden h-6 w-6 object-contain dark:block" />
+          </Link>
 
-        <div className="flex items-center gap-2">
-          {!isLandingPage && (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent("open-command-bar"));
-                }}
-                className="hidden items-center gap-2 border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:flex transition-colors"
+          <div className="flex items-center gap-2">
+            {!isLandingPage && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("open-command-bar"));
+                  }}
+                  className="hidden items-center gap-2 border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:flex"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                  <span className="font-medium">Log problem</span>
+                  <kbd className="border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    ⌘K
+                  </kbd>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" }));
+                  }}
+                  className="hidden h-7 w-7 items-center justify-center border border-border bg-background text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:flex"
+                  title="Keyboard shortcuts (?)"
+                >
+                  ?
+                </button>
+              </>
+            )}
+
+            {isLandingPage && (
+              <Link
+                href="/roadmap"
+                className="hidden border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:inline-flex"
               >
-                <Search className="h-3.5 w-3.5" />
-                <span className="font-medium">Log problem</span>
-                <kbd className="border border-border bg-muted px-1.5 py-0.2 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
-              </button>
+                Roadmap
+              </Link>
+            )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" }));
-                }}
-                className="hidden h-7 w-7 items-center justify-center border border-border bg-background text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:flex transition-colors"
-                title="Keyboard shortcuts (?)"
+            <ThemeToggle className="h-7 w-7" />
+
+            {user ? (
+              <UserMenu user={user} />
+            ) : (
+              <Link
+                href="/auth/signin"
+                className="inline-flex items-center border border-orange-500 bg-orange-500 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-orange-600"
               >
-                ?
-              </button>
-            </>
-          )}
-
-          {isLandingPage && (
-            <Link
-              href="/roadmap"
-              className="hidden border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:inline-flex transition-colors"
-            >
-              Roadmap
-            </Link>
-          )}
-
-          <ThemeToggle className="h-7 w-7" />
-
-          {user ? (
-            <UserMenu user={user} />
-          ) : (
-            <Link
-              href="/auth/signin"
-              className="border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center"
-            >
-              Sign in
-            </Link>
-          )}
-        </div>
+                Sign in
+              </Link>
+            )}
+          </div>
         </div>
       </SheetSection>
     </header>
