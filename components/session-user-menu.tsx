@@ -18,7 +18,7 @@ export async function SessionUserMenu() {
   return (
     <Link
       href="/auth/signin"
-      className="inline-flex h-8 items-center border border-orange-500 bg-orange-500 px-2.5 text-xs font-medium text-white transition-colors hover:bg-orange-600"
+      className="pressable inline-flex h-8 items-center border border-orange-500 bg-orange-500 px-2.5 text-xs font-medium text-white hover:bg-orange-600"
     >
       Sign in
     </Link>

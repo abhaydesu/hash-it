@@ -73,17 +73,30 @@ export function KeyboardShortcutsModal() {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xs p-4">
-      <div className="w-full max-w-lg border border-border bg-background p-4 sm:p-5 shadow-2xl animate-in fade-in duration-100">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setIsOpen(false);
+      }}
+    >
+      <div
+        className="w-full max-w-lg border border-border bg-background p-4 shadow-2xl sm:p-5"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shortcuts-title"
+      >
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2 text-foreground">
             <Keyboard className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold tracking-tight">Keyboard shortcuts</h2>
+            <h2 id="shortcuts-title" className="text-sm font-semibold tracking-tight">
+              Keyboard shortcuts
+            </h2>
           </div>
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+            className="pressable p-1 text-muted-foreground hover:text-foreground"
+            aria-label="Close shortcuts"
           >
             <X className="h-4 w-4" />
           </button>
@@ -93,7 +106,7 @@ export function KeyboardShortcutsModal() {
           {shortcuts.map((s) => (
             <div
               key={s.key}
-              className="flex items-center justify-between px-2 py-1.5 hover:bg-muted/40 transition-colors"
+              className="flex items-center justify-between px-2 py-1.5"
             >
               <span className="text-muted-foreground">{s.desc}</span>
               <kbd className="border border-border bg-muted/50 px-2 py-0.5 text-foreground font-mono text-[11px]">

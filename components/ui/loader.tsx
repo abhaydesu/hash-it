@@ -10,7 +10,7 @@ function Loader({ className, size = "md", ...props }: LoaderProps) {
   return (
     <div
       className={cn(
-        "bg-dither-25",
+        "skeleton bg-dither-25",
         {
           "h-3 w-24": size === "sm",
           "h-8 w-48": size === "md",
@@ -38,7 +38,7 @@ function PageSkeleton({ rows = 4 }: { rows?: number }) {
           </div>
         ))}
       </div>
-      <div className="border border-border bg-dither-25" style={{ height: `${rows * 4}rem` }} />
+      <div className="skeleton border border-border bg-dither-25" style={{ height: `${rows * 4}rem` }} />
     </div>
   );
 }

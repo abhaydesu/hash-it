@@ -61,7 +61,7 @@ export function SidebarNav() {
                 if (!isActive) setPendingHref(item.href);
               }}
               className={cn(
-                "whitespace-nowrap border px-2.5 py-1 transition-colors",
+                "pressable whitespace-nowrap border px-2.5 py-1",
                 isActive
                   ? "border-orange-500 bg-orange-50 text-orange-700 font-medium dark:bg-orange-500/10 dark:text-orange-400"
                   : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
@@ -87,7 +87,8 @@ export function Navbar({ user, userMenu }: NavbarProps) {
         <div className="flex h-14 items-center justify-between gap-4">
           <Link
             href="/"
-            className="flex items-center gap-2 text-orange-600 transition-colors hover:text-orange-700"
+            className="pressable flex items-center gap-2 text-orange-600 hover:text-orange-700"
+            aria-label="Hash-It home"
           >
             <Image src="/logo-2.svg" alt="" width={24} height={24} className="h-6 w-6 object-contain dark:hidden" />
             <Image src="/logo-1.svg" alt="" width={24} height={24} className="hidden h-6 w-6 object-contain dark:block" />
@@ -101,7 +102,7 @@ export function Navbar({ user, userMenu }: NavbarProps) {
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("open-command-bar"));
                   }}
-                  className="hidden h-8 items-center gap-2 border border-border bg-background px-2.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:flex"
+                  className="pressable hidden h-8 items-center gap-2 border border-border bg-background px-2.5 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:flex"
                 >
                   <Search className="h-3.5 w-3.5" />
                   <span className="font-medium">Log problem</span>
@@ -115,7 +116,7 @@ export function Navbar({ user, userMenu }: NavbarProps) {
             {isMarketingPage && (
               <Link
                 href="/today"
-                className="hidden h-8 items-center border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground sm:inline-flex"
+                className="pressable hidden h-8 items-center border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:inline-flex"
               >
                 Dashboard
               </Link>
@@ -131,7 +132,7 @@ export function Navbar({ user, userMenu }: NavbarProps) {
               ) : (
                 <Link
                   href="/auth/signin"
-                  className="inline-flex h-8 items-center border border-orange-500 bg-orange-500 px-2.5 text-xs font-medium text-white transition-colors hover:bg-orange-600"
+                  className="pressable inline-flex h-8 items-center border border-orange-500 bg-orange-500 px-2.5 text-xs font-medium text-white hover:bg-orange-600"
                 >
                   Sign in
                 </Link>

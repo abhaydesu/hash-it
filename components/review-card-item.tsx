@@ -82,7 +82,7 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
     const daysUntil = Math.round((result.nextDue.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     const diff = formatDifficulty(item.difficulty);
     return (
-      <article className="border border-border bg-background p-4 sm:p-5">
+      <article className="idea-preview border border-border bg-background p-4 sm:p-5">
         <div className="type-heading text-foreground">{item.title}</div>
         <p className="mt-2 type-caption">
           Next review in{" "}

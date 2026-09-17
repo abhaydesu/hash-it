@@ -99,7 +99,7 @@ export default function TodayDashboardPage() {
         </div>
         <Link
           href="/problems"
-          className="inline-flex h-8 items-center self-start border border-border bg-background px-3 text-xs font-medium text-foreground hover:bg-muted"
+          className="pressable inline-flex h-8 items-center self-start border border-border bg-background px-3 text-xs font-medium text-foreground hover:bg-muted"
         >
           Review catalogue
         </Link>
@@ -151,10 +151,15 @@ export default function TodayDashboardPage() {
         </div>
 
         {activeQueue.length === 0 ? (
-          <div className="border border-border bg-dither-25 px-4 py-8 text-center type-caption">
-            {queue.length > 0
-              ? "All done for today. Log new problems with ⌘K or review the catalogue."
-              : "Nothing due today. Log new problems with ⌘K, or work through your roadmap."}
+          <div className="idea-preview border border-border bg-dither-25 px-4 py-10 text-center">
+            <p className="text-sm font-medium text-foreground">
+              {queue.length > 0 ? "All done for today." : "Nothing due today."}
+            </p>
+            <p className="mt-1 type-caption">
+              {queue.length > 0
+                ? "Log new problems with ⌘K or review the catalogue."
+                : "Log new problems with ⌘K, or work through your roadmap."}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">

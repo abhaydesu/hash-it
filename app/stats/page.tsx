@@ -190,8 +190,8 @@ export default function StatsPage() {
                   </div>
                   <div className="h-1 w-full overflow-hidden bg-muted">
                     <div
-                      className="h-full bg-foreground transition-all"
-                      style={{ width: `${percentage}%` }}
+                      className="h-full origin-left bg-foreground transition-transform duration-modal ease-in-out-strong"
+                      style={{ transform: `scaleX(${percentage / 100})` }}
                     />
                   </div>
                 </div>
@@ -216,8 +216,8 @@ export default function StatsPage() {
                   </div>
                   <div className="h-1 w-full overflow-hidden bg-muted">
                     <div
-                      className="h-full bg-foreground/70 transition-all"
-                      style={{ width: `${percentage}%` }}
+                      className="h-full origin-left bg-foreground/70 transition-transform duration-modal ease-in-out-strong"
+                      style={{ transform: `scaleX(${percentage / 100})` }}
                     />
                   </div>
                 </div>

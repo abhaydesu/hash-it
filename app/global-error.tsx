@@ -26,7 +26,7 @@ export default function GlobalError({
         </div>
         <button
           onClick={() => reset()}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="pressable border border-orange-500 bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
         >
           Try again
         </button>

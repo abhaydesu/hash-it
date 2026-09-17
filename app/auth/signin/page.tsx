@@ -115,7 +115,7 @@ export default async function SignInPage({
 
                     <button
                       type="submit"
-                      className="inline-flex h-10 w-full items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-4 text-sm text-white transition-colors hover:bg-orange-600"
+        className="pressable inline-flex h-10 w-full items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-4 text-sm text-white hover:bg-orange-600"
                     >
                       {useGoogle ? (
                         <>

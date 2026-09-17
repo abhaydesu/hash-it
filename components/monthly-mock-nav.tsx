@@ -21,7 +21,7 @@ export function MonthlyMockNavControls() {
       <div className="flex h-8 items-center gap-1.5 border border-border bg-background pl-2 pr-1">
         <Link
           href="/review/monthly"
-          className="flex items-center gap-1.5 text-xs text-foreground transition-colors hover:text-orange-600"
+          className="pressable flex items-center gap-1.5 text-xs text-foreground hover:text-orange-600"
           title="Return to monthly mock"
         >
           <Timer className={`h-3.5 w-3.5 ${paused ? "text-muted-foreground" : "animate-pulse text-orange-600"}`} />
@@ -35,7 +35,7 @@ export function MonthlyMockNavControls() {
         <button
           type="button"
           onClick={() => (paused ? resume() : pause())}
-          className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="pressable inline-flex h-6 w-6 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
           title={paused ? "Resume mock" : "Pause mock"}
           aria-label={paused ? "Resume mock" : "Pause mock"}
         >
@@ -45,7 +45,7 @@ export function MonthlyMockNavControls() {
         <button
           type="button"
           onClick={() => setShowConfirm(true)}
-          className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground transition-colors hover:bg-hard/10 hover:text-hard"
+          className="pressable inline-flex h-6 w-6 items-center justify-center text-muted-foreground hover:bg-hard/10 hover:text-hard"
           title="Discard mock"
           aria-label="Discard mock"
         >

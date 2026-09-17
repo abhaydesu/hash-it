@@ -75,6 +75,18 @@ const config: Config = {
         sans: ["var(--font-manrope)", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["var(--font-ibm-plex-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
       },
+      transitionTimingFunction: {
+        out: "cubic-bezier(0.23, 1, 0.32, 1)",
+        "in-out-strong": "cubic-bezier(0.77, 0, 0.175, 1)",
+        drawer: "cubic-bezier(0.32, 0.72, 0, 1)",
+      },
+      transitionDuration: {
+        press: "160ms",
+        tooltip: "140ms",
+        popover: "180ms",
+        modal: "240ms",
+        toast: "280ms",
+      },
     },
   },
   plugins: [],

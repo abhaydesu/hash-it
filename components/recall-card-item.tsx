@@ -86,7 +86,7 @@ export function RecallCardItem({ item, onComplete }: RecallCardItemProps) {
             </Button>
           </form>
         ) : (
-          <div className="space-y-4">
+          <div className="idea-preview space-y-4">
             <div className="grid grid-cols-1 gap-px border border-border bg-border sm:grid-cols-2">
               <div className="bg-background">
                 <div className="type-label border-b border-border bg-muted/30 px-3 py-1.5">You wrote</div>

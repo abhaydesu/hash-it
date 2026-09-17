@@ -55,13 +55,13 @@ export function ConfirmDialog({
 
   return createPortal(
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          className="ui-overlay fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) onOpenChange(false);
           }}
         >
           <div 
-            className="w-[90vw] max-w-sm border border-border bg-background p-5 shadow-lg animate-in fade-in zoom-in-95 duration-200"
+            className="ui-modal w-[90vw] max-w-sm border border-border bg-background p-5 shadow-lg"
             role="dialog"
             aria-modal="true"
             aria-labelledby="dialog-title"

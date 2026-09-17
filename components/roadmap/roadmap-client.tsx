@@ -281,8 +281,8 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
               </div>
               <div className="mt-1 h-1.5 w-24 overflow-hidden bg-muted">
                 <div
-                  className="h-full bg-orange-500 transition-all duration-300"
-                  style={{ width: `${completionPercentage}%` }}
+                  className="h-full origin-left bg-orange-500 transition-transform duration-modal ease-in-out-strong"
+                  style={{ transform: `scaleX(${completionPercentage / 100})` }}
                 />
               </div>
             </div>
@@ -391,8 +391,8 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
                     </div>
                     <div className="hidden h-1.5 w-16 overflow-hidden bg-muted sm:block">
                       <div
-                        className="h-full bg-foreground transition-all duration-300"
-                        style={{ width: `${sectionPercentage}%` }}
+                        className="h-full origin-left bg-foreground transition-transform duration-modal ease-in-out-strong"
+                        style={{ transform: `scaleX(${sectionPercentage / 100})` }}
                       />
                     </div>
                   </div>

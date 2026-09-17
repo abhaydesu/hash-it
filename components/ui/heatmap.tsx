@@ -106,7 +106,7 @@ export function Heatmap({ data, className, selectedYear = "last365" }: HeatmapPr
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              "w-[11px] h-[11px] rounded-[2px] transition-colors",
+                              "h-[11px] w-[11px] rounded-[2px] transition-colors duration-press ease",
                               isFuture && "opacity-20",
                               level === 0 && "bg-muted/40",
                               level === 1 && "bg-orange-200 dark:bg-orange-950",
@@ -121,7 +121,7 @@ export function Heatmap({ data, className, selectedYear = "last365" }: HeatmapPr
                             }
                           />
                         </TooltipTrigger>
-                        <TooltipContent side="top" sideOffset={8}>
+                        <TooltipContent side="top" sideOffset={8} instant>
                           <p>
                             {count} {count === 1 ? "problem" : "problems"} on {format(day, "MMM d, yyyy")}
                           </p>

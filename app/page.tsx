@@ -26,7 +26,7 @@ export default async function HomePage() {
       <main className="min-h-screen w-full">
         <SheetSection className="relative overflow-hidden" band="hero">
           <div className="relative z-10 flex max-w-3xl flex-col items-start px-6 py-24 sm:py-32">
-            <h1 className="mb-8 text-4xl font-medium tracking-tight sm:text-6xl">
+            <h1 className="idea-preview mb-8 text-4xl font-medium tracking-tight sm:text-6xl">
               A practice log for LeetCode that decides when you should solve each problem again.
             </h1>
 
@@ -34,21 +34,21 @@ export default async function HomePage() {
               {session?.user ? (
                 <Link
                   href="/today"
-                  className="inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white transition-colors hover:bg-orange-600"
+                  className="pressable inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white hover:bg-orange-600"
                 >
                   Open your queue
                 </Link>
               ) : (
                 <Link
                   href="/auth/signin"
-                  className="inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white transition-colors hover:bg-orange-600"
+                  className="pressable inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white hover:bg-orange-600"
                 >
                   Get started
                 </Link>
               )}
               <Link
                 href="/problems"
-                className="inline-flex items-center justify-center gap-2 border border-border bg-background px-6 py-2.5 text-sm text-foreground transition-colors hover:border-orange-500 hover:text-orange-600"
+                className="pressable inline-flex items-center justify-center gap-2 border border-border bg-background px-6 py-2.5 text-sm text-foreground hover:border-orange-500 hover:text-orange-600"
               >
                 <Search className="h-4 w-4" />
                 Explore catalog
@@ -57,7 +57,7 @@ export default async function HomePage() {
           </div>
 
           <div className="relative -mx-4 border-t border-border bg-dither-25 p-6 sm:-mx-8 sm:p-12">
-            <div className="mx-auto max-w-2xl divide-y divide-border border border-border bg-background">
+            <div className="mx-auto max-w-2xl divide-y divide-border border border-border bg-background stagger-in">
               <div className="flex items-center justify-between bg-muted/40 px-3 py-2 type-label text-muted-foreground">
                 <span>Daily queue</span>
                 <span className="text-orange-600">3 due</span>
@@ -147,21 +147,21 @@ export default async function HomePage() {
         </SheetSection>
 
         <SheetSection>
-          <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
-            <div className="space-y-3 p-6 transition-colors hover:bg-muted/10 sm:p-8">
+          <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0 stagger-in">
+            <div className="space-y-3 p-6 sm:p-8">
               <h3 className="text-sm font-medium">Daily re-solves</h3>
               <p className="text-xs leading-relaxed text-muted-foreground">
                 The daily queue asks you to re-solve specific problems from scratch.
               </p>
             </div>
-            <div className="space-y-3 p-6 transition-colors hover:bg-muted/10 sm:p-8">
+            <div className="space-y-3 p-6 sm:p-8">
               <h3 className="text-sm font-medium">Weekly pattern drill</h3>
               <p className="text-xs leading-relaxed text-muted-foreground">
                 A drill appears when a pattern&apos;s recall estimate drops below target or it has not
                 been practised in two weeks. Read a cue and name the technique.
               </p>
             </div>
-            <div className="space-y-3 p-6 transition-colors hover:bg-muted/10 sm:p-8">
+            <div className="space-y-3 p-6 sm:p-8">
               <h3 className="text-sm font-medium">Monthly blind mock</h3>
               <p className="text-xs leading-relaxed text-muted-foreground">
                 Test whether you can choose the right technique from a problem statement alone.
