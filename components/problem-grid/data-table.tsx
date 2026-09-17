@@ -108,25 +108,23 @@ export function DataTable({ data, patternsList }: DataTableProps) {
   };
 
   return (
-    <div className="space-y-3 font-sans">
-      {/* Top Controls: Preset Views & Actions */}
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-        {/* Preset Tabs */}
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {[
             { id: "ALL", label: `All (${data.length})` },
-            { id: "DUE", label: "Due Today" },
-            { id: "REVISIT", label: "Revisit Flagged" },
-            { id: "LEECH", label: "Leeches (≥3)" },
+            { id: "DUE", label: "Due today" },
+            { id: "REVISIT", label: "Revisit flagged" },
+            { id: "LEECH", label: "Stuck (≥3)" },
             { id: "UNTAGGED", label: "Untagged" },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setSelectedView(tab.id as any)}
-              className={`rounded-none px-2.5 py-1 text-xs font-mono font-medium transition-colors border-b-2 ${
+              className={`border px-2.5 py-1 text-xs font-medium transition-colors ${
                 selectedView === tab.id
-                  ? "border-foreground text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  ? "border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
+                  : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground"
               }`}
             >
               {tab.label}
@@ -134,35 +132,31 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           ))}
         </div>
 
-        {/* CSV Export */}
         <button
           onClick={handleExportCsv}
-          className="flex items-center gap-1.5 rounded-none border border-border bg-background px-3 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors font-mono"
+          className="flex items-center gap-1.5 border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Download className="h-3 w-3" />
-          <span>Export CSV (Sheet Format)</span>
+          <span>Export CSV</span>
         </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-4 md:grid-cols-5 text-xs font-mono">
-        {/* Search */}
+      <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-4 md:grid-cols-5">
         <div className="relative sm:col-span-2">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search problems, ideas, mistakes..."
+            placeholder="Search problems, ideas, mistakes…"
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="w-full rounded-none border border-border bg-background py-1.5 pl-8 pr-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full border border-border bg-background py-1.5 pl-8 pr-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
         </div>
 
-        {/* Difficulty Filter */}
         <select
           value={difficultyFilter}
           onChange={(e) => setDifficultyFilter(e.target.value)}
-          className="rounded-none border border-border bg-background px-2.5 py-1.5 text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          className="border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
         >
           <option value="ALL">All difficulties</option>
           <option value="EASY">Easy</option>
@@ -170,11 +164,10 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           <option value="HARD">Hard</option>
         </select>
 
-        {/* Status Filter */}
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-none border border-border bg-background px-2.5 py-1.5 text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          className="border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
         >
           <option value="ALL">All statuses</option>
           <option value="SOLVED_UNAIDED">Unaided</option>
@@ -182,11 +175,10 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           <option value="ATTEMPTED_FAILED">Failed</option>
         </select>
 
-        {/* Pattern Filter */}
         <select
           value={patternFilter}
           onChange={(e) => setPatternFilter(e.target.value)}
-          className="rounded-none border border-border bg-background px-2.5 py-1.5 text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          className="border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
         >
           <option value="ALL">All patterns ({patternsList.length})</option>
           {patternsList.map((p) => (
@@ -197,17 +189,16 @@ export function DataTable({ data, patternsList }: DataTableProps) {
         </select>
       </div>
 
-      {/* Spreadsheet Table Container */}
-      <div className="overflow-x-auto rounded-none border border-border bg-background">
+      <div className="overflow-x-auto border border-border bg-background">
         <table className="w-full border-collapse text-left text-xs">
-          <thead className="border-b border-border bg-muted/40 font-mono text-[11px] text-muted-foreground">
+          <thead className="sticky top-0 z-10 border-b border-border bg-muted/50 text-[11px] text-muted-foreground backdrop-blur-sm">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
                     onClick={header.column.getToggleSortingHandler()}
-                    className="cursor-pointer px-3 py-2 font-medium tracking-wider select-none hover:text-foreground border-r border-border last:border-r-0"
+                    className="cursor-pointer select-none px-2.5 py-1.5 font-medium hover:text-foreground"
                   >
                     <div className="flex items-center gap-1">
                       {flexRender(header.column.columnDef.header, header.getContext())}
@@ -222,12 +213,9 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           <tbody className="divide-y divide-border">
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-muted/50 transition-colors group"
-                >
+                <tr key={row.id} className="hover:bg-muted/40">
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-3 py-1.5 align-middle border-r border-border last:border-r-0">
+                    <td key={cell.id} className="px-2.5 py-1 align-middle">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -235,7 +223,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
               ))
             ) : (
               <tr>
-                <td colSpan={columns.length} className="py-8 text-center text-muted-foreground font-mono">
+                <td colSpan={columns.length} className="bg-dither-25 py-10 text-center text-muted-foreground">
                   No problems match the current filter.
                 </td>
               </tr>
@@ -244,27 +232,25 @@ export function DataTable({ data, patternsList }: DataTableProps) {
         </table>
       </div>
 
-      {/* Pagination Footer */}
-      <div className="flex items-center justify-between border-t border-border pt-2 text-xs font-mono text-muted-foreground">
-        <div>
+      <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
+        <div className="tabular-numbers">
           Showing {table.getRowModel().rows.length} of {filteredData.length} records
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="flex items-center gap-1 rounded-none border border-border bg-background px-2 py-1 hover:text-foreground disabled:opacity-50"
+            className="flex items-center gap-1 border border-border bg-background px-2 py-1 hover:text-foreground disabled:opacity-50"
           >
             <ChevronLeft className="h-3 w-3" /> Prev
           </button>
-          <span>
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {Math.max(1, table.getPageCount())}
+          <span className="tabular-numbers">
+            Page {table.getState().pagination.pageIndex + 1} of {Math.max(1, table.getPageCount())}
           </span>
           <button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="flex items-center gap-1 rounded-none border border-border bg-background px-2 py-1 hover:text-foreground disabled:opacity-50"
+            className="flex items-center gap-1 border border-border bg-background px-2 py-1 hover:text-foreground disabled:opacity-50"
           >
             Next <ChevronRight className="h-3 w-3" />
           </button>

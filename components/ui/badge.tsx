@@ -22,23 +22,26 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
  * Orange is never a badge colour — it is reserved for interaction chrome.
  */
 function Badge({ className, variant = "default", ...props }: BadgeProps) {
+  const styles: Record<NonNullable<BadgeProps["variant"]>, string> = {
+    default: "border border-border text-foreground",
+    outline: "border border-border text-foreground",
+    pattern: "border border-border bg-muted/40 text-muted-foreground",
+    flag: "border border-border text-foreground",
+    easy: "border border-easy/35 text-easy",
+    medium: "border border-medium/35 text-medium",
+    hard: "border border-hard/35 text-hard",
+    "status-unaided": "border border-easy/35 text-easy",
+    "status-help": "border border-border text-muted-foreground",
+    "status-failed": "border border-destructive/40 text-destructive",
+    overdue: "border border-warning/40 text-warning",
+    recall: "border border-recall/35 text-recall",
+  };
+
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 px-1.5 py-0.5 text-[11px] font-medium tracking-tight",
-        {
-          "border border-border text-foreground": variant === "default" || variant === "outline",
-          "border border-border bg-muted/40 text-muted-foreground": variant === "pattern",
-          "border border-border text-foreground": variant === "flag",
-          "border border-easy/35 text-easy": variant === "easy",
-          "border border-medium/35 text-medium": variant === "medium",
-          "border border-hard/35 text-hard": variant === "hard",
-          "border border-easy/35 text-easy": variant === "status-unaided",
-          "border border-border text-muted-foreground": variant === "status-help",
-          "border border-destructive/40 text-destructive": variant === "status-failed",
-          "border border-warning/40 text-warning": variant === "overdue",
-          "border border-recall/35 text-recall": variant === "recall",
-        },
+        styles[variant],
         className
       )}
       {...props}

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { DataTable } from "@/components/problem-grid/data-table";
 import { ProblemGridRow } from "@/components/problem-grid/columns";
+import { SheetSection } from "@/components/ui/sheet-section";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +37,8 @@ export default async function ProblemsPage() {
     const effectivePatterns = entry.customPattern
       ? [entry.customPattern]
       : entry.patternOverride.length > 0
-      ? entry.patternOverride
-      : sheetPatterns;
+        ? entry.patternOverride
+        : sheetPatterns;
     const primaryFamily = p.patterns.length > 0 ? p.patterns[0].pattern.family : null;
 
     return {
@@ -66,19 +67,16 @@ export default async function ProblemsPage() {
   });
 
   return (
-    <div className="space-y-4 pb-12">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.04em] text-foreground">
-            Problems
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Dense spreadsheet view of all logged problems. Click ideas or mistakes to edit inline.
-          </p>
-        </div>
-      </div>
-
-      <DataTable data={rows} patternsList={allPatterns.map((p) => p.name)} />
+    <div>
+      <SheetSection innerClassName="py-6">
+        <h1 className="type-title text-foreground">Problems</h1>
+        <p className="mt-1 type-caption">
+          Dense spreadsheet view of all logged problems. Click ideas or mistakes to edit inline.
+        </p>
+      </SheetSection>
+      <SheetSection innerClassName="pb-10 pt-2" band="none" last>
+        <DataTable data={rows} patternsList={allPatterns.map((p) => p.name)} />
+      </SheetSection>
     </div>
   );
 }

@@ -203,7 +203,7 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
     cell: ({ row }) => {
       const diff = formatDifficulty(row.original.difficulty);
       return (
-        <span className={`inline-block border px-1.5 py-0.2 text-[10px] ${diff.className}`}>
+        <span className={`inline-block px-1.5 py-0.5 text-[10px] font-medium ${diff.className}`}>
           {diff.label}
         </span>
       );
@@ -248,7 +248,7 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
           {patterns.map((p) => (
             <span
               key={p}
-              className="border border-border bg-muted/40 px-1.5 py-0.2 text-[10px] text-muted-foreground"
+              className="border border-border bg-muted/30 px-1.5 py-0.5 text-[10px] text-muted-foreground"
             >
               {p}
             </span>

@@ -69,23 +69,23 @@ export default async function SignInPage({
             >
               {!hasGoogleAuth && !isProduction && (
                 <div className="space-y-3">
-                  <label className="block text-xs font-mono text-muted-foreground ">
+                  <label className="block type-label">
                     <span className="mb-1.5 block">Local dev email</span>
                     <input
                       type="email"
                       name="email"
                       defaultValue="dev-user-local@example.com"
-                      className="w-full border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-foreground font-sans"
+                      className="w-full border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-orange-500 font-sans"
                       placeholder="you@example.com"
                     />
                   </label>
-                  <label className="block text-xs font-mono text-muted-foreground ">
+                  <label className="block type-label">
                     <span className="mb-1.5 block">Display name</span>
                     <input
                       type="text"
                       name="name"
                       defaultValue="Local Dev"
-                      className="w-full border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-foreground font-sans"
+                      className="w-full border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-orange-500 font-sans"
                       placeholder="Alice"
                     />
                   </label>
@@ -115,7 +115,7 @@ export default async function SignInPage({
           )}
         </div>
 
-        <div className="pt-2 flex items-center justify-center gap-2 text-[10px] font-mono  tracking-wider text-muted-foreground border-t border-border">
+        <div className="pt-2 flex items-center justify-center gap-2 type-caption border-t border-border">
           <ShieldCheck className="h-3.5 w-3.5" />
           <span>Encrypted review data</span>
         </div>

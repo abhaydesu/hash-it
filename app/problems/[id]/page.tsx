@@ -54,7 +54,7 @@ export default async function ProblemDetailPage({
         scheduledDays: card.scheduledDays,
         reps: card.reps,
         lapses: card.lapses,
-        state: card.state as "New" | "Learning" | "Review" | "Relearning",
+        state: card.state as "NEW" | "LEARNING" | "REVIEW" | "RELEARNING",
         lastReview: card.lastReview,
       })
     : null;
