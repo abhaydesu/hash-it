@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { findOrCreateLocalUser } from "../lib/local-auth";
-import { prisma } from "../lib/prisma";
+import { findOrCreateLocalUser } from "@/lib/local-auth";
+import { prisma } from "@/lib/prisma";
 
 describe("local auth identity", () => {
   it("creates distinct local users for different emails", async () => {

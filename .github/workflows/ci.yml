@@ -49,22 +49,22 @@ jobs:
         run: npx prisma generate
 
       - name: Migrate test database
-        run: npx prisma db push --skip-generate
+        run: npx prisma migrate deploy
 
       - name: ESLint
-        run: npx eslint . --max-warnings=0
+        run: npm run lint
 
       - name: Typecheck
         run: npx tsc --noEmit
 
       - name: Unit tests
-        run: npx vitest run --project=unit
+        run: npm run test:unit
 
       - name: Component tests
-        run: npx vitest run --project=component
+        run: npm run test:component
 
       - name: Integration tests
-        run: npx vitest run --project=integration
+        run: npm run test:integration
 
       - name: Next.js build
         run: npx next build

@@ -9,7 +9,7 @@ import {
   calculateRetrievability,
   type QueueItem,
   type ImportedRowInput,
-} from "../lib/scheduler";
+} from "@/lib/scheduler";
 
 describe("scheduler - rating derivation table", () => {
   it("derives AGAIN when solve status is ATTEMPTED_FAILED", () => {

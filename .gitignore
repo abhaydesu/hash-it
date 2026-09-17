@@ -1,46 +1,50 @@
 # dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp
 .pnp.js
-
-# testing
-/coverage
+.yarn/install-state.gz
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # production
-/build
+build/
+dist/
 
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
+# env / secrets
 .env
 .env*.local
 !.env.example
-
-# vercel
-.vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-.env
-SKILL.md
-current.md
-AUDIT.md
-audit-prompt.md
-apple-design.md
-DECISIONS.md
-DSA Tracking - Sheet1.csv
-dsa-tracker-spec.md
-to_do.md
+# testing
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# generated / local artifacts
+data/unmatched.csv
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# vercel
+.vercel
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.pem

@@ -19,7 +19,7 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "node",
-          include: ["tests/unit/**/*.test.ts", "tests/scheduler.test.ts", "tests/import-csv.test.ts"],
+          include: ["tests/unit/**/*.test.ts"],
           setupFiles: ["tests/setup/unit.ts"],
         },
         resolve: {
@@ -47,7 +47,7 @@ export default defineConfig({
         test: {
           name: "integration",
           environment: "node",
-          include: ["tests/integration/**/*.test.ts", "tests/auth.test.ts"],
+          include: ["tests/integration/**/*.test.ts"],
           setupFiles: ["tests/setup/integration.ts"],
           testTimeout: 25000,
           hookTimeout: 25000,
