@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth, getCurrentUser } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { calculateRetrievability, ReviewCardData } from "@/lib/scheduler";
 
 export const dynamic = "force-dynamic";

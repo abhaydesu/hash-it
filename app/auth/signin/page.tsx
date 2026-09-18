@@ -2,6 +2,7 @@ import React from 'react';
 import { signIn } from "@/lib/auth";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { SpecCell, SpecGrid, FigureCaption } from "@/components/ui/spec-sheet";
+import { isSafeCallbackPath } from "@/lib/safe";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export default async function SignInPage({
   searchParams: Promise<{ callbackUrl?: string }>;
 }) {
   const { callbackUrl } = await searchParams;
-  const redirectTarget = callbackUrl || "/today";
+  const redirectTarget = callbackUrl && isSafeCallbackPath(callbackUrl) ? callbackUrl : "/today";
   const hasGoogleAuth = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
   const isProduction = process.env.NODE_ENV === "production";
   const useGoogle = isProduction && hasGoogleAuth;

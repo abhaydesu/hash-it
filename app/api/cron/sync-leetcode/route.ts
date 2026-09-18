@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const secret = request.headers.get("x-cron-secret") ?? new URL(request.url).searchParams.get("secret");
+  const secret = request.headers.get("x-cron-secret");
   if (!secretsEqual(secret, expected)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
