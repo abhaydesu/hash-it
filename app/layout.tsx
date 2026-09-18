@@ -17,8 +17,8 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hash-It — Practice log & recall schedule for LeetCode",
-  description: "A practice log for LeetCode that decides when you should solve each problem again.",
+  title: "Hash-It — Remember every problem you solve",
+  description: "Spaced-repetition practice log for LeetCode. Log problems, schedule reviews, track patterns.",
   icons: {
     icon: "/icon.svg",
   },

@@ -4,50 +4,51 @@ import { deriveLane, interleaveQueue, type AppRating } from "@/lib/scheduler";
 const RECALL_CAP = 6;
 
 export async function getDailyReviewQueue(userId: string, now: Date = new Date()) {
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId },
-    select: { dailyResolveCap: true },
-  });
-  const resolveCap = settings?.dailyResolveCap ?? 2;
-
-  const dueCards = await prisma.reviewCard.findMany({
-    where: {
-      entry: { userId },
-      due: { lte: now },
-    },
-    select: {
-      entryId: true,
-      due: true,
-      lapses: true,
-      reps: true,
-      entry: {
-        select: {
-          mistake: true,
-          idea: true,
-          revisit: true,
-          problem: {
-            select: {
-              id: true,
-              title: true,
-              number: true,
-              url: true,
-              difficulty: true,
-              platform: true,
-              patterns: {
-                take: 1,
-                select: { pattern: { select: { family: true } } },
+  const [settings, dueCards] = await Promise.all([
+    prisma.userSettings.findUnique({
+      where: { userId },
+      select: { dailyResolveCap: true },
+    }),
+    prisma.reviewCard.findMany({
+      where: {
+        entry: { userId },
+        due: { lte: now },
+      },
+      select: {
+        entryId: true,
+        due: true,
+        lapses: true,
+        reps: true,
+        entry: {
+          select: {
+            mistake: true,
+            idea: true,
+            revisit: true,
+            problem: {
+              select: {
+                id: true,
+                title: true,
+                number: true,
+                url: true,
+                difficulty: true,
+                platform: true,
+                patterns: {
+                  take: 1,
+                  select: { pattern: { select: { family: true } } },
+                },
               },
             },
-          },
-          attempts: {
-            orderBy: { at: "desc" },
-            take: 1,
-            select: { rating: true },
+            attempts: {
+              orderBy: { at: "desc" },
+              take: 1,
+              select: { rating: true },
+            },
           },
         },
       },
-    },
-  });
+    }),
+  ]);
+  const resolveCap = settings?.dailyResolveCap ?? 2;
 
   const queueItems = dueCards.map((card) => {
     const problem = card.entry.problem;

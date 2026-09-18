@@ -60,9 +60,9 @@ export function StatsClient({ data }: { data: StatsData }) {
   return (
     <div>
       <SheetSection innerClassName="py-6">
-        <h1 className="type-title text-foreground">Performance metrics</h1>
+        <h1 className="type-title text-foreground">Stats</h1>
         <p className="mt-1 type-caption">
-          A plain-language view of what you have practised and what needs attention.
+          What you&apos;ve practised, how you&apos;ve performed, what needs work.
         </p>
       </SheetSection>
 

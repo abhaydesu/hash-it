@@ -90,9 +90,9 @@ function PatternsInner({ patterns }: { patterns: PatternData[] }) {
     <div>
       <SheetSection innerClassName="flex flex-wrap items-center justify-between gap-4 py-6">
         <div>
-          <h1 className="type-title text-foreground">Pattern mastery</h1>
+          <h1 className="type-title text-foreground">Patterns</h1>
           <p className="mt-1 type-caption">
-            FSRS mean retrievability across the pattern taxonomy. Select a pattern to inspect weak spots.
+            Recall strength by pattern. Select one to see its problems.
           </p>
         </div>
 

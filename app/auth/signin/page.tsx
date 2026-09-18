@@ -15,7 +15,7 @@ export default async function SignInPage({
   const redirectTarget = callbackUrl && isSafeCallbackPath(callbackUrl) ? callbackUrl : "/today";
   const hasGoogleAuth = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
   const isProduction = process.env.NODE_ENV === "production";
-  const useGoogle = isProduction && hasGoogleAuth;
+  const useGoogle = hasGoogleAuth;
 
   return (
     <div className="flex min-h-[calc(100dvh-3.5rem)] w-full flex-col justify-center bg-background font-sans text-foreground">
@@ -27,12 +27,12 @@ export default async function SignInPage({
           <div className="flex flex-col justify-center gap-10 px-6 py-12 sm:px-8 sm:py-16 md:col-span-7">
             <div className="max-w-xl space-y-5">
               <h1 className="text-3xl font-medium tracking-tight sm:text-5xl">
-                Sign in to keep your practice log and review schedule.
+                Sign in to your practice log.
               </h1>
               <p className="type-body">
-                {useGoogle
-                  ? "Google keeps your solves, memory reviews, and pattern insights synced to one account."
-                  : "Development mode is active. Use a local email to create or reuse a separate account without collapsing identities."}
+                {hasGoogleAuth
+                  ? "One Google account. Your solves, reviews, and pattern data stay synced."
+                  : "Development mode. Use any email to create a separate local account."}
               </p>
             </div>
 
@@ -48,7 +48,7 @@ export default async function SignInPage({
               <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-2.5">
                 <span className="type-label text-muted-foreground">Credential panel</span>
                 <span className="type-label text-orange-600">
-                  {isProduction ? (hasGoogleAuth ? "Google" : "Blocked") : "Local Dev"}
+                  {hasGoogleAuth ? "Google" : isProduction ? "Blocked" : "Local Dev"}
                 </span>
               </div>
 
@@ -65,10 +65,7 @@ export default async function SignInPage({
                   <form
                     action={async (formData: FormData) => {
                       "use server";
-                      if (isProduction) {
-                        if (!hasGoogleAuth) {
-                          throw new Error("Google authentication is required in production.");
-                        }
+                      if (hasGoogleAuth) {
                         await signIn("google", { redirectTo: redirectTarget });
                         return;
                       }
@@ -89,7 +86,7 @@ export default async function SignInPage({
                     }}
                     className="space-y-4"
                   >
-                    {!isProduction && (
+                    {!hasGoogleAuth && (
                       <div className="space-y-3">
                         <label className="block">
                           <span className="type-label mb-1.5 block">Local dev email</span>

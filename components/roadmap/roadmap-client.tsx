@@ -262,8 +262,7 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
             </div>
             <h1 className="mt-1 type-title text-foreground">Roadmap</h1>
             <p className="mt-1 type-caption">
-              Curated DSA patterns curriculum. Expand patterns, review questions, and check off
-              completed problems.
+              The full curriculum. Expand a pattern, solve its problems, track progress.
             </p>
           </div>
 

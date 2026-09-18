@@ -61,7 +61,7 @@ export function TodayClient({ data }: { data: TodayData }) {
         <div>
           <h1 className="type-title text-foreground">Today</h1>
           <p className="mt-1 type-caption">
-            Daily spaced-repetition queue and performance overview.
+            Problems due for review, sorted by priority.
           </p>
         </div>
         <Link
@@ -109,7 +109,7 @@ export function TodayClient({ data }: { data: TodayData }) {
 
       <SheetSection innerClassName="space-y-4 py-6">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="type-heading text-foreground">Today&apos;s review</h2>
+          <h2 className="type-heading text-foreground">Review queue</h2>
           <p className="type-caption tabular-numbers">
             <span className="font-semibold text-foreground">{recallCount}</span> quick recall and{" "}
             <span className="font-semibold text-foreground">{resolveCount}</span> full re-solve, about{" "}
@@ -154,12 +154,11 @@ export function TodayClient({ data }: { data: TodayData }) {
           <div className="flex flex-col justify-between bg-background p-4 sm:p-5">
             <div>
               <div className="flex items-center justify-between">
-                <h2 className="type-heading text-foreground">Pattern drill</h2>
+                <h2 className="type-heading text-foreground">Weekly drill</h2>
                 <CalendarRange className="h-4 w-4 text-muted-foreground" />
               </div>
               <p className="mt-2 type-caption leading-relaxed">
-                Tests recognition of core algorithmic technique without implementation overhead. About
-                two minutes per drill.
+                Read a cue, name the pattern. About two minutes per drill.
               </p>
             </div>
             <div className="mt-4 flex items-center justify-between border-t border-border pt-3 type-caption">
@@ -173,12 +172,11 @@ export function TodayClient({ data }: { data: TodayData }) {
           <div className="flex flex-col justify-between bg-background p-4 sm:p-5">
             <div>
               <div className="flex items-center justify-between">
-                <h2 className="type-heading text-foreground">Blind mock</h2>
+                <h2 className="type-heading text-foreground">Monthly mock</h2>
                 <Clock3 className="h-4 w-4 text-muted-foreground" />
               </div>
               <p className="mt-2 type-caption leading-relaxed">
-                Full unprompted assessment under interview conditions. Tests technique selection from
-                the problem statement alone.
+                Five blind problems, timed. No labels, no hints.
               </p>
             </div>
             <div className="mt-4 flex items-center justify-between border-t border-border pt-3 type-caption">

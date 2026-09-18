@@ -175,10 +175,9 @@ export default function ImportPage() {
   return (
     <div className="max-w-5xl">
       <SheetSection innerClassName="py-6">
-        <h1 className="type-title text-foreground">Import workflow</h1>
+        <h1 className="type-title text-foreground">Import</h1>
         <p className="mt-1 type-caption">
-          Migrate your personal 9-column solved-problems spreadsheet. Preserves all notes, ideas,
-          mistakes, topics, and custom patterns with pre-commit duplicate resolution.
+          Bring your existing spreadsheet. Notes, ideas, and mistakes are preserved.
         </p>
       </SheetSection>
 

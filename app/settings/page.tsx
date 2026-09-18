@@ -116,8 +116,7 @@ export default function SettingsPage() {
       <SheetSection innerClassName="py-6">
         <h1 className="type-title text-foreground">Settings</h1>
         <p className="mt-1 type-caption">
-          Configure FSRS retention targets, daily review caps, difficulty baselines, and weight
-          parameters.
+          Retention targets, review caps, and scheduling weights.
         </p>
       </SheetSection>
 

@@ -480,6 +480,39 @@
   }
 }
 
+@keyframes curve-draw {
+  from {
+    stroke-dashoffset: 1800;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes dot-pop {
+  0% {
+    opacity: 0;
+    r: 0;
+  }
+  60% {
+    opacity: 1;
+    r: 4.5;
+  }
+  100% {
+    opacity: 1;
+    r: 3;
+  }
+}
+
+.forgetting-curve-draw {
+  animation: curve-draw 2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+.forgetting-dot-pop {
+  animation: dot-pop 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pressable:active:not(:disabled) {
     transform: none;
