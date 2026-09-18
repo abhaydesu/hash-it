@@ -1,44 +1,7 @@
-import React, { Suspense } from "react";
-import { getCurrentUser } from "@/lib/auth";
-import { getDailyReviewQueue, getOverdueCount, getHeadlineStats } from "@/lib/dashboard";
-import { TodayClient } from "@/components/today-client";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
 
-export const dynamic = "force-dynamic";
-
-export default function TodayPage() {
-  return (
-    <Suspense fallback={<TodaySkeleton />}>
-      <TodayData />
-    </Suspense>
-  );
-}
-
-async function TodayData() {
-  const user = await getCurrentUser();
-  const now = new Date();
-
-  const [queueResult, overdueCount, snapshot] = await Promise.all([
-    getDailyReviewQueue(user.id, now),
-    getOverdueCount(user.id, now),
-    getHeadlineStats(user.id),
-  ]);
-
-  return (
-    <TodayClient
-      data={{
-        queue: queueResult.queue,
-        resolveCount: queueResult.resolveCount,
-        recallCount: queueResult.recallCount,
-        overdueCount,
-        snapshot,
-      }}
-    />
-  );
-}
-
-function TodaySkeleton() {
+export default function Loading() {
   return (
     <div className="animate-pulse">
       <SheetSection innerClassName="flex flex-col gap-3 py-6 sm:flex-row sm:items-baseline sm:justify-between">

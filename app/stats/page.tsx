@@ -1,358 +1,194 @@
-"use client";
-import React from 'react';
-
-import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
-import { AlertTriangle, Hash, ExternalLink } from "lucide-react";
-import { formatDifficulty, safeHref } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import React, { Suspense } from "react";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { StatsClient, type StatsData } from "@/components/stats-client";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
-import { PageSkeleton } from "@/components/ui/loader";
 
-interface StatsData {
-  coldSolveRate: number;
-  totalAttempts: number;
-  coldSolveAttempts: number;
-  totalEntries: number;
-  totalCards: number;
-  totalLapses: number;
-  medianMinutes: {
-    EASY: number;
-    MEDIUM: number;
-    HARD: number;
-  };
-  lapseRate: number;
-  leechCount: number;
-  leechEntries: Array<{
-    entryId: string;
-    problemId: string;
-    title: string;
-    number: number | null;
-    url: string;
-    difficulty: "EASY" | "MEDIUM" | "HARD" | null;
-    platform: string;
-    lapses: number;
-    mistake: string | null;
-  }>;
-  countByDifficulty: Record<string, number>;
-  countBySourceList: Record<string, number>;
-  topMistakeKeywords: Array<{ word: string; count: number }>;
-  activityMap: Record<string, number>;
+export const dynamic = "force-dynamic";
+
+const STOPWORDS = new Set([
+  "i", "me", "my", "myself", "we", "our", "ours", "you", "your", "yours", "he", "him",
+  "his", "she", "her", "it", "its", "they", "them", "their", "what", "which", "who",
+  "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be",
+  "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a",
+  "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at",
+  "by", "for", "with", "about", "against", "between", "into", "through", "during", "before",
+  "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over",
+  "under", "again", "further", "then", "once", "here", "there", "when", "where", "why",
+  "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such",
+  "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can",
+  "will", "just", "don", "should", "now", "forgot", "used", "to", "didnt", "wrong", "use",
+]);
+
+function median(nums: number[]) {
+  if (nums.length === 0) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-import { Heatmap } from "@/components/ui/heatmap";
-import { Select } from "@/components/ui/select";
-
 export default function StatsPage() {
-  const [data, setData] = useState<StatsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedYear, setSelectedYear] = useState<string>("last365");
+  return (
+    <Suspense fallback={<StatsSkeleton />}>
+      <StatsData />
+    </Suspense>
+  );
+}
 
-  const availableYears = useMemo(() => {
-    if (!data?.activityMap) return [];
-    const years = new Set<string>();
-    Object.keys(data.activityMap).forEach((dateStr) => {
-      const y = dateStr.split("-")[0];
-      if (y) years.add(y);
-    });
-    years.add(new Date().getFullYear().toString());
-    return Array.from(years).sort().reverse();
-  }, [data?.activityMap]);
+async function StatsData() {
+  const user = await getCurrentUser();
 
-  const fetchStats = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/stats");
-      if (!res.ok) throw new Error("Failed to load statistics");
-      const json = await res.json();
-      setData(json);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setLoading(false);
+  const [totalAttemptsCount, coldSolveAttemptsCount, entries, attempts] = await Promise.all([
+    prisma.attempt.count({ where: { entry: { userId: user.id } } }),
+    prisma.attempt.count({
+      where: { entry: { userId: user.id }, rating: { in: ["GOOD", "EASY"] } },
+    }),
+    prisma.entry.findMany({
+      where: { userId: user.id },
+      select: {
+        id: true,
+        minutes: true,
+        sourceList: true,
+        mistake: true,
+        idea: true,
+        problem: {
+          select: {
+            id: true,
+            title: true,
+            number: true,
+            url: true,
+            difficulty: true,
+            platform: true,
+          },
+        },
+        reviewCard: { select: { lapses: true } },
+      },
+    }),
+    prisma.attempt.findMany({
+      where: { entry: { userId: user.id } },
+      select: { at: true },
+    }),
+  ]);
+
+  const activityMap: Record<string, number> = {};
+  for (const a of attempts) {
+    const dateStr = a.at.toISOString().split("T")[0];
+    activityMap[dateStr] = (activityMap[dateStr] || 0) + 1;
+  }
+
+  const coldSolveRate = totalAttemptsCount > 0 ? coldSolveAttemptsCount / totalAttemptsCount : 0;
+
+  const minutesByDiff: Record<string, number[]> = { EASY: [], MEDIUM: [], HARD: [] };
+  const countByDifficulty: Record<string, number> = { EASY: 0, MEDIUM: 0, HARD: 0 };
+  const countBySourceList: Record<string, number> = {};
+  const reviewCards: Array<{ lapses: number }> = [];
+
+  for (const e of entries) {
+    const diff = e.problem.difficulty || "MEDIUM";
+    if (e.minutes != null && e.minutes > 0) {
+      (minutesByDiff[diff] ??= []).push(e.minutes);
     }
+
+    const diffKey = e.problem.difficulty || "UNSPECIFIED";
+    countByDifficulty[diffKey] = (countByDifficulty[diffKey] || 0) + 1;
+
+    const source = e.sourceList || "Uncategorized";
+    countBySourceList[source] = (countBySourceList[source] || 0) + 1;
+
+    if (e.reviewCard) reviewCards.push(e.reviewCard);
+  }
+
+  const totalCardsCount = reviewCards.length;
+  const totalLapsesCount = reviewCards.reduce((acc, c) => acc + c.lapses, 0);
+  const lapseRate = totalCardsCount > 0 ? totalLapsesCount / totalCardsCount : 0;
+
+  const leechEntries = entries
+    .filter((e) => e.reviewCard && e.reviewCard.lapses >= 3)
+    .map((e) => ({
+      entryId: e.id,
+      problemId: e.problem.id,
+      title: e.problem.title,
+      number: e.problem.number,
+      url: e.problem.url,
+      difficulty: e.problem.difficulty as "EASY" | "MEDIUM" | "HARD" | null,
+      platform: e.problem.platform,
+      lapses: e.reviewCard!.lapses,
+      mistake: e.mistake,
+    }));
+
+  const mistakeText = entries
+    .map((e) => e.mistake)
+    .filter(Boolean)
+    .join(" ");
+
+  const wordFreq: Record<string, number> = {};
+  const words = mistakeText.toLowerCase().replace(/[^a-z0-9\s-]/g, "").split(/\s+/);
+  for (const w of words) {
+    if (w.length > 2 && !STOPWORDS.has(w)) {
+      wordFreq[w] = (wordFreq[w] || 0) + 1;
+    }
+  }
+
+  const topMistakeKeywords = Object.entries(wordFreq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .map(([word, count]) => ({ word, count }));
+
+  const data: StatsData = {
+    coldSolveRate,
+    totalAttempts: totalAttemptsCount,
+    coldSolveAttempts: coldSolveAttemptsCount,
+    totalEntries: entries.length,
+    totalCards: totalCardsCount,
+    totalLapses: totalLapsesCount,
+    medianMinutes: {
+      EASY: median(minutesByDiff.EASY),
+      MEDIUM: median(minutesByDiff.MEDIUM),
+      HARD: median(minutesByDiff.HARD),
+    },
+    lapseRate,
+    leechCount: leechEntries.length,
+    leechEntries,
+    countByDifficulty,
+    countBySourceList,
+    topMistakeKeywords,
+    activityMap,
   };
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  return <StatsClient data={data} />;
+}
 
-  if (loading) {
-    return (
-      <div className="animate-pulse">
-        <SheetSection innerClassName="py-6">
-          <div className="h-7 w-64 bg-muted rounded"></div>
-          <div className="mt-2 h-4 w-96 bg-muted rounded"></div>
-        </SheetSection>
-
-        <SheetSection innerClassName="py-6" band="neutral">
-          <SpecGrid columns={4}>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <SpecCell
-                key={i}
-                label={<div className="h-3 w-28 bg-muted/60 rounded" />}
-                value={<div className="h-6 w-16 bg-muted rounded mt-1" />}
-                subvalue={<div className="h-3 w-36 bg-muted/40 rounded mt-1" />}
-              />
-            ))}
-          </SpecGrid>
-        </SheetSection>
-
-        <SheetSection innerClassName="space-y-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="h-5 w-36 bg-muted rounded"></div>
-              <div className="mt-1 h-3 w-48 bg-muted rounded"></div>
-            </div>
-            <div className="h-8 w-32 bg-muted rounded"></div>
-          </div>
-          <div className="h-36 w-full border border-border bg-muted/10"></div>
-        </SheetSection>
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <SheetSection
-        band="none"
-        last
-        innerClassName="flex flex-col items-center justify-center min-h-[60vh] gap-3 py-12"
-      >
-        <div className="type-caption text-destructive">{error || "Failed to load stats"}</div>
-        <Button variant="secondary" size="sm" onClick={fetchStats}>
-          Retry
-        </Button>
-      </SheetSection>
-    );
-  }
-
-  const coldSolvePct = (data.coldSolveRate * 100).toFixed(1);
-
+function StatsSkeleton() {
   return (
-    <div>
+    <div className="animate-pulse">
       <SheetSection innerClassName="py-6">
-        <h1 className="type-title text-foreground">Performance metrics</h1>
-        <p className="mt-1 type-caption">
-          A plain-language view of what you have practised and what needs attention.
-        </p>
+        <div className="h-7 w-64 bg-muted rounded"></div>
+        <div className="mt-2 h-4 w-96 bg-muted rounded"></div>
       </SheetSection>
 
       <SheetSection innerClassName="py-6" band="neutral">
         <SpecGrid columns={4}>
-          <SpecCell
-            label="Solved without help"
-            value={<span className="text-easy">{coldSolvePct}%</span>}
-            subvalue={`${data.coldSolveAttempts} of ${data.totalAttempts} reviews`}
-          />
-          <SpecCell
-            label="Problems practised"
-            value={data.totalEntries}
-            subvalue="Entries in your practice log"
-          />
-          <SpecCell
-            label="Times forgotten per problem"
-            value={data.lapseRate.toFixed(2)}
-            subvalue={`${data.totalLapses} lapses across ${data.totalCards} carded problems`}
-          />
-          <SpecCell
-            label="Typical solve time"
-            value={
-              <div className="flex items-baseline gap-1.5 text-base font-semibold sm:text-lg">
-                <span className="text-easy tabular-nums">{data.medianMinutes.EASY}m</span>
-                <span className="font-normal text-muted-foreground/60">/</span>
-                <span className="text-medium tabular-nums">{data.medianMinutes.MEDIUM}m</span>
-                <span className="font-normal text-muted-foreground/60">/</span>
-                <span className="text-hard tabular-nums">{data.medianMinutes.HARD}m</span>
-              </div>
-            }
-            subvalue="Easy / medium / hard, in minutes"
-          />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SpecCell
+              key={i}
+              label={<div className="h-3 w-28 bg-muted/60 rounded" />}
+              value={<div className="h-6 w-16 bg-muted rounded mt-1" />}
+              subvalue={<div className="h-3 w-36 bg-muted/40 rounded mt-1" />}
+            />
+          ))}
         </SpecGrid>
       </SheetSection>
 
       <SheetSection innerClassName="space-y-4 py-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="type-heading text-foreground">Practice activity</h2>
-            <span className="type-caption">Number of problems reviewed per day</span>
+            <div className="h-5 w-36 bg-muted rounded"></div>
+            <div className="mt-1 h-3 w-48 bg-muted rounded"></div>
           </div>
-          <Select 
-            value={selectedYear} 
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="w-[140px] h-8 text-xs py-1"
-          >
-            <option value="last365">Last 365 days</option>
-            {availableYears.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </Select>
+          <div className="h-8 w-32 bg-muted rounded"></div>
         </div>
-        <div className="border border-border bg-background p-4 sm:p-6 overflow-x-auto">
-          <Heatmap data={data.activityMap} selectedYear={selectedYear} className="w-full" />
-        </div>
-      </SheetSection>
-
-      <SheetSection innerClassName="grid grid-cols-1 gap-px border-y-0 bg-transparent py-6 md:grid-cols-2 md:gap-6">
-        <div className="space-y-4">
-          <h2 className="type-heading text-foreground">Problems practised by difficulty</h2>
-          <div className="space-y-3.5">
-            {Object.entries(data.countByDifficulty).map(([diff, count]) => {
-              const diffInfo = formatDifficulty(diff as "EASY" | "MEDIUM" | "HARD");
-              const percentage = data.totalEntries > 0 ? (count / data.totalEntries) * 100 : 0;
-
-              return (
-                <div key={diff} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <Badge variant={diffInfo.variant}>{diffInfo.label}</Badge>
-                    <span className="tabular-nums type-caption">
-                      {count} ({percentage.toFixed(0)}%)
-                    </span>
-                  </div>
-                  <div className="h-1 w-full overflow-hidden bg-muted">
-                    <div
-                      className="h-full origin-left bg-foreground transition-transform duration-modal ease-in-out-strong"
-                      style={{ transform: `scaleX(${percentage / 100})` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <h2 className="type-heading text-foreground">Problems by source list</h2>
-          <div className="space-y-3.5">
-            {Object.entries(data.countBySourceList).map(([source, count]) => {
-              const percentage = data.totalEntries > 0 ? (count / data.totalEntries) * 100 : 0;
-
-              return (
-                <div key={source} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-foreground">{source}</span>
-                    <span className="tabular-nums type-caption">
-                      {count} ({percentage.toFixed(0)}%)
-                    </span>
-                  </div>
-                  <div className="h-1 w-full overflow-hidden bg-muted">
-                    <div
-                      className="h-full origin-left bg-foreground/70 transition-transform duration-modal ease-in-out-strong"
-                      style={{ transform: `scaleX(${percentage / 100})` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </SheetSection>
-
-
-
-      <SheetSection innerClassName="space-y-4 py-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 type-heading text-destructive">
-            <AlertTriangle className="h-4 w-4" /> Stuck problems
-          </h2>
-          <span className="tabular-nums type-caption text-destructive">
-            {data.leechCount} problems
-          </span>
-        </div>
-
-        {data.leechEntries.length === 0 ? (
-          <div className="type-caption py-2">
-            0 stuck problems. Nothing has reached three failures.
-          </div>
-        ) : (
-          <div className="divide-y divide-border border border-border bg-background">
-            {data.leechEntries.map((leech) => {
-              const diff = formatDifficulty(leech.difficulty);
-
-              return (
-                <div key={leech.entryId} className="space-y-2.5 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <Badge variant="status-failed">Lapses: {leech.lapses}</Badge>
-                      <Badge variant={diff.variant}>{diff.label}</Badge>
-                      {safeHref(leech.url) ? (
-                        <a
-                          href={safeHref(leech.url)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 font-medium text-foreground transition-colors hover:text-orange-600"
-                        >
-                          {leech.title} <ExternalLink className="h-3 w-3 opacity-60" />
-                        </a>
-                      ) : (
-                        <span className="font-medium text-foreground">{leech.title}</span>
-                      )}
-                    </div>
-                    <Link
-                      href={`/problems/${leech.entryId}`}
-                      className="border border-border bg-background px-2.5 py-1 text-[11px] text-foreground transition-colors hover:bg-muted"
-                    >
-                      View detail
-                    </Link>
-                  </div>
-
-                  {leech.mistake && (
-                    <div className="border-l-2 border-destructive bg-muted/30 p-2.5 text-xs text-foreground">
-                      <span className="mb-1 block type-label text-destructive">Mistake note</span>
-                      <div className="font-mono whitespace-pre-wrap leading-relaxed">
-                        {leech.mistake}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </SheetSection>
-
-      <SheetSection innerClassName="py-6" last>
-        <div className="divide-y divide-border border border-border bg-background text-xs">
-          <div className="p-4">
-            <h2 className="type-heading text-foreground">What these mean</h2>
-          </div>
-          {(
-            [
-              [
-                "Solved without help",
-                "You solved the problem without a hint.",
-                "Good or Easy review ratings divided by all logged review attempts.",
-              ],
-              [
-                "Stuck problems",
-                "You have failed the same problem three or more times.",
-                "Problems whose review card has at least three lapses.",
-              ],
-              [
-                "Recall estimate",
-                "The estimated chance you would remember a pattern now.",
-                "FSRS retrievability calculated from each card's stability and last review.",
-              ],
-              [
-                "Typical solve time",
-                "The median time recorded for each difficulty.",
-                "The middle recorded solve time among entries with a positive duration.",
-              ],
-            ] as const
-          ).map(([term, definition, formula]) => (
-            <div key={term} className="grid gap-2 p-4 sm:grid-cols-[180px_1fr_1fr]">
-              <div className="font-medium text-foreground">{term}</div>
-              <div className="text-muted-foreground">{definition}</div>
-              <div className="text-muted-foreground">{formula}</div>
-            </div>
-          ))}
-        </div>
+        <div className="h-36 w-full border border-border bg-muted/10"></div>
       </SheetSection>
     </div>
   );
