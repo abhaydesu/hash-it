@@ -108,7 +108,7 @@ export function TodayClient({ data }: { data: TodayData }) {
       )}
 
       <SheetSection innerClassName="space-y-4 py-6">
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
           <h2 className="type-heading text-foreground">Review queue</h2>
           <p className="type-caption tabular-numbers">
             <span className="font-semibold text-foreground">{recallCount}</span> quick recall and{" "}

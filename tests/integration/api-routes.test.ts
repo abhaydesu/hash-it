@@ -4,7 +4,6 @@ import { createTestUser, createTestProblem, createTestEntry } from "@/tests/help
 import { setTestUser } from "@/tests/helpers/auth-helper";
 import { GET as getTodayQueue } from "@/app/api/today-queue/route";
 import { GET as getStats } from "@/app/api/stats/route";
-import { GET as getPatterns } from "@/app/api/patterns/route";
 import { GET as getWeeklyReview } from "@/app/api/review/weekly/route";
 import { GET as getMonthlyReview } from "@/app/api/review/monthly/route";
 import { POST as searchProblems } from "@/app/api/search/problems/route";
@@ -25,9 +24,6 @@ describe("API Routes (Integration)", () => {
 
       const resStats = await getStats();
       expect(resStats.status).toBe(401);
-
-      const resPatterns = await getPatterns();
-      expect(resPatterns.status).toBe(401);
 
       const resWeekly = await getWeeklyReview();
       expect(resWeekly.status).toBe(401);
@@ -67,13 +63,7 @@ describe("API Routes (Integration)", () => {
       expect(statsData).toHaveProperty("totalEntries");
       expect(statsData).toHaveProperty("coldSolveRate");
 
-      // 3. /api/patterns
-      const resPatterns = await getPatterns();
-      expect(resPatterns.status).toBe(200);
-      const patternsData = await resPatterns.json();
-      expect(patternsData).toHaveProperty("patterns");
-
-      // 4. /api/search/problems
+      // 3. /api/search/problems
       const searchReq = new Request("http://localhost:3000/api/search/problems", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

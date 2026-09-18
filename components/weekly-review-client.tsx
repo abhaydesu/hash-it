@@ -245,7 +245,7 @@ export function WeeklyReviewClient({ data }: { data: WeeklyData }) {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 type-caption">
                   <span>{pattern.family}</span>
                   <Link
-                    href={`/patterns?selected=${pattern.id}`}
+                    href="/practice"
                     className="font-medium text-orange-600 hover:text-orange-700 hover:underline"
                   >
                     View problems

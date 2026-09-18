@@ -26,7 +26,7 @@ const navItems = [
   { href: "/today", label: "Today" },
   { href: "/problems", label: "Problems" },
   { href: "/roadmap", label: "Roadmap" },
-  { href: "/patterns", label: "Patterns" },
+  { href: "/practice", label: "Practice" },
   { href: "/review/weekly", label: "Weekly drill" },
   { href: "/review/monthly", label: "Monthly mock" },
   { href: "/stats", label: "Stats" },
@@ -48,7 +48,10 @@ export function SidebarNav() {
 
   return (
     <SheetSection className="bg-background/95 backdrop-blur-sm" band="none">
-      <nav className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs">
+      <nav className="relative flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs
+        after:pointer-events-none after:absolute after:right-0 after:top-0 after:h-full after:w-8
+        after:bg-gradient-to-l after:from-background after:to-transparent after:content-['']
+        sm:after:hidden">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -98,6 +101,16 @@ export function Navbar({ user, userMenu }: NavbarProps) {
           <div className="flex items-center gap-2">
             {!isMarketingPage && (
               <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("open-command-bar"));
+                  }}
+                  className="pressable flex h-8 w-8 items-center justify-center border border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:hidden"
+                  aria-label="Log problem"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
                 <button
                   type="button"
                   onClick={() => {

@@ -268,7 +268,7 @@ export function StatsClient({ data }: { data: StatsData }) {
               ],
             ] as const
           ).map(([term, definition, formula]) => (
-            <div key={term} className="grid gap-2 p-4 sm:grid-cols-[180px_1fr_1fr]">
+            <div key={term} className="grid gap-1 p-3 sm:gap-2 sm:p-4 sm:grid-cols-[180px_1fr_1fr]">
               <div className="font-medium text-foreground">{term}</div>
               <div className="text-muted-foreground">{definition}</div>
               <div className="text-muted-foreground">{formula}</div>

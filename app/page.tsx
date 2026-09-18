@@ -18,7 +18,7 @@ export default async function HomePage() {
         {/* ── Hero ── */}
         <SheetSection className="relative" band="hero">
           <div className="relative z-10 flex max-w-3xl flex-col items-start px-6 py-24 sm:py-32">
-            <h1 className="idea-preview mb-4 text-4xl font-medium tracking-tight sm:text-6xl">
+            <h1 className="idea-preview mb-4 text-3xl font-medium tracking-tight sm:text-5xl md:text-6xl">
               Remember every problem you solve.
             </h1>
             <p className="mb-8 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
@@ -91,7 +91,7 @@ export default async function HomePage() {
 
         {/* ── How it works — horizontal timeline ── */}
         <SheetSection innerClassName="py-10 px-6 sm:px-12">
-          <div className="flex flex-col items-stretch gap-0 md:flex-row md:items-start md:gap-8 stagger-in">
+          <div className="flex flex-col items-stretch gap-6 md:flex-row md:items-start md:gap-8 stagger-in">
             {/* Step 1 */}
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-2.5">
@@ -304,16 +304,16 @@ export default async function HomePage() {
         <SheetSection last>
           <div className="relative">
             {/* PixelBlast border — all four sides */}
-            <div className="-mx-8 pointer-events-none absolute inset-x-0 top-0 h-8 overflow-hidden" aria-hidden="true">
+            <div className="-mx-4 sm:-mx-6 lg:-mx-8 pointer-events-none absolute inset-x-0 top-0 h-6 sm:h-8 overflow-hidden" aria-hidden="true">
               <PixelBlast color="#f97316" pixelSize={4} />
             </div>
-            <div className="-mx-8 pointer-events-none absolute inset-x-0 bottom-0 h-8 overflow-hidden" aria-hidden="true">
+            <div className="-mx-4 sm:-mx-6 lg:-mx-8 pointer-events-none absolute inset-x-0 bottom-0 h-6 sm:h-8 overflow-hidden" aria-hidden="true">
               <PixelBlast color="#f97316" pixelSize={4} />
             </div>
-            <div className="pointer-events-none absolute inset-y-8 -left-8 w-8 overflow-hidden" aria-hidden="true">
+            <div className="pointer-events-none absolute inset-y-6 sm:inset-y-8 -left-4 sm:-left-6 lg:-left-8 w-6 sm:w-8 overflow-hidden" aria-hidden="true">
               <PixelBlast color="#f97316" pixelSize={4} />
             </div>
-            <div className="pointer-events-none absolute inset-y-8 -right-8 w-8 overflow-hidden" aria-hidden="true">
+            <div className="pointer-events-none absolute inset-y-6 sm:inset-y-8 -right-4 sm:-right-6 lg:-right-8 w-6 sm:w-8 overflow-hidden" aria-hidden="true">
               <PixelBlast color="#f97316" pixelSize={4} />
             </div>
 

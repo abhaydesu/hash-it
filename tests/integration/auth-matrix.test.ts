@@ -28,7 +28,6 @@ import {
 } from "@/app/actions/import-actions";
 import { GET as getStats } from "@/app/api/stats/route";
 import { GET as getTodayQueue } from "@/app/api/today-queue/route";
-import { GET as getPatterns } from "@/app/api/patterns/route";
 import { GET as getWeeklyReview } from "@/app/api/review/weekly/route";
 import { GET as getMonthlyReview } from "@/app/api/review/monthly/route";
 import { POST as postDrill } from "@/app/api/review/weekly/drill/route";
@@ -106,7 +105,6 @@ describe("Authorization Matrix (Integration)", () => {
 
       expect((await getTodayQueue()).status).toBe(401);
       expect((await getStats()).status).toBe(401);
-      expect((await getPatterns()).status).toBe(401);
       expect((await getWeeklyReview()).status).toBe(401);
       expect((await getMonthlyReview()).status).toBe(401);
 
@@ -254,9 +252,6 @@ describe("Authorization Matrix (Integration)", () => {
       const today = await todayRes.json();
       const titles = (today.queue ?? []).map((q: { title: string }) => q.title);
       expect(titles).not.toContain("User B Secret Problem");
-
-      const patternsRes = await getPatterns();
-      expect(patternsRes.status).toBe(200);
 
       const weeklyRes = await getWeeklyReview();
       expect(weeklyRes.status).toBe(200);
