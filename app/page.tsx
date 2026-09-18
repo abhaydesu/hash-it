@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { SpecGrid, SpecCell, FigureCaption } from "@/components/ui/spec-sheet";
+import { PixelBlast } from "@/components/ui/pixel-blast";
 
 export default async function HomePage() {
   const session = await auth();
@@ -220,14 +221,8 @@ export default async function HomePage() {
             <SpecCell label="Leech flags" value={leechCountLabel} />
           </SpecGrid>
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4 type-caption">
-            <div className="flex flex-wrap items-center gap-4">
-              <span className="text-orange-600">Next.js 14</span>
-              <span className="text-orange-600">PostgreSQL</span>
-              <span className="text-orange-600">Prisma</span>
-              <span className="text-orange-600">TailwindCSS</span>
-            </div>
-            <div className="text-orange-600">Designed like a spec sheet.</div>
+          <div className="mt-8 -mx-6 -mb-6 sm:-mx-12 sm:-mb-12 h-16 border-t border-border overflow-hidden relative">
+            <PixelBlast color="#f97316" pixelSize={4} />
           </div>
         </SheetSection>
       </main>

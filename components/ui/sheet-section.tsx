@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { PixelBlast } from "@/components/ui/pixel-blast";
 
 type Band = "none" | "neutral" | "dense" | "accent" | "hero";
 
@@ -25,18 +26,24 @@ export function SheetSection({
 }) {
   const bandClass =
     band === "accent"
-      ? "sheet-band bg-dither-orange"
+      ? "sheet-band"
       : band === "dense"
         ? "sheet-band bg-dither-50"
         : band === "hero"
-          ? "sheet-band sheet-band-hero bg-dither-orange"
+          ? "sheet-band sheet-band-hero"
           : band === "neutral"
             ? "sheet-band bg-dither-25"
             : null;
 
   return (
     <Tag className={cn("sheet-section", last && "sheet-section-last", className)}>
-      {bandClass ? <div aria-hidden="true" className={bandClass} /> : null}
+      {bandClass ? (
+        <div aria-hidden="true" className={bandClass}>
+          {(band === "hero" || band === "accent") && (
+            <PixelBlast color="#f97316" pixelSize={4} />
+          )}
+        </div>
+      ) : null}
       <div className={cn("sheet-inner", innerClassName)}>{children}</div>
     </Tag>
   );
