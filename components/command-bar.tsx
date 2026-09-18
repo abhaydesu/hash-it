@@ -153,16 +153,22 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       }
     };
 
-    const handleCustomOpen = () => {
+    const handleCustomOpen = (e: Event) => {
       setIsOpen(true);
-      setTimeout(() => searchInputRef.current?.focus(), 50);
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.problem) {
+        setSelectedProblem(customEvent.detail.problem);
+        setTimeout(() => minutesInputRef.current?.focus(), 50);
+      } else {
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("open-command-bar", handleCustomOpen);
+    window.addEventListener("open-command-bar", handleCustomOpen as EventListener);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("open-command-bar", handleCustomOpen);
+      window.removeEventListener("open-command-bar", handleCustomOpen as EventListener);
     };
   }, [isOpen, inline]);
 
@@ -713,13 +719,13 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
               </div>
 
               {selectedProblem &&
-                (selectedProblem.patterns.length > 0 || selectedProblem.topicTags.length > 0) && (
+                ((selectedProblem.patterns?.length ?? 0) > 0 || (selectedProblem.topicTags?.length ?? 0) > 0) && (
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Sparkles className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
                     {normalizePatternList(
-                      selectedProblem.patterns.length > 0
-                        ? selectedProblem.patterns.map((p) => p.name)
-                        : selectedProblem.topicTags
+                      (selectedProblem.patterns?.length ?? 0) > 0
+                        ? selectedProblem.patterns?.map((p) => p.name) || []
+                        : selectedProblem.topicTags || []
                     ).map((tag) => (
                       <span
                         key={tag}

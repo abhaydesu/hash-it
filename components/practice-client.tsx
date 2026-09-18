@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { ExternalLink, RefreshCw, CheckCircle2 } from "lucide-react";
 import { cn, safeHref } from "@/lib/utils";
 import { fetchPracticeSet } from "@/app/actions/practice-actions";
-import { createEntry } from "@/app/actions/entry-actions";
+
 import { SheetSection } from "@/components/ui/sheet-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,22 +34,21 @@ function ProblemCard({
   const [logged, setLogged] = useState(problem.isLogged);
   const href = safeHref(problem.url);
 
-  const handleLog = async () => {
-    setLogging(true);
-    try {
-      await createEntry({
-        problemId: problem.id,
-        status: "ATTEMPTED_FAILED",
-        minutes: null,
-        sourceList: "practice",
-      });
-      setLogged(true);
-      onLog(problem.id);
-    } catch {
-      alert("Failed to log problem.");
-    } finally {
-      setLogging(false);
-    }
+  const handleLog = () => {
+    window.dispatchEvent(
+      new CustomEvent("open-command-bar", {
+        detail: {
+          problem: {
+            id: problem.id,
+            title: problem.title,
+            difficulty: problem.difficulty,
+            url: problem.url,
+            patterns: [],
+            topicTags: [],
+          },
+        },
+      })
+    );
   };
 
   return (
@@ -76,26 +75,23 @@ function ProblemCard({
           )}
         </div>
 
-        {href ? (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm font-medium text-foreground transition-colors hover:text-orange-600"
-          >
-            {problem.title}
-            <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
-          </a>
-        ) : (
-          <span className="text-sm font-medium text-foreground">{problem.title}</span>
-        )}
+        <span className="text-sm font-medium text-foreground">{problem.title}</span>
       </div>
-
-      <div className="border-t border-border p-3">
+      <div className="flex gap-2 border-t border-border p-3">
+        {href && (
+          <Button
+            variant="primary"
+            size="sm"
+            className="flex-1 justify-center gap-1.5"
+            onClick={() => window.open(href, '_blank', 'noopener,noreferrer')}
+          >
+            Solve
+          </Button>
+        )}
         {logged ? (
-          <div className="flex items-center gap-1.5 text-xs text-easy">
+          <div className="flex flex-1 items-center justify-center gap-1.5 rounded-sm bg-muted/40 text-xs text-easy">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            <span>Logged in your practice log</span>
+            <span>Logged</span>
           </div>
         ) : (
           <Button
@@ -103,9 +99,9 @@ function ProblemCard({
             size="sm"
             onClick={handleLog}
             disabled={logging}
-            className="w-full justify-center"
+            className="flex-1 justify-center"
           >
-            {logging ? "Logging…" : "Log this problem"}
+            {logging ? "Logging…" : "Log problem"}
           </Button>
         )}
       </div>
@@ -129,6 +125,7 @@ export function PracticeClient({ patterns }: { patterns: PracticePattern[] }) {
 
   const loadProblems = (patternId: string) => {
     setSelectedId(patternId);
+    setProblemSet(null);
     startTransition(async () => {
       const set = await fetchPracticeSet(patternId);
       setProblemSet(set);
@@ -137,6 +134,7 @@ export function PracticeClient({ patterns }: { patterns: PracticePattern[] }) {
 
   const shuffle = () => {
     if (selectedId) {
+      setProblemSet(null);
       startTransition(async () => {
         const set = await fetchPracticeSet(selectedId);
         setProblemSet(set);
