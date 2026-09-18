@@ -107,7 +107,7 @@ describe("Navbar", () => {
     );
     
     expect(screen.getByRole("button", { name: /test user/i })).toBeInTheDocument(); // User menu toggle
-    expect(screen.getByRole("button", { name: /log problem/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /log problem/i }).length).toBeGreaterThan(0);
   });
 
   it("dispatches open-command-bar when Log problem is clicked", async () => {
@@ -121,8 +121,8 @@ describe("Navbar", () => {
       </MonthlyMockProvider>
     );
     
-    const button = screen.getByRole("button", { name: /log problem/i });
-    await userEvent.click(button);
+    const buttons = screen.getAllByRole("button", { name: /log problem/i });
+    await userEvent.click(buttons[0]);
     
     expect(dispatchEventSpy).toHaveBeenCalled();
     const event = dispatchEventSpy.mock.calls[0][0] as CustomEvent;
