@@ -7,6 +7,7 @@ import { cn, formatDifficulty, safeHref, normalizePatternList } from "@/lib/util
 import { titleFromProblemUrl } from "@/lib/problem-url";
 import { createEntry, deleteEntry } from "@/app/actions/entry-actions";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useAlertDialog } from "@/components/ui/alert-dialog";
 
 interface SearchResult {
   id: string;
@@ -134,7 +135,12 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   // Undo Toast state
   const [toast, setToast] = useState<{ id: string; title: string } | null>(null);
 
+  // OS and device detection
+  const [isMac, setIsMac] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
   const [isPending, startTransition] = useTransition();
+  const { showAlert, alertDialog } = useAlertDialog();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const minutesInputRef = useRef<HTMLInputElement>(null);
@@ -177,6 +183,13 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       searchInputRef.current.focus();
     }
   }, [autoFocus]);
+
+  // Detect OS and device
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.userAgent));
+    setIsMobile(window.innerWidth < 768);
+  }, []);
 
   // Clear results immediately when query is emptied
   useEffect(() => {
@@ -333,7 +346,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     const trimmedMinutes = minutes.trim();
     const parsedMinutes = trimmedMinutes === "" ? null : Number.parseInt(trimmedMinutes, 10);
     if (status !== "ATTEMPTED_FAILED" && parsedMinutes === null) {
-      alert("Please enter the minutes spent before saving a solved problem.");
+      showAlert("Please enter the minutes spent before saving a solved problem.");
       setTimeout(() => minutesInputRef.current?.focus(), 50);
       return;
     }
@@ -367,7 +380,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
           }, 6000);
         }
       } catch (err) {
-        alert(`Failed to save: ${String(err)}`);
+        showAlert(`Failed to save: ${String(err)}`);
       }
     });
   };
@@ -645,10 +658,12 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                 </div>
 
                 {/* Bottom Actions */}
-                <div className="flex items-center justify-between border-t border-border pt-3">
-                  <div className="text-[11px] text-muted-foreground">
-                    <kbd className="border border-border bg-muted px-1 py-0.5 text-[10px]">⌘ + Enter</kbd> saves & resets
-                  </div>
+                <div className={`flex items-center ${isMobile ? "justify-end" : "justify-between"} border-t border-border pt-3`}>
+                  {!isMobile && (
+                    <div className="text-[11px] text-muted-foreground">
+                      <kbd className="border border-border bg-muted px-1 py-0.5 text-[10px]">{isMac ? "⌘" : "Ctrl"} + Enter</kbd> saves & resets
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -884,10 +899,12 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
             </div>
 
             {/* Bottom Actions Bar */}
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <div className="text-[11px] text-muted-foreground">
-                <kbd className="border border-border bg-muted px-1 py-0.5 text-[10px]">⌘ + Enter</kbd> saves & resets
-              </div>
+            <div className={`flex items-center ${isMobile ? "justify-end" : "justify-between"} border-t border-border pt-3`}>
+              {!isMobile && (
+                <div className="text-[11px] text-muted-foreground">
+                  <kbd className="border border-border bg-muted px-1 py-0.5 text-[10px]">{isMac ? "⌘" : "Ctrl"} + Enter</kbd> saves & resets
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -910,6 +927,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
         )}
       </div>
       )}
+      {alertDialog}
     </>
   );
 }

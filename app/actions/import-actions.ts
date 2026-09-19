@@ -480,11 +480,9 @@ export async function commitImportBatch(params: {
       const seedById = new Map(entriesToSeed.map((e) => [e.id, e]));
 
       for (const spread of spreadResults) {
-        const item = seedById.get(spread.id);
         const seeded = seedCard({
           entryId: spread.id,
-          status: item?.status || SolveStatus.SOLVED_UNAIDED,
-          revisit: item?.revisit || false,
+          rating: spread.seededRating,
           now: new Date(),
         });
 

@@ -76,9 +76,9 @@ export async function ensureUserSettings(userId: string): Promise<void> {
       desiredRetention: 0.8,
       fsrsParams: [],
       timezone: "Asia/Kolkata",
-      easyBaseline: 15,
-      mediumBaseline: 30,
-      hardBaseline: 45,
+      easyBaseline: 20,
+      mediumBaseline: 40,
+      hardBaseline: 60,
     },
   });
 }

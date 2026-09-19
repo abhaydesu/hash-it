@@ -161,9 +161,9 @@ model UserSettings {
   desiredRetention Float   @default(0.80)
   fsrsParams       Float[]
   timezone         String  @default("Asia/Kolkata")
-  easyBaseline     Int     @default(15)
-  mediumBaseline   Int     @default(30)
-  hardBaseline     Int     @default(45)
+  easyBaseline     Int     @default(20)
+  mediumBaseline   Int     @default(40)
+  hardBaseline     Int     @default(60)
 
   user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

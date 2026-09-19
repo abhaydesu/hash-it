@@ -27,9 +27,9 @@ export async function getUserSettings() {
         dailyResolveCap: 2,
         desiredRetention: 0.8,
         timezone: "Asia/Kolkata",
-        easyBaseline: 15,
-        mediumBaseline: 30,
-        hardBaseline: 45,
+        easyBaseline: 20,
+        mediumBaseline: 40,
+        hardBaseline: 60,
       },
     }),
     prisma.attempt.count({

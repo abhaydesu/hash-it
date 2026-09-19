@@ -19,6 +19,7 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
         due: true,
         lapses: true,
         reps: true,
+        stability: true,
         entry: {
           select: {
             mistake: true,
@@ -56,7 +57,7 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
     const lastAttempt = card.entry.attempts[0];
     const lastRating = (lastAttempt?.rating ?? null) as AppRating | null;
     const revisit = card.entry.revisit ?? false;
-    const lane = deriveLane({ lastRating, lapses: card.lapses, revisit });
+    const lane = deriveLane({ lastRating, lapses: card.lapses, stability: card.stability });
 
     return {
       entryId: card.entryId,

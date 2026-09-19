@@ -1,12 +1,12 @@
 import React from 'react';
 import Link from "next/link";
-import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { FigureCaption } from "@/components/ui/spec-sheet";
 import { PixelBlast } from "@/components/ui/pixel-blast";
 import { ForgettingCurveGraph } from "@/components/ui/forgetting-curve";
+import { HeroDemo } from "@/components/hero-demo";
 
 export default async function HomePage() {
   const session = await auth();
@@ -44,23 +44,8 @@ export default async function HomePage() {
           </div>
 
           <div className="relative -mx-4 border-t border-border bg-dither-25 pt-6 sm:-mx-8 sm:pt-12">
-            <div className="mx-auto max-w-4xl overflow-hidden border border-border bg-background stagger-in">
-              <Image
-                src="/today.png"
-                alt="Hash-It daily review queue showing a problem due for review"
-                width={1200}
-                height={800}
-                className="w-full dark:hidden"
-                priority
-              />
-              <Image
-                src="/today-dark.png"
-                alt="Hash-It daily review queue showing a problem due for review"
-                width={1200}
-                height={800}
-                className="hidden w-full dark:block"
-                priority
-              />
+            <div className="stagger-in">
+              <HeroDemo />
             </div>
           </div>
         </SheetSection>

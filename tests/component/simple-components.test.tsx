@@ -136,21 +136,19 @@ describe("ScheduleReviewToggle", () => {
   it("reverts state on failure", async () => {
     const { toggleScheduleReview } = await import("@/app/actions/entry-actions");
     vi.mocked(toggleScheduleReview).mockRejectedValue(new Error("Failed"));
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     render(<ScheduleReviewToggle entryId="123" initialScheduled={false} />);
-    
+
     const button = screen.getByRole("button", { name: /schedule reviews/i });
     await userEvent.click(button);
-    
+
     // Wait for the transition and failure to revert
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /schedule reviews/i })).toBeInTheDocument();
     });
-    
-    expect(alertSpy).toHaveBeenCalledWith("Failed to update review schedule.");
-    alertSpy.mockRestore();
+
+    expect(screen.getByText("Failed to update review schedule.")).toBeInTheDocument();
     consoleSpy.mockRestore();
   });
 });

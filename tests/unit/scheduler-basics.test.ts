@@ -31,40 +31,39 @@ describe("scheduler - rating derivation table", () => {
     expect(rating).toBe("HARD");
   });
 
-  it("derives HARD when minutes > 2x baseline", () => {
-    // Easy baseline = 15m; 35m > 30m
+  it("still derives GOOD for a slow cold solve, never HARD", () => {
     const rating = deriveRating({
       status: "SOLVED_UNAIDED",
-      minutes: 35,
+      minutes: 45,
       difficulty: "EASY",
     });
-    expect(rating).toBe("HARD");
+    expect(rating).toBe("GOOD");
   });
 
   it("derives GOOD when solved cold within baseline", () => {
-    // Medium baseline = 30m; 25m is between 18m and 60m
+    // Medium baseline = 40m; 35m is between 30m and 80m
     const rating = deriveRating({
       status: "SOLVED_UNAIDED",
-      minutes: 25,
+      minutes: 35,
       difficulty: "MEDIUM",
     });
     expect(rating).toBe("GOOD");
   });
 
-  it("derives HARD when a solve is logged without minutes", () => {
+  it("derives GOOD when an unaided solve is logged without minutes", () => {
     const rating = deriveRating({
       status: "SOLVED_UNAIDED",
       minutes: null,
       difficulty: "MEDIUM",
     });
-    expect(rating).toBe("HARD");
+    expect(rating).toBe("GOOD");
   });
 
   it("derives EASY when solved cold well under baseline", () => {
-    // Medium baseline = 30m; 10m <= 18m (0.6x)
+    // Medium baseline = 40m; 20m <= 30m (0.75x)
     const rating = deriveRating({
       status: "SOLVED_UNAIDED",
-      minutes: 10,
+      minutes: 20,
       difficulty: "MEDIUM",
     });
     expect(rating).toBe("EASY");
@@ -77,7 +76,7 @@ describe("scheduler - card seeding", () => {
   it("seeds card for SOLVED_UNAIDED with 1 repetition and Good grade", () => {
     const card = seedCard({
       entryId: "entry-1",
-      status: "SOLVED_UNAIDED",
+      rating: "GOOD",
       now,
     });
     expect(card.reps).toBe(1);
@@ -88,28 +87,29 @@ describe("scheduler - card seeding", () => {
   it("seeds card for SOLVED_WITH_HELP with Hard grade", () => {
     const card = seedCard({
       entryId: "entry-2",
-      status: "SOLVED_WITH_HELP",
+      rating: "HARD",
       now,
     });
     expect(card.reps).toBe(1);
     expect(card.difficulty).toBeGreaterThan(0);
   });
 
-  it("seeds card for ATTEMPTED_FAILED or revisit: true with Again grade", () => {
-    const cardRevisit = seedCard({
+  it("seeds an unaided solve strongest and ATTEMPTED_FAILED weakest", () => {
+    const cardUnaided = seedCard({
       entryId: "entry-3",
-      status: "SOLVED_UNAIDED",
-      revisit: true,
+      rating: "GOOD",
       now,
     });
-    expect(cardRevisit.reps).toBe(1);
+    expect(cardUnaided.reps).toBe(1);
+    expect(cardUnaided.stability).toBeGreaterThan(3.0);
 
     const cardFailed = seedCard({
       entryId: "entry-4",
-      status: "ATTEMPTED_FAILED",
+      rating: "AGAIN",
       now,
     });
     expect(cardFailed.reps).toBe(1);
+    expect(cardFailed.stability).toBeLessThan(1.0);
   });
 });
 
@@ -119,7 +119,7 @@ describe("scheduler - card advance", () => {
   it("advances card state and increments reps on Good", () => {
     const initial = seedCard({
       entryId: "entry-adv",
-      status: "SOLVED_UNAIDED",
+      rating: "GOOD",
       now,
     });
 
@@ -207,9 +207,9 @@ describe("scheduler - 21-day import spread", () => {
     const spread = spreadImportDueDates(rows, startDate);
 
     expect(spread.length).toBe(4);
-    // revisit: true must be first
+    // revisit: true must be first, but keeps a full-strength GOOD seed
     expect(spread[0].id).toBe("revisit-1");
-    expect(spread[0].seededRating).toBe("AGAIN");
+    expect(spread[0].seededRating).toBe("GOOD");
     // SOLVED_WITH_HELP must be second
     expect(spread[1].id).toBe("help-1");
     expect(spread[1].seededRating).toBe("HARD");
@@ -230,7 +230,7 @@ describe("scheduler - leeches and retrievability", () => {
   it("computes reasonable retrievability values between 0 and 1", () => {
     const card = seedCard({
       entryId: "r-test",
-      status: "SOLVED_UNAIDED",
+      rating: "GOOD",
       now: new Date("2026-09-01T00:00:00Z"),
     });
 

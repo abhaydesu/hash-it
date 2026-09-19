@@ -56,7 +56,8 @@ describe("User Loops (Integration)", () => {
 
       // Verify review card initialized with FSRS state
       expect(entry?.reviewCard).not.toBeNull();
-      expect(entry?.reviewCard?.state).toBe(CardState.LEARNING);
+      // Short-term steps are disabled, so a logged problem is day-scheduled at once.
+      expect(entry?.reviewCard?.state).toBe(CardState.REVIEW);
       expect(entry?.reviewCard?.reps).toBe(1);
       expect(entry?.reviewCard?.lapses).toBe(0);
       expect(entry?.reviewCard?.due.getTime()).toBeGreaterThan(Date.now());
@@ -110,7 +111,7 @@ describe("User Loops (Integration)", () => {
 
       card = await tx.reviewCard.findUnique({ where: { entryId } });
       expect(card?.lapses).toBe(1);
-      expect(card?.state).toBe(CardState.RELEARNING);
+      expect(card?.state).toBe(CardState.REVIEW);
       // Scheduled for next review
       expect(card?.scheduledDays).toBeLessThanOrEqual(1);
     });
@@ -191,7 +192,7 @@ New Custom Problem,https://custom.com/p/1,Graphs,DFS,Search all nodes,Stack over
       // Review cards scheduled across spread
       for (const entry of userEntries) {
         expect(entry.reviewCard).not.toBeNull();
-        expect(entry.reviewCard?.state).toBe(CardState.LEARNING);
+        expect(entry.reviewCard?.state).toBe(CardState.REVIEW);
       }
     });
   });

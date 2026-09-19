@@ -137,8 +137,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
     } else {
       updatedCardData = seedCard({
         entryId: existingEntry.id,
-        status: data.status as SolveStatusType,
-        revisit: data.revisit,
+        rating,
         now,
         desiredRetention: userSettings?.desiredRetention ?? 0.80,
         fsrsParams: userSettings?.fsrsParams ?? [],
@@ -206,11 +205,8 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
   }
 
   // Create brand new Entry
-  const initialCard = seedCard({
-    entryId: "placeholder",
-    status: data.status as SolveStatusType,
-    revisit: data.revisit,
-    now,
+  const newEntrySettings = await prisma.userSettings.findUnique({
+    where: { userId: user.id },
   });
 
   const rating = deriveRating({
@@ -218,6 +214,21 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
     minutes: data.minutes,
     usedHint: data.status === "SOLVED_WITH_HELP",
     difficulty: problem.difficulty as ProblemDifficulty | null,
+    baselines: newEntrySettings
+      ? {
+          easy: newEntrySettings.easyBaseline,
+          medium: newEntrySettings.mediumBaseline,
+          hard: newEntrySettings.hardBaseline,
+        }
+      : undefined,
+  });
+
+  const initialCard = seedCard({
+    entryId: "placeholder",
+    rating,
+    now,
+    desiredRetention: newEntrySettings?.desiredRetention ?? 0.80,
+    fsrsParams: newEntrySettings?.fsrsParams ?? [],
   });
 
   const result = await prisma.$transaction(async (tx) => {
@@ -248,23 +259,22 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
       },
     });
 
-    const shouldSchedule = rating === "AGAIN" || rating === "HARD" || data.revisit === true;
-    if (shouldSchedule) {
-      await tx.reviewCard.create({
-        data: {
-          entryId: entry.id,
-          due: initialCard.due,
-          stability: initialCard.stability,
-          difficulty: initialCard.difficulty,
-          elapsedDays: initialCard.elapsedDays,
-          scheduledDays: initialCard.scheduledDays,
-          reps: initialCard.reps,
-          lapses: initialCard.lapses,
-          state: initialCard.state as CardState,
-          lastReview: now,
-        },
-      });
-    }
+    // Every logged problem enters the rotation — FSRS decides how far out the
+    // first review lands, so a confident solve is spaced, never dropped.
+    await tx.reviewCard.create({
+      data: {
+        entryId: entry.id,
+        due: initialCard.due,
+        stability: initialCard.stability,
+        difficulty: initialCard.difficulty,
+        elapsedDays: initialCard.elapsedDays,
+        scheduledDays: initialCard.scheduledDays,
+        reps: initialCard.reps,
+        lapses: initialCard.lapses,
+        state: initialCard.state as CardState,
+        lastReview: now,
+      },
+    });
 
     return entry;
   });
@@ -328,11 +338,7 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
         state: entry.reviewCard.state as any,
         lastReview: entry.reviewCard.lastReview,
       }
-    : seedCard({
-        entryId: entry.id,
-        status: data.status as SolveStatusType,
-        now,
-      });
+    : seedCard({ entryId: entry.id, rating, now });
 
   const updatedCard = advanceCard({
     currentCard,
@@ -431,7 +437,7 @@ export async function recordRecallAttempt(input: z.input<typeof RecordRecallSche
         state: entry.reviewCard.state as any,
         lastReview: entry.reviewCard.lastReview,
       }
-    : seedCard({ entryId: entry.id, status: "SOLVED_UNAIDED", now });
+    : seedCard({ entryId: entry.id, rating: data.rating as AppRating, now });
 
   const updatedCard = advanceCard({
     currentCard,
@@ -529,8 +535,10 @@ export async function toggleScheduleReview(entryId: string, schedule: boolean) {
       const userSettings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
       const initialCard = seedCard({
         entryId: entry.id,
-        status: (entry.status as SolveStatusType) || "SOLVED_UNAIDED",
-        revisit: entry.revisit,
+        rating: deriveRating({
+          status: (entry.status as SolveStatusType) || "SOLVED_UNAIDED",
+          minutes: entry.minutes,
+        }),
         now,
         desiredRetention: userSettings?.desiredRetention ?? 0.80,
         fsrsParams: userSettings?.fsrsParams ?? [],
@@ -642,12 +650,7 @@ export async function toggleRoadmapItemSolve(params: {
     }
 
     const now = new Date();
-    const seeded = seedCard({
-      entryId: "placeholder",
-      status: SolveStatus.SOLVED_UNAIDED,
-      revisit: false,
-      now,
-    });
+    const seeded = seedCard({ entryId: "placeholder", rating: "GOOD", now });
 
     const entry = await prisma.$transaction(async (tx) => {
       const created = await tx.entry.create({

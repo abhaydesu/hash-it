@@ -7,6 +7,7 @@ import { recordReviewAttempt } from "@/app/actions/entry-actions";
 import { formatDifficulty, safeHref } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAlertDialog } from "@/components/ui/alert-dialog";
 
 interface ReviewQueueItem {
   entryId: string;
@@ -37,6 +38,7 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
     family?: string | null;
     difficulty?: string | null;
   } | null>(null);
+  const { showAlert, alertDialog } = useAlertDialog();
 
   const difficultyLabel =
     item.difficulty === "EASY"
@@ -51,7 +53,7 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
     const trimmedMinutes = minutes.trim();
     const parsedMinutes = trimmedMinutes === "" ? null : Number.parseInt(trimmedMinutes, 10);
     if (status !== "ATTEMPTED_FAILED" && parsedMinutes === null) {
-      alert("Please enter the minutes spent before marking a problem as solved.");
+      showAlert("Please enter the minutes spent before marking a problem as solved.");
       return;
     }
 
@@ -72,7 +74,7 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
       setTimeout(() => onComplete(), 2500);
     } catch (err) {
       console.error("Failed to record attempt", err);
-      alert("Failed to record review. See console.");
+      showAlert("Failed to record review. See console.");
     } finally {
       setIsSubmitting(false);
     }
@@ -97,6 +99,7 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
             <Badge variant={diff.variant}>{diff.label}</Badge>
           </div>
         )}
+        {alertDialog}
       </article>
     );
   }
@@ -190,6 +193,7 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
           </Button>
         </div>
       </div>
+      {alertDialog}
     </article>
   );
 }

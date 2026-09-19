@@ -16,6 +16,7 @@ import {
   type MonthlyMockProblem,
 } from "@/components/monthly-mock-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useAlertDialog } from "@/components/ui/alert-dialog";
 
 export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: MonthlyMockProblem[] }) {
   const {
@@ -38,6 +39,7 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
   const [catalog, setCatalog] = useState<MonthlyMockProblem[]>(initialCatalog);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const { showAlert, alertDialog } = useAlertDialog();
 
   const refetchCatalog = async () => {
     try {
@@ -88,7 +90,7 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
       });
     } catch (err) {
       console.error("Failed to record attempt in mock", err);
-      alert("Failed to record problem result. See console.");
+      showAlert("Failed to record problem result. See console.");
     } finally {
       setIsSubmitting(false);
     }
@@ -391,6 +393,7 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
         cancelText="Cancel"
         onConfirm={discard}
       />
+      {alertDialog}
     </SheetSection>
   );
 }

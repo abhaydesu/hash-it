@@ -16,9 +16,9 @@ export default function SettingsPage() {
   const [dailyResolveCap, setDailyResolveCap] = useState(2);
   const [desiredRetention, setDesiredRetention] = useState(0.8);
   const [timezone, setTimezone] = useState("Asia/Kolkata");
-  const [easyBaseline, setEasyBaseline] = useState(15);
-  const [mediumBaseline, setMediumBaseline] = useState(30);
-  const [hardBaseline, setHardBaseline] = useState(45);
+  const [easyBaseline, setEasyBaseline] = useState(20);
+  const [mediumBaseline, setMediumBaseline] = useState(40);
+  const [hardBaseline, setHardBaseline] = useState(60);
   const [fsrsParams, setFsrsParams] = useState<number[]>([]);
   const [attemptCount, setAttemptCount] = useState(0);
 

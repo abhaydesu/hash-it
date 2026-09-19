@@ -21,10 +21,50 @@ export interface TimeBaselines {
 }
 
 export const DEFAULT_BASELINES: TimeBaselines = {
-  easy: 15,
-  medium: 30,
-  hard: 45,
+  easy: 20,
+  medium: 40,
+  hard: 60,
 };
+
+/**
+ * Longest gap the scheduler will ever leave between reviews. FSRS defaults this
+ * to 100 years, which silently drops mature problems out of rotation; capping it
+ * means everything ever logged resurfaces at least once a year.
+ */
+export const MAX_INTERVAL_DAYS = 365;
+
+/**
+ * Stability (in days) at which a memory is treated as durable. Below this a due
+ * problem is written out in full; above it a quick recall check is enough to
+ * maintain it. ~30 days means "I would still recall this a month from now".
+ */
+export const DURABLE_STABILITY_DAYS = 30;
+
+/**
+ * Longest a just-failed problem may be put off. FSRS carries much of a mature
+ * card's stability through a lapse, which can push a problem you just failed a
+ * week out. With short-term steps disabled this restores the "fail it, see it
+ * tomorrow" guarantee those steps normally provide.
+ */
+export const LAPSE_INTERVAL_DAYS = 1;
+
+/**
+ * Build a scheduler honouring this user's retention and any optimised weights.
+ *
+ * `enable_short_term` is off deliberately. FSRS's short-term steps are measured
+ * in minutes, which suits flashcards but not problems that take 20-60 minutes to
+ * re-solve; disabling it keeps every interval at day granularity or longer.
+ */
+function scheduler(desiredRetention: number, fsrsParams?: number[]) {
+  return fsrs(
+    generatorParameters({
+      request_retention: desiredRetention,
+      maximum_interval: MAX_INTERVAL_DAYS,
+      enable_short_term: false,
+      ...(fsrsParams && fsrsParams.length > 0 ? { w: fsrsParams as any } : {}),
+    })
+  );
+}
 
 export interface DeriveRatingInput {
   status: SolveStatusType;
@@ -56,13 +96,25 @@ export interface QueueItem {
   lane?: ReviewLane;
   lastRating?: AppRating | null;
   revisit?: boolean;
+  stability?: number;
   [key: string]: any;
 }
 
-export function deriveLane(item: { lastRating?: AppRating | null; lapses?: number; revisit?: boolean }): ReviewLane {
-  if (item.lastRating === "GOOD" || item.lastRating === "EASY") return "RECALL";
-  if (item.revisit || (item.lapses ?? 0) >= 1 || item.lastRating === "AGAIN" || item.lastRating === "HARD") return "RESOLVE";
-  return "RECALL";
+/**
+ * Choose how a due problem comes back: written out in full, or checked quickly.
+ *
+ * Maturity decides. A problem is re-solved while the memory is still fragile —
+ * recognising an approach is not the same as being able to produce the code —
+ * and switches to cheap recall checks once FSRS considers it durable. Struggling
+ * on the last attempt always forces a re-solve, however durable it looked.
+ */
+export function deriveLane(item: {
+  lastRating?: AppRating | null;
+  lapses?: number;
+  stability?: number;
+}): ReviewLane {
+  if (item.lastRating === "AGAIN" || item.lastRating === "HARD") return "RESOLVE";
+  return (item.stability ?? 0) < DURABLE_STABILITY_DAYS ? "RESOLVE" : "RECALL";
 }
 
 export const FSRS_STATE_TO_APP: Record<number, AppCardState> = {
@@ -94,12 +146,12 @@ export const FSRS_RATING_TO_APP: Record<number, AppRating> = {
 };
 
 /**
- * Derive the FSRS rating from the re-solve outcome per spec §7.
- * - failed, or opened the solution -> Again
- * - solved but needed a hint, or took > 2x the difficulty baseline -> Hard
- * - solved cold within baseline -> Good
- * - solved cold, well under baseline (<= 0.6x baseline), clean first submission -> Easy
- * Baselines: Easy 15m, Medium 30m, Hard 45m.
+ * Derive the FSRS rating from the re-solve outcome.
+ * - failed -> Again
+ * - any outside help (hint or solution) -> Hard, however fast it was
+ * - solved cold -> Good, however slow it was
+ * - solved cold within 0.75x the difficulty baseline -> Easy
+ * Baselines: Easy 20m, Medium 40m, Hard 60m.
  */
 export function deriveRating(input: DeriveRatingInput): AppRating {
   const { status, minutes, usedHint, difficulty, baselines = DEFAULT_BASELINES } = input;
@@ -108,12 +160,14 @@ export function deriveRating(input: DeriveRatingInput): AppRating {
     return "AGAIN";
   }
 
-  if (usedHint) {
+  if (usedHint || status === "SOLVED_WITH_HELP") {
     return "HARD";
   }
 
+  // Retrieving the solution unaided is itself the evidence of recall, so a cold
+  // solve never rates below GOOD. Time only decides whether it also earns EASY.
   if (minutes == null) {
-    return "HARD";
+    return "GOOD";
   }
 
   const baselineMinutes =
@@ -123,15 +177,7 @@ export function deriveRating(input: DeriveRatingInput): AppRating {
       ? baselines.hard
       : baselines.medium;
 
-  if (minutes > 2 * baselineMinutes) {
-    return "HARD";
-  }
-
-  if (minutes <= Math.round(0.6 * baselineMinutes)) {
-    return "EASY";
-  }
-
-  return "GOOD";
+  return minutes <= Math.round(0.75 * baselineMinutes) ? "EASY" : "GOOD";
 }
 
 /**
@@ -170,48 +216,23 @@ export function fromFSRSCard(entryId: string, card: FSRSCard): ReviewCardData {
 }
 
 /**
- * Seed a review card for a newly logged Entry per spec §7:
- * - SOLVED_UNAIDED -> apply one Good
- * - SOLVED_WITH_HELP -> one Hard
- * - ATTEMPTED_FAILED or revisit: true -> one Again
+ * Seed a review card for a newly logged Entry by applying its first rating.
+ *
+ * The rating comes from `deriveRating`, so how the problem was actually solved —
+ * including how quickly — shapes the very first interval rather than only
+ * kicking in from the second review onward.
  */
 export function seedCard(params: {
   entryId: string;
-  status: SolveStatusType;
-  revisit?: boolean;
+  rating: AppRating;
   now?: Date;
   desiredRetention?: number;
   fsrsParams?: number[];
 }): ReviewCardData {
-  const {
-    entryId,
-    status,
-    revisit = false,
-    now = new Date(),
-    desiredRetention = 0.80,
-    fsrsParams,
-  } = params;
+  const { entryId, rating, now = new Date(), desiredRetention = 0.80, fsrsParams } = params;
 
-  const f = fsrs(
-    generatorParameters({
-      request_retention: desiredRetention,
-      ...(fsrsParams && fsrsParams.length > 0 ? { w: fsrsParams as any } : {}),
-    })
-  );
-
-  const initialCard = createEmptyCard(now);
-  let grade: Grade = FSRSRating.Good as Grade;
-
-  if (revisit || status === "ATTEMPTED_FAILED") {
-    grade = FSRSRating.Again as Grade;
-  } else if (status === "SOLVED_WITH_HELP") {
-    grade = FSRSRating.Hard as Grade;
-  } else {
-    grade = FSRSRating.Good as Grade;
-  }
-
-  const repeatResult = f.repeat(initialCard, now);
-  const scheduled = repeatResult[grade].card;
+  const f = scheduler(desiredRetention, fsrsParams);
+  const scheduled = f.repeat(createEmptyCard(now), now)[APP_RATING_TO_FSRS[rating]].card;
 
   return fromFSRSCard(entryId, scheduled);
 }
@@ -234,19 +255,24 @@ export function advanceCard(params: {
     fsrsParams,
   } = params;
 
-  const f = fsrs(
-    generatorParameters({
-      request_retention: desiredRetention,
-      ...(fsrsParams && fsrsParams.length > 0 ? { w: fsrsParams as any } : {}),
-    })
-  );
+  const f = scheduler(desiredRetention, fsrsParams);
 
   const fsrsCard = toFSRSCard(currentCard);
   const grade = APP_RATING_TO_FSRS[rating];
   const repeatResult = f.repeat(fsrsCard, reviewDate);
-  const updatedCard = repeatResult[grade].card;
+  const card = fromFSRSCard(currentCard.entryId, repeatResult[grade].card);
 
-  return fromFSRSCard(currentCard.entryId, updatedCard);
+  if (rating === "AGAIN") {
+    // Only the due date is pulled in; FSRS keeps its own stability estimate, and
+    // reviewing early is something it already accounts for.
+    const soonest = new Date(reviewDate.getTime() + LAPSE_INTERVAL_DAYS * 86_400_000);
+    if (card.due > soonest) {
+      card.due = soonest;
+      card.scheduledDays = LAPSE_INTERVAL_DAYS;
+    }
+  }
+
+  return card;
 }
 
 /**
@@ -373,9 +399,11 @@ export function spreadImportDueDates(
     const due = new Date(startDate);
     due.setDate(due.getDate() + dayOffset);
 
-    // Initial seeded rating
+    // Initial seeded rating. `revisit` only moves a row earlier in the queue
+    // (via the sort above) — it is a "practice this someday" marker, not
+    // evidence of weak recall, so it must not depress the seeded strength.
     let seededRating: AppRating = "GOOD";
-    if (row.revisit || row.status === "ATTEMPTED_FAILED") {
+    if (row.status === "ATTEMPTED_FAILED") {
       seededRating = "AGAIN";
     } else if (row.status === "SOLVED_WITH_HELP") {
       seededRating = "HARD";

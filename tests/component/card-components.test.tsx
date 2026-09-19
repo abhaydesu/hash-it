@@ -76,7 +76,6 @@ describe("RecallCardItem", () => {
 describe("ReviewCardItem", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.alert = vi.fn(); // Mock alert
   });
 
   const mockItem = {
@@ -98,7 +97,9 @@ describe("ReviewCardItem", () => {
     const solvedColdButton = screen.getByRole("button", { name: /solved cold/i });
     fireEvent.click(solvedColdButton);
 
-    expect(window.alert).toHaveBeenCalledWith("Please enter the minutes spent before marking a problem as solved.");
+    expect(
+      screen.getByText("Please enter the minutes spent before marking a problem as solved.")
+    ).toBeInTheDocument();
   });
 
   it("submits review successfully and shows next due info", async () => {

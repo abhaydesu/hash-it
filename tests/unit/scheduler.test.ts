@@ -10,6 +10,7 @@ import {
   interleaveQueue,
   spreadImportDueDates,
   DEFAULT_BASELINES,
+  DURABLE_STABILITY_DAYS,
   type QueueItem,
   type ReviewCardData,
 } from "@/lib/scheduler";
@@ -33,38 +34,48 @@ describe("lib/scheduler.ts unit tests", () => {
         expect(deriveRating({ status: "ATTEMPTED_FAILED", minutes: null })).toBe("AGAIN");
       });
 
-      it("returns HARD when usedHint is true on a solved problem", () => {
+      it("returns HARD when usedHint is true, however fast the solve was", () => {
         expect(deriveRating({ status: "SOLVED_UNAIDED", usedHint: true, minutes: 5 })).toBe("HARD");
         expect(deriveRating({ status: "SOLVED_WITH_HELP", usedHint: true, minutes: 10 })).toBe("HARD");
       });
 
-      it("returns HARD when minutes is null or undefined on a solved problem", () => {
-        expect(deriveRating({ status: "SOLVED_UNAIDED", minutes: null })).toBe("HARD");
-        expect(deriveRating({ status: "SOLVED_UNAIDED", minutes: undefined })).toBe("HARD");
+      it("returns HARD for SOLVED_WITH_HELP even when solved fast enough to otherwise earn EASY", () => {
+        expect(deriveRating({ status: "SOLVED_WITH_HELP", difficulty: "MEDIUM", minutes: 5 })).toBe("HARD");
+        expect(deriveRating({ status: "SOLVED_WITH_HELP", difficulty: "MEDIUM", minutes: 200 })).toBe("HARD");
+      });
+
+      it("returns GOOD for an unaided solve logged without minutes", () => {
+        expect(deriveRating({ status: "SOLVED_UNAIDED", minutes: null })).toBe("GOOD");
+        expect(deriveRating({ status: "SOLVED_UNAIDED", minutes: undefined })).toBe("GOOD");
+      });
+
+      it("never rates a cold solve below GOOD, however long it took", () => {
+        for (const minutes of [100, 300, 5000]) {
+          expect(deriveRating({ status: "SOLVED_UNAIDED", difficulty: "EASY", minutes })).toBe("GOOD");
+          expect(deriveRating({ status: "SOLVED_UNAIDED", difficulty: "MEDIUM", minutes })).toBe("GOOD");
+          expect(deriveRating({ status: "SOLVED_UNAIDED", difficulty: "HARD", minutes })).toBe("GOOD");
+        }
       });
     });
 
     describe("time-vs-baseline thresholds and boundaries", () => {
-      // For MEDIUM default baseline is 30m.
-      // 0.6 * 30 = 18m.
-      // 2 * 30 = 60m.
-      // <= 18 -> EASY
-      // 19 .. 60 -> GOOD
-      // > 60 -> HARD
+      // For MEDIUM default baseline is 40m.
+      // 0.75 * 40 = 30m.
+      // <= 30 -> EASY
+      // > 30  -> GOOD (a cold solve is never downgraded for being slow)
       const mediumTestCases = [
         { desc: "negative minutes", minutes: -5, expected: "EASY" },
         { desc: "zero minutes", minutes: 0, expected: "EASY" },
         { desc: "well under threshold (10m)", minutes: 10, expected: "EASY" },
-        { desc: "one below 0.6x baseline (17m)", minutes: 17, expected: "EASY" },
-        { desc: "exactly at 0.6x baseline (18m)", minutes: 18, expected: "EASY" },
-        { desc: "one above 0.6x baseline (19m)", minutes: 19, expected: "GOOD" },
-        { desc: "one below baseline (29m)", minutes: 29, expected: "GOOD" },
-        { desc: "exactly at baseline (30m)", minutes: 30, expected: "GOOD" },
-        { desc: "one above baseline (31m)", minutes: 31, expected: "GOOD" },
-        { desc: "one below 2x baseline (59m)", minutes: 59, expected: "GOOD" },
-        { desc: "exactly at 2x baseline (60m)", minutes: 60, expected: "GOOD" },
-        { desc: "one above 2x baseline (61m)", minutes: 61, expected: "HARD" },
-        { desc: "far above threshold (500m)", minutes: 500, expected: "HARD" },
+        { desc: "one below 0.75x baseline (29m)", minutes: 29, expected: "EASY" },
+        { desc: "exactly at 0.75x baseline (30m)", minutes: 30, expected: "EASY" },
+        { desc: "one above 0.75x baseline (31m)", minutes: 31, expected: "GOOD" },
+        { desc: "one below baseline (39m)", minutes: 39, expected: "GOOD" },
+        { desc: "exactly at baseline (40m)", minutes: 40, expected: "GOOD" },
+        { desc: "one above baseline (41m)", minutes: 41, expected: "GOOD" },
+        { desc: "twice the baseline (80m)", minutes: 80, expected: "GOOD" },
+        { desc: "well past twice the baseline (81m)", minutes: 81, expected: "GOOD" },
+        { desc: "far above threshold (500m)", minutes: 500, expected: "GOOD" },
       ];
 
       it.each(mediumTestCases)("medium difficulty: $desc ($minutes mins -> $expected)", ({ minutes, expected }) => {
@@ -77,15 +88,13 @@ describe("lib/scheduler.ts unit tests", () => {
         ).toBe(expected);
       });
 
-      // EASY default baseline is 15m.
-      // 0.6 * 15 = 9m.
-      // 2 * 15 = 30m.
+      // EASY default baseline is 20m. 0.75 * 20 = 15m.
       const easyTestCases = [
-        { desc: "exactly 0.6x (9m)", minutes: 9, expected: "EASY" },
-        { desc: "one above 0.6x (10m)", minutes: 10, expected: "GOOD" },
-        { desc: "exactly baseline (15m)", minutes: 15, expected: "GOOD" },
-        { desc: "exactly 2x (30m)", minutes: 30, expected: "GOOD" },
-        { desc: "one above 2x (31m)", minutes: 31, expected: "HARD" },
+        { desc: "exactly 0.75x (15m)", minutes: 15, expected: "EASY" },
+        { desc: "one above 0.75x (16m)", minutes: 16, expected: "GOOD" },
+        { desc: "exactly baseline (20m)", minutes: 20, expected: "GOOD" },
+        { desc: "twice baseline (40m)", minutes: 40, expected: "GOOD" },
+        { desc: "well past twice baseline (41m)", minutes: 41, expected: "GOOD" },
       ];
 
       it.each(easyTestCases)("easy difficulty: $desc ($minutes mins -> $expected)", ({ minutes, expected }) => {
@@ -98,15 +107,13 @@ describe("lib/scheduler.ts unit tests", () => {
         ).toBe(expected);
       });
 
-      // HARD default baseline is 45m.
-      // 0.6 * 45 = 27m.
-      // 2 * 45 = 90m.
+      // HARD default baseline is 60m. 0.75 * 60 = 45m.
       const hardTestCases = [
-        { desc: "exactly 0.6x (27m)", minutes: 27, expected: "EASY" },
-        { desc: "one above 0.6x (28m)", minutes: 28, expected: "GOOD" },
-        { desc: "exactly baseline (45m)", minutes: 45, expected: "GOOD" },
-        { desc: "exactly 2x (90m)", minutes: 90, expected: "GOOD" },
-        { desc: "one above 2x (91m)", minutes: 91, expected: "HARD" },
+        { desc: "exactly 0.75x (45m)", minutes: 45, expected: "EASY" },
+        { desc: "one above 0.75x (46m)", minutes: 46, expected: "GOOD" },
+        { desc: "exactly baseline (60m)", minutes: 60, expected: "GOOD" },
+        { desc: "twice baseline (120m)", minutes: 120, expected: "GOOD" },
+        { desc: "well past twice baseline (121m)", minutes: 121, expected: "GOOD" },
       ];
 
       it.each(hardTestCases)("hard difficulty: $desc ($minutes mins -> $expected)", ({ minutes, expected }) => {
@@ -121,70 +128,69 @@ describe("lib/scheduler.ts unit tests", () => {
 
       it("respects custom time baselines", () => {
         const customBaselines = { easy: 10, medium: 20, hard: 50 };
-        // Medium: 0.6 * 20 = 12, 2 * 20 = 40
-        expect(deriveRating({ status: "SOLVED_UNAIDED", difficulty: "MEDIUM", minutes: 12, baselines: customBaselines })).toBe("EASY");
-        expect(deriveRating({ status: "SOLVED_UNAIDED", difficulty: "MEDIUM", minutes: 13, baselines: customBaselines })).toBe("GOOD");
-        expect(deriveRating({ status: "SOLVED_UNAIDED", difficulty: "MEDIUM", minutes: 41, baselines: customBaselines })).toBe("HARD");
+        // Medium: 0.75 * 20 = 15
+        expect(deriveRating({ status: "SOLVED_UNAIDED", difficulty: "MEDIUM", minutes: 15, baselines: customBaselines })).toBe("EASY");
+        expect(deriveRating({ status: "SOLVED_UNAIDED", difficulty: "MEDIUM", minutes: 16, baselines: customBaselines })).toBe("GOOD");
+        expect(deriveRating({ status: "SOLVED_UNAIDED", difficulty: "MEDIUM", minutes: 41, baselines: customBaselines })).toBe("GOOD");
       });
     });
   });
 
   describe("deriveLane", () => {
-    it("returns RECALL when lastRating is GOOD or EASY", () => {
-      expect(deriveLane({ lastRating: "GOOD" })).toBe("RECALL");
-      expect(deriveLane({ lastRating: "EASY" })).toBe("RECALL");
+    const durable = DURABLE_STABILITY_DAYS;
+
+    it("returns RECALL once a passed card's memory is durable", () => {
+      expect(deriveLane({ lastRating: "GOOD", stability: durable })).toBe("RECALL");
+      expect(deriveLane({ lastRating: "EASY", stability: durable * 10 })).toBe("RECALL");
     });
 
-    it("returns RESOLVE when revisit is true without prior GOOD/EASY rating", () => {
-      expect(deriveLane({ revisit: true })).toBe("RESOLVE");
-      expect(deriveLane({ revisit: true, lastRating: null })).toBe("RESOLVE");
+    it("returns RESOLVE while a passed card's memory is still fragile", () => {
+      expect(deriveLane({ lastRating: "GOOD", stability: durable - 1 })).toBe("RESOLVE");
+      expect(deriveLane({ lastRating: "EASY", stability: 3 })).toBe("RESOLVE");
     });
 
-    it("returns RESOLVE when lapses >= 1 without prior GOOD/EASY rating", () => {
-      expect(deriveLane({ lapses: 1 })).toBe("RESOLVE");
+    it("forces RESOLVE after a struggle, however durable the card looked", () => {
+      expect(deriveLane({ lastRating: "AGAIN", stability: durable * 100 })).toBe("RESOLVE");
+      expect(deriveLane({ lastRating: "HARD", stability: durable * 100 })).toBe("RESOLVE");
+    });
+
+    it("defaults to RESOLVE when maturity is unknown or the card is new", () => {
+      expect(deriveLane({})).toBe("RESOLVE");
+      expect(deriveLane({ lastRating: null })).toBe("RESOLVE");
       expect(deriveLane({ lapses: 4 })).toBe("RESOLVE");
-    });
-
-    it("returns RESOLVE when lastRating is AGAIN or HARD", () => {
-      expect(deriveLane({ lastRating: "AGAIN" })).toBe("RESOLVE");
-      expect(deriveLane({ lastRating: "HARD" })).toBe("RESOLVE");
-    });
-
-    it("defaults to RECALL when no conditions match or lastRating is GOOD/EASY", () => {
-      expect(deriveLane({})).toBe("RECALL");
-      expect(deriveLane({ lapses: 0, revisit: false, lastRating: null })).toBe("RECALL");
-      expect(deriveLane({ lastRating: "GOOD", lapses: 1 })).toBe("RECALL");
     });
   });
 
   describe("seedCard", () => {
-    it("seeds card for SOLVED_UNAIDED with 1 rep and initial FSRS Learning state", () => {
-      const card = seedCard({ entryId: "e1", status: "SOLVED_UNAIDED", now: fixedNow });
+    it("seeds card for SOLVED_UNAIDED with 1 rep, straight into REVIEW state", () => {
+      const card = seedCard({ entryId: "e1", rating: "GOOD", now: fixedNow });
       expect(card.entryId).toBe("e1");
       expect(card.reps).toBe(1);
       expect(card.lapses).toBe(0);
-      expect(card.state).toBe("LEARNING");
+      expect(card.state).toBe("REVIEW");
       expect(card.scheduledDays).toBeGreaterThanOrEqual(0);
       expect(card.due.getTime()).toBeGreaterThan(fixedNow.getTime());
     });
 
     it("seeds card for SOLVED_WITH_HELP with Hard grade", () => {
-      const card = seedCard({ entryId: "e2", status: "SOLVED_WITH_HELP", now: fixedNow });
+      const card = seedCard({ entryId: "e2", rating: "HARD", now: fixedNow });
       expect(card.entryId).toBe("e2");
       expect(card.reps).toBe(1);
-      expect(card.state).toBe("LEARNING");
+      expect(card.state).toBe("REVIEW");
     });
 
-    it("seeds card for ATTEMPTED_FAILED with Learning state", () => {
-      const card = seedCard({ entryId: "e3", status: "ATTEMPTED_FAILED", now: fixedNow });
+    it("seeds card for ATTEMPTED_FAILED in REVIEW state", () => {
+      const card = seedCard({ entryId: "e3", rating: "AGAIN", now: fixedNow });
       expect(card.entryId).toBe("e3");
-      expect(card.state).toBe("LEARNING");
+      expect(card.state).toBe("REVIEW");
     });
 
-    it("seeds card for revisit: true as Again / Learning even if status was SOLVED_UNAIDED", () => {
-      const card = seedCard({ entryId: "e4", status: "SOLVED_UNAIDED", revisit: true, now: fixedNow });
-      expect(card.entryId).toBe("e4");
-      expect(card.state).toBe("LEARNING");
+    it("seeds an unaided solve at full Good strength, well above a help-assisted seed", () => {
+      const unaided = seedCard({ entryId: "e4", rating: "GOOD", now: fixedNow });
+      const withHelp = seedCard({ entryId: "e5", rating: "HARD", now: fixedNow });
+      expect(unaided.state).toBe("REVIEW");
+      expect(unaided.stability).toBeGreaterThan(3.0);
+      expect(unaided.stability).toBeGreaterThan(withHelp.stability);
     });
   });
 
@@ -209,10 +215,10 @@ describe("lib/scheduler.ts unit tests", () => {
       expect(advanced.due.getTime()).toBeGreaterThan(fixedNow.getTime());
     });
 
-    it("increments lapses and transitions to RELEARNING on AGAIN", () => {
+    it("increments lapses on AGAIN and stays day-scheduled in REVIEW", () => {
       const advanced = advanceCard({ currentCard: baseCard, rating: "AGAIN", reviewDate: fixedNow });
       expect(advanced.lapses).toBe(1);
-      expect(advanced.state).toBe("RELEARNING");
+      expect(advanced.state).toBe("REVIEW");
     });
 
     it("adjusts difficulty upwards on HARD", () => {
@@ -390,8 +396,9 @@ describe("lib/scheduler.ts unit tests", () => {
         { id: "with_help", status: "SOLVED_WITH_HELP" as const, revisit: false },
       ];
       const res = spreadImportDueDates(rows, fixedNow);
+      // revisit moves a row to the front of the queue but does not weaken its seed
       expect(res[0].id).toBe("revisit");
-      expect(res[0].seededRating).toBe("AGAIN");
+      expect(res[0].seededRating).toBe("GOOD");
       expect(res[1].id).toBe("with_help");
       expect(res[1].seededRating).toBe("HARD");
       expect(res[2].id).toBe("unaided");
