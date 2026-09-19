@@ -4,17 +4,18 @@ import { cn } from "@/lib/utils";
 export function Logo({ className, ...props }: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
-      viewBox="0 0 275 281"
+      viewBox="0 0 96 96"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={cn("h-6 w-6 text-foreground", className)}
+      className={cn("h-6 w-6", className)}
       aria-label="Hash-It logo"
       {...props}
     >
-      <path
-        d="M172 172H275V275H189V234H163V172H86V281H0V145H86V86H172V172ZM275 149H189V0H275V149ZM86 86H0V0H86V86Z"
-        fill="currentColor"
-      />
+      <rect x="24" y="6" width="12" height="84" fill="currentColor" />
+      <rect x="60" y="6" width="12" height="84" fill="currentColor" />
+      <rect x="6" y="24" width="84" height="12" fill="currentColor" />
+      <rect x="6" y="60" width="84" height="12" fill="currentColor" />
+      <rect x="36" y="36" width="24" height="24" fill="#F97316" />
     </svg>
   );
 }

@@ -277,31 +277,9 @@ export default async function HomePage() {
             />
           </div>
         </SheetSection>
-
-        {/* ── Not Anki ── */}
-        <SheetSection>
-          <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
-            <div className="p-6 sm:p-12">
-              <h2 className="mb-4 text-lg font-medium">Not a flashcard app</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Anki reviews text. Hash-It reviews problems. You re-solve from scratch, on the
-                real platform, under time pressure. The scheduling is the same science — the
-                practice is real.
-              </p>
-            </div>
-            <div className="bg-muted/10 p-6 sm:p-12">
-              <h2 className="mb-4 text-lg font-medium">Not a problem list</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                NeetCode and Grind 75 tell you what to solve first. Hash-It tells you what to
-                solve again. Use any list to seed your log — the review schedule is what
-                keeps it in your head.
-              </p>
-            </div>
-          </div>
-        </SheetSection>
-
+        
         {/* ── Closing CTA with PixelBlast frame ── */}
-        <SheetSection last>
+        <SheetSection>
           <div className="relative">
             {/* PixelBlast border — all four sides */}
             <div className="-mx-4 sm:-mx-6 lg:-mx-8 pointer-events-none absolute inset-x-0 top-0 h-6 sm:h-8 overflow-hidden" aria-hidden="true">
@@ -344,6 +322,30 @@ export default async function HomePage() {
             </div>
           </div>
         </SheetSection>
+
+        {/* ── Not Anki ── */}
+        <SheetSection>
+          <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
+            <div className="p-6 sm:p-12">
+              <h2 className="mb-4 text-lg font-medium">Not a flashcard app</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Anki reviews text. Hash-It reviews problems. You re-solve from scratch, on the
+                real platform, under time pressure. The scheduling is the same science — the
+                practice is real.
+              </p>
+            </div>
+            <div className="bg-muted/10 p-6 sm:p-12">
+              <h2 className="mb-4 text-lg font-medium">Not a problem list</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                NeetCode and Grind 75 tell you what to solve first. Hash-It tells you what to
+                solve again. Use any list to seed your log — the review schedule is what
+                keeps it in your head.
+              </p>
+            </div>
+          </div>
+        </SheetSection>
+
+        
       </main>
     </div>
   );

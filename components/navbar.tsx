@@ -47,37 +47,39 @@ export function SidebarNav() {
   }
 
   return (
-    <SheetSection className="bg-background/95 backdrop-blur-sm" band="none">
-      <nav className="relative flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs
-        after:pointer-events-none after:absolute after:right-0 after:top-0 after:h-full after:w-8
-        after:bg-gradient-to-l after:from-background after:to-transparent after:content-['']
-        sm:after:hidden">
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-          const isPending = pendingHref === item.href && !isActive;
+    <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-sm">
+      <SheetSection band="none">
+        <nav className="relative flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs
+          after:pointer-events-none after:absolute after:right-0 after:top-0 after:h-full after:w-8
+          after:bg-gradient-to-l after:from-background after:to-transparent after:content-['']
+          sm:after:hidden">
+          {navItems.map((item) => {
+            const isActive =
+              pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            const isPending = pendingHref === item.href && !isActive;
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => {
-                if (!isActive) setPendingHref(item.href);
-              }}
-              className={cn(
-                "pressable whitespace-nowrap border px-2.5 py-1",
-                isActive
-                  ? "border-orange-500 bg-orange-50 text-orange-700 font-medium dark:bg-orange-500/10 dark:text-orange-400"
-                  : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-                isPending && "bg-muted/60 text-foreground"
-              )}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-    </SheetSection>
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => {
+                  if (!isActive) setPendingHref(item.href);
+                }}
+                className={cn(
+                  "pressable whitespace-nowrap border px-2.5 py-1",
+                  isActive
+                    ? "border-orange-500 bg-orange-50 text-orange-700 font-medium dark:bg-orange-500/10 dark:text-orange-400"
+                    : "border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                  isPending && "bg-muted/60 text-foreground"
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </SheetSection>
+    </div>
   );
 }
 

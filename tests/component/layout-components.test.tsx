@@ -31,6 +31,7 @@ describe("AppShell", () => {
     );
 
     expect(screen.getByTestId("child-content")).toBeInTheDocument();
+    expect(screen.getByText("Built by")).toBeInTheDocument();
     // Look for link to root which is the logo link
     const homeLinks = screen.getAllByRole("link");
     expect(homeLinks.length).toBeGreaterThan(0);
@@ -49,6 +50,7 @@ describe("AppShell", () => {
     // Look for max-w-[1360px] which indicates wide mode
     const mainWrapper = container.querySelector(".max-w-\\[1360px\\]");
     expect(mainWrapper).toBeInTheDocument();
+    expect(screen.queryByText("Built by")).not.toBeInTheDocument();
   });
 });
 
