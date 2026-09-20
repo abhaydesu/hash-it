@@ -8,6 +8,7 @@ import { RecallCardItem } from "@/components/recall-card-item";
 import { ReviewCardItem } from "@/components/review-card-item";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
+import { useIsMac } from "@/lib/use-is-mac";
 
 type ReviewLane = "RECALL" | "RESOLVE";
 
@@ -46,6 +47,8 @@ export interface TodayData {
 export function TodayClient({ data }: { data: TodayData }) {
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [overdueDismissed, setOverdueDismissed] = useState(false);
+  const isMac = useIsMac();
+  const shortcutHint = isMac ? "⌘K" : "Ctrl+K";
 
   const handleCardComplete = (entryId: string) => {
     setCompletedIds((prev) => new Set([...prev, entryId]));
@@ -124,8 +127,8 @@ export function TodayClient({ data }: { data: TodayData }) {
             </p>
             <p className="mt-1 type-caption">
               {queue.length > 0
-                ? "Log new problems with ⌘K or review the catalogue."
-                : "Log new problems with ⌘K, or work through your roadmap."}
+                ? `Log new problems with ${shortcutHint} or review the catalogue.`
+                : `Log new problems with ${shortcutHint}, or work through your roadmap.`}
             </p>
           </div>
         ) : (

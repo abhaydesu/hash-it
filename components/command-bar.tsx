@@ -8,6 +8,7 @@ import { titleFromProblemUrl } from "@/lib/problem-url";
 import { createEntry, deleteEntry } from "@/app/actions/entry-actions";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAlertDialog } from "@/components/ui/alert-dialog";
+import { useIsMac } from "@/lib/use-is-mac";
 
 interface SearchResult {
   id: string;
@@ -136,7 +137,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   const [toast, setToast] = useState<{ id: string; title: string } | null>(null);
 
   // OS and device detection
-  const [isMac, setIsMac] = useState(false);
+  const isMac = useIsMac();
   const [isMobile, setIsMobile] = useState(false);
 
   const [isPending, startTransition] = useTransition();
@@ -184,10 +185,9 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     }
   }, [autoFocus]);
 
-  // Detect OS and device
+  // Detect device
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.userAgent));
     setIsMobile(window.innerWidth < 768);
   }, []);
 

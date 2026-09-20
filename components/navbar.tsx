@@ -6,12 +6,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Logs, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { MonthlyMockNavControls } from "@/components/monthly-mock-nav";
+import { useIsMac } from "@/lib/use-is-mac";
 
 interface NavbarProps {
   user?: {
@@ -86,6 +87,7 @@ export function SidebarNav() {
 export function Navbar({ user, userMenu }: NavbarProps) {
   const pathname = usePathname();
   const isMarketingPage = pathname === "/" || pathname === "/auth/signin";
+  const isMac = useIsMac();
 
   return (
     <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-sm">
@@ -111,19 +113,20 @@ export function Navbar({ user, userMenu }: NavbarProps) {
                   className="pressable flex h-8 w-8 items-center justify-center border border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:hidden"
                   aria-label="Log problem"
                 >
-                  <Search className="h-3.5 w-3.5" />
+                  <Logs className="h-3.5 w-3.5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("open-command-bar"));
                   }}
-                  className="pressable hidden h-8 items-center gap-2 border border-border bg-background px-2.5 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:flex"
+                  className="pressable hidden h-8 items-center justify-between gap-2 border border-border bg-background px-2 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:flex"
                 >
-                  <Search className="h-3.5 w-3.5" />
-                  <span className="font-medium">Log problem</span>
-                  <kbd className="border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                    ⌘K
+                  <span>
+                    <span className="font-medium">Log problem</span>
+                  </span>
+                  <kbd className="border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+                    {isMac ? <span className="flex items-center gap-0.5"><span className="text-xs">⌘</span> K</span> : "Ctrl+K"}
                   </kbd>
                 </button>
               </>

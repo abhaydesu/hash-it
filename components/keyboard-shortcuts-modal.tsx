@@ -4,10 +4,12 @@ import React from 'react';
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, Keyboard } from "lucide-react";
+import { useIsMac } from "@/lib/use-is-mac";
 
 export function KeyboardShortcutsModal() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
+  const isMac = useIsMac();
 
   useEffect(() => {
     let pendingG = false;
@@ -59,7 +61,7 @@ export function KeyboardShortcutsModal() {
   if (!isOpen) return null;
 
   const shortcuts = [
-    { key: "⌘K", desc: "Open global problem log bar" },
+    { key: isMac ? "⌘K" : "Ctrl+K", desc: "Open global problem log bar" },
     { key: "?", desc: "Toggle keyboard shortcuts guide" },
     { key: "g t", desc: "Go to Today dashboard" },
     { key: "g p", desc: "Go to Problems catalog" },
@@ -68,7 +70,7 @@ export function KeyboardShortcutsModal() {
     { key: "g m", desc: "Go to Monthly review" },
     { key: "g i", desc: "Go to CSV Import" },
     { key: "1 / 2 / 3", desc: "Select Solve Status (Unaided / With Help / Failed)" },
-    { key: "⌘ + Enter", desc: "Submit and save problem log" },
+    { key: isMac ? "⌘ + Enter" : "Ctrl + Enter", desc: "Submit and save problem log" },
     { key: "Esc", desc: "Dismiss modals or command bar" },
   ];
 

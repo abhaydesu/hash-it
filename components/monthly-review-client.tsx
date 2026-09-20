@@ -118,7 +118,7 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
 
   if (phase === "idle" || (!isActive && phase !== "finished")) {
     return (
-      <SheetSection innerClassName="mx-auto max-w-2xl space-y-5 py-8" last>
+      <SheetSection innerClassName="mx-auto space-y-5 py-8">
         <div className="flex items-center gap-2 type-label text-muted-foreground">
           <Timer className="h-4 w-4 text-foreground" />
           <span>Monthly mock assessment</span>

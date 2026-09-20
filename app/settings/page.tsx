@@ -88,7 +88,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl animate-pulse">
+      <div className="animate-pulse">
         <SheetSection innerClassName="py-6">
           <div className="h-7 w-32 bg-muted rounded"></div>
           <div className="mt-2 h-4 w-96 bg-muted rounded"></div>
@@ -112,7 +112,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div>
       <SheetSection innerClassName="py-6">
         <h1 className="type-title text-foreground">Settings</h1>
         <p className="mt-1 type-caption">

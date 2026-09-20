@@ -85,7 +85,9 @@ export default async function ProblemDetailPage({
 
           <div className="flex items-center gap-2">
             <ScheduleReviewToggle entryId={entry.id} initialScheduled={Boolean(card)} />
-            <Badge variant={diff.variant}>{diff.label}</Badge>
+            <Badge variant={diff.variant} className="px-2.5 py-1 text-xs">
+              {diff.label}
+            </Badge>
             {safeHref(p.url) && (
               <a
                 href={safeHref(p.url)}

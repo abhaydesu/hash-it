@@ -124,7 +124,7 @@ async function MonthlyMockData() {
 function MonthlySkeleton() {
   return (
     <div className="animate-pulse">
-      <SheetSection innerClassName="mx-auto max-w-2xl space-y-5 py-8" last>
+      <SheetSection innerClassName="mx-auto space-y-5 py-8">
         <div className="space-y-5">
           <div className="flex items-center gap-2">
             <div className="h-4 w-4 bg-muted rounded"></div>
