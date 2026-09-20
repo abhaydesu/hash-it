@@ -164,8 +164,18 @@ export function PixelBlast({
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      // Round to whole device pixels and pin the CSS size to match exactly
+      // (rect.width / dpr), so the browser never has to resample the canvas
+      // to fit its box. Any resampling of the fine Bayer dither pattern
+      // produces moire/checkerboard artifacts, which is especially visible
+      // on non-Mac displays with fractional devicePixelRatio (e.g. Windows
+      // 125%/150% scaling, or phones with DPRs like 2.625/3.5).
+      const width = Math.round(rect.width * dpr);
+      const height = Math.round(rect.height * dpr);
+      canvas.width = width;
+      canvas.height = height;
+      canvas.style.width = `${width / dpr}px`;
+      canvas.style.height = `${height / dpr}px`;
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
 
