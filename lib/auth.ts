@@ -103,7 +103,18 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
     else if (token.sub) session.user.id = token.sub;
     return session;
   },
-  async signIn() {
+  async signIn({ user, account, profile }) {
+    if (account?.provider === "google" && profile?.email && user?.id) {
+      const picture = (profile as Record<string, unknown>).picture as string | undefined;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          name: profile.name ?? user.name,
+          email: profile.email,
+          ...(picture && { image: picture }),
+        },
+      });
+    }
     return true;
   },
 };
