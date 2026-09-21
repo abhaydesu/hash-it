@@ -50,10 +50,7 @@ export function SidebarNav() {
   return (
     <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-sm">
       <SheetSection band="none">
-        <nav className="relative flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs
-          after:pointer-events-none after:absolute after:right-0 after:top-0 after:h-full after:w-8
-          after:bg-gradient-to-l after:from-background after:to-transparent after:content-['']
-          sm:after:hidden">
+        <nav className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
