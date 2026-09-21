@@ -2,6 +2,8 @@ import React, { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { parseSlugFromUrl } from "@/lib/import-utils";
+import { fetchGfgProblemMetadata } from "@/lib/gfg-metadata";
+import { Platform, Difficulty } from "@prisma/client";
 import {
   RoadmapClient,
   RoadmapPatternData,
@@ -9,6 +11,17 @@ import {
 } from "@/components/roadmap/roadmap-client";
 import { PageSkeleton } from "@/components/ui/loader";
 import { SheetSection } from "@/components/ui/sheet-section";
+
+function platformFromUrl(url: string): Platform | null {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.includes("leetcode.com")) return Platform.LEETCODE;
+    if (host.includes("geeksforgeeks.org")) return Platform.GFG;
+  } catch {
+    // ignore malformed URLs
+  }
+  return null;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -108,7 +121,7 @@ async function RoadmapData() {
         items: {
           orderBy: { order: "asc" },
           include: {
-            canonicalProblem: { select: { number: true } },
+            canonicalProblem: { select: { number: true, difficulty: true } },
           },
         },
       },
@@ -184,6 +197,66 @@ async function RoadmapData() {
     return undefined;
   };
 
+  // Backfill difficulty for items that have no canonical Problem match yet,
+  // using the first (primary) link only.
+  const allItems = patterns.flatMap((section) => section.items);
+  const unresolved = allItems
+    .filter((item) => !item.canonicalProblem?.difficulty && item.primaryUrl)
+    .map((item) => ({
+      item,
+      platform: platformFromUrl(item.primaryUrl!),
+      slug: parseSlugFromUrl(item.primaryUrl!),
+    }))
+    .filter((x): x is { item: (typeof allItems)[0]; platform: Platform; slug: string } =>
+      Boolean(x.platform && x.slug)
+    );
+
+  const difficultyByItemId = new Map<string, Difficulty>();
+
+  if (unresolved.length > 0) {
+    const slugsByPlatform = new Map<Platform, Set<string>>();
+    unresolved.forEach(({ platform, slug }) => {
+      if (!slugsByPlatform.has(platform)) slugsByPlatform.set(platform, new Set());
+      slugsByPlatform.get(platform)!.add(slug);
+    });
+
+    const matchedProblems = await prisma.problem.findMany({
+      where: {
+        OR: Array.from(slugsByPlatform.entries()).map(([platform, slugs]) => ({
+          platform,
+          slug: { in: Array.from(slugs) },
+        })),
+      },
+      select: { platform: true, slug: true, difficulty: true },
+    });
+
+    const problemDifficultyByKey = new Map<string, Difficulty>();
+    matchedProblems.forEach((p) => {
+      if (p.difficulty) problemDifficultyByKey.set(`${p.platform}:${p.slug}`, p.difficulty);
+    });
+
+    const stillUnresolved: typeof unresolved = [];
+    unresolved.forEach(({ item, platform, slug }) => {
+      const found = problemDifficultyByKey.get(`${platform}:${slug}`);
+      if (found) {
+        difficultyByItemId.set(item.id, found);
+      } else {
+        stillUnresolved.push({ item, platform, slug });
+      }
+    });
+
+    // Live lookup for GFG links with no synced Problem row (no bulk GFG sync exists).
+    const gfgUnresolved = stillUnresolved.filter((x) => x.platform === Platform.GFG);
+    await Promise.all(
+      gfgUnresolved.map(async ({ item, slug }) => {
+        const meta = await fetchGfgProblemMetadata(slug);
+        if (meta?.difficulty) {
+          difficultyByItemId.set(item.id, meta.difficulty as Difficulty);
+        }
+      })
+    );
+  }
+
   const initialPatterns: RoadmapPatternData[] = patterns.map((section) => {
     const items: RoadmapItemData[] = section.items.map((item) => {
       const entry = checkItemSolved(item);
@@ -197,6 +270,7 @@ async function RoadmapData() {
         additionalUrls: item.additionalUrls,
         canonicalProblemId: item.canonicalProblemId,
         canonicalProblemNumber: item.canonicalProblem?.number,
+        difficulty: item.canonicalProblem?.difficulty ?? difficultyByItemId.get(item.id) ?? null,
         isSolved,
         entryId: entry?.id,
         solveStatus: entry?.status,

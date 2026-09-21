@@ -1,7 +1,8 @@
 "use client";
 import React from 'react';
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   ExternalLink,
   CheckCircle2,
@@ -11,7 +12,9 @@ import {
   ChevronRight,
   Search,
   ListCollapse,
+  Link2,
 } from "lucide-react";
+import { SiLeetcode, SiGeeksforgeeks } from "react-icons/si";
 import { cn, safeHref } from "@/lib/utils";
 import { toggleRoadmapItemSolve } from "@/app/actions/entry-actions";
 import { SheetSection } from "@/components/ui/sheet-section";
@@ -24,6 +27,7 @@ export interface RoadmapItemData {
   additionalUrls: string[];
   canonicalProblemId?: string | null;
   canonicalProblemNumber?: number | null;
+  difficulty?: string | null;
   isSolved: boolean;
   entryId?: string | null;
   solveStatus?: string | null;
@@ -94,6 +98,101 @@ export function formatPatternName(raw: string): string {
 }
 
 /**
+ * Identifies the platform (LeetCode / GFG) a problem link points to, from its hostname.
+ */
+function getLinkPlatform(url: string): "LEETCODE" | "GFG" | null {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.includes("leetcode.com")) return "LEETCODE";
+    if (host.includes("geeksforgeeks.org")) return "GFG";
+  } catch {
+    // ignore malformed URLs
+  }
+  return null;
+}
+
+/**
+ * Renders the target platform's actual brand logo for a problem link.
+ */
+function PlatformMark({ platform }: { platform: "LEETCODE" | "GFG" }) {
+  if (platform === "LEETCODE") {
+    return <SiLeetcode className="h-3 w-3 shrink-0" style={{ color: "#FFA116" }} />;
+  }
+  return <SiGeeksforgeeks className="h-3 w-3 shrink-0" style={{ color: "#2F8D46" }} />;
+}
+
+interface RoadmapLink {
+  href: string;
+  platform: "LEETCODE" | "GFG" | null;
+  label: string;
+}
+
+/**
+ * Trigger + small popover for picking between multiple links on a roadmap item.
+ */
+function LinkPicker({ links }: { links: RoadmapLink[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="pressable inline-flex h-4 w-4 items-center justify-center text-muted-foreground transition-colors hover:text-orange-600"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Links"
+      >
+        <Link2 className="h-3 w-3" />
+      </button>
+
+      {open && (
+        <div
+          className="ui-popover absolute right-0 top-full z-50 mt-1 w-36 border border-border bg-background p-1 text-xs shadow-md"
+          role="menu"
+        >
+          {links.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-1.5 px-2 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              role="menuitem"
+            >
+              {link.platform ? (
+                <PlatformMark platform={link.platform} />
+              ) : (
+                <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+              )}
+              <span className="truncate">{link.label}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Extracts difficulty suffix from problem title if present
  * e.g. "Pair with Target Sum (easy)" -> title: "Pair with Target Sum", difficulty: "EASY"
  * e.g. "MInimum Size Substring (HARD)" -> title: "Minimum Size Substring", difficulty: "HARD"
@@ -124,6 +223,7 @@ export function parseRoadmapItemTitle(rawTitle: string): {
 }
 
 export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPatternData[] }) {
+  const router = useRouter();
   const [patterns, setPatterns] = useState<RoadmapPatternData[]>(initialPatterns);
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
@@ -401,16 +501,27 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
                   <div className="divide-y divide-border border-t border-border">
                     {section.items.map((item, idx) => {
                       const parsed = parseRoadmapItemTitle(item.title);
+                      const difficulty = item.difficulty ?? parsed.difficulty;
+
+                      const links: RoadmapLink[] = [
+                        item.primaryUrl && safeHref(item.primaryUrl)
+                          ? { href: safeHref(item.primaryUrl)!, platform: getLinkPlatform(item.primaryUrl), label: "Link 1" }
+                          : null,
+                        ...item.additionalUrls.map((url, uIdx) => {
+                          const href = safeHref(url);
+                          return href ? { href, platform: getLinkPlatform(url), label: `Link ${uIdx + 2}` } : null;
+                        }),
+                      ].filter((l): l is RoadmapLink => l !== null);
 
                       return (
                         <div
                           key={item.id}
                           className={cn(
-                            "flex items-center justify-between px-4 py-2.5 text-xs transition-colors hover:bg-muted/40",
+                            "flex flex-nowrap items-center gap-2 px-4 py-2.5 text-xs transition-colors hover:bg-muted/40",
                             item.isSolved && "bg-muted/20"
                           )}
                         >
-                          <div className="flex min-w-0 items-center gap-3 pr-4">
+                          <div className="flex min-w-0 flex-1 items-center gap-2.5">
                             <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
                               {idx + 1}.
                             </span>
@@ -429,77 +540,70 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
                             </button>
 
                             <span
-                              onClick={() => handleToggleSolve(section.id, item)}
+                              onClick={() =>
+                                item.isSolved && item.entryId
+                                  ? router.push(`/problems/${item.entryId}`)
+                                  : handleToggleSolve(section.id, item)
+                              }
                               className={cn(
-                                "cursor-pointer select-none truncate font-medium",
+                                "min-w-0 max-w-[42vw] flex-1 cursor-pointer select-none truncate font-medium sm:max-w-none",
                                 item.isSolved
-                                  ? "text-muted-foreground line-through opacity-75"
+                                  ? "text-muted-foreground line-through opacity-75 hover:text-orange-600"
                                   : "text-foreground hover:text-orange-600"
                               )}
                             >
                               {parsed.title}
                             </span>
+                          </div>
 
-                            {item.canonicalProblemNumber && (
-                              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                                #{item.canonicalProblemNumber}
-                              </span>
-                            )}
+                          <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {item.canonicalProblemNumber ? `#${item.canonicalProblemNumber}` : ""}
+                          </span>
 
-                            {parsed.difficulty && (
+                          <div className="flex w-4 shrink-0 items-center justify-center">
+                            {links.length === 1 ? (
+                              <a
+                                href={links[0].href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={
+                                  links[0].platform === "LEETCODE"
+                                    ? "LeetCode"
+                                    : links[0].platform === "GFG"
+                                      ? "GeeksforGeeks"
+                                      : "Link"
+                                }
+                                className="inline-flex items-center text-orange-600 transition-colors hover:text-orange-700"
+                              >
+                                {links[0].platform ? (
+                                  <PlatformMark platform={links[0].platform} />
+                                ) : (
+                                  <ExternalLink className="h-3 w-3 opacity-60" />
+                                )}
+                              </a>
+                            ) : links.length > 1 ? (
+                              <LinkPicker links={links} />
+                            ) : null}
+                          </div>
+
+                          <span className="w-12 shrink-0 text-center">
+                            {difficulty && (
                               <span
                                 className={cn(
-                                  "shrink-0 border px-1.5 py-0.5 text-[10px] font-medium",
-                                  parsed.difficulty === "EASY" && "border-easy/35 text-easy",
-                                  parsed.difficulty === "MEDIUM" && "border-medium/35 text-medium",
-                                  parsed.difficulty === "HARD" && "border-hard/35 text-hard"
+                                  "inline-block w-12 border px-1.5 py-0.5 text-center text-[10px] font-medium",
+                                  difficulty === "EASY" && "border-easy/50 bg-easy/20 text-easy",
+                                  difficulty === "MEDIUM" && "border-medium/50 bg-medium/20 text-medium",
+                                  difficulty === "HARD" && "border-hard/50 bg-hard/20 text-hard"
                                 )}
                               >
-                                {parsed.difficulty === "EASY"
+                                {difficulty === "EASY"
                                   ? "Easy"
-                                  : parsed.difficulty === "MEDIUM"
+                                  : difficulty === "MEDIUM"
                                     ? "Med"
                                     : "Hard"}
                               </span>
                             )}
-
-                            {item.isSolved && (
-                              <span className="shrink-0 border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                {item.solveStatus === "SOLVED_UNAIDED" ? "Unaided" : "Solved"}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex shrink-0 items-center gap-1.5">
-                            {safeHref(item.primaryUrl) && (
-                              <a
-                                href={safeHref(item.primaryUrl)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-medium text-orange-600 transition-colors hover:text-orange-700"
-                              >
-                                <span>Link 1</span>
-                                <ExternalLink className="h-2.5 w-2.5 opacity-60" />
-                              </a>
-                            )}
-
-                            {item.additionalUrls.map((url, uIdx) => {
-                              const href = safeHref(url);
-                              if (!href) return null;
-                              return (
-                                <a
-                                  key={url}
-                                  href={href}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-orange-600 transition-colors hover:text-orange-700"
-                                >
-                                  <span>Link {uIdx + 2}</span>
-                                  <ExternalLink className="h-2.5 w-2.5 opacity-60" />
-                                </a>
-                              );
-                            })}
-                          </div>
+                          </span>
                         </div>
                       );
                     })}
