@@ -220,44 +220,48 @@ export default async function HomePage() {
           </div>
         </SheetSection>
 
-        {/* ── Pattern mastery preview ── */}
+        {/* ── Practice preview ── */}
         <SheetSection innerClassName="p-6 sm:p-12" band="neutral">
           <div className="mx-auto max-w-3xl space-y-8">
             <div className="space-y-3">
-              <h2 className="text-xl font-medium">See where you&apos;re strong and where you&apos;re not</h2>
+              <h2 className="text-xl font-medium">Targeted practice by pattern</h2>
               <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
-                Every problem maps to a pattern family. Hash-It tracks recall strength per pattern
-                so you know exactly where to focus.
+                Pick a pattern, get an easy&ndash;medium&ndash;hard set of problems you
+                haven&apos;t solved yet. Shuffle until you find ones that challenge you, then
+                log your attempt.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-3 lg:grid-cols-5">
-              {[
-                { name: "Two Pointers", pct: 94, level: 4 },
-                { name: "Sliding Window", pct: 87, level: 3 },
-                { name: "Binary Search", pct: 81, level: 3 },
-                { name: "BFS / DFS", pct: 62, level: 2 },
-                { name: "Backtracking", pct: 45, level: 1 },
-                { name: "Dynamic Prog.", pct: 38, level: 1 },
-                { name: "Greedy", pct: 71, level: 2 },
-                { name: "Stack / Queue", pct: 90, level: 4 },
-                { name: "Linked List", pct: 85, level: 3 },
-                { name: "Trie", pct: null, level: 0 },
-              ].map((p) => (
-                <div
-                  key={p.name}
-                  className={`flex flex-col justify-between bg-background p-3 dither-mastery-${p.level}`}
-                >
-                  <span className="text-[11px] font-medium text-foreground">{p.name}</span>
-                  <span className="mt-2 text-xs tabular-nums text-muted-foreground">
-                    {p.pct != null ? `${p.pct}%` : "New"}
-                  </span>
-                </div>
-              ))}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-4">
+                {[
+                  { name: "Two Pointers", count: 18 },
+                  { name: "Sliding Window", count: 12 },
+                  { name: "Binary Search", count: 24 },
+                  { name: "Dynamic Prog.", count: 42 },
+                  { name: "BFS / DFS", count: 31 },
+                  { name: "Backtracking", count: 15 },
+                  { name: "Greedy", count: 22 },
+                  { name: "Stack / Queue", count: 19 },
+                ].map((p, i) => (
+                  <div
+                    key={p.name}
+                    className={`flex flex-col justify-between bg-background p-3 text-left${i === 0 ? " ring-1 ring-inset ring-orange-500" : ""}`}
+                  >
+                    <span className="text-[10px] text-muted-foreground">Pattern</span>
+                    <span className="text-[11px] font-medium text-foreground">{p.name}</span>
+                    <span className="mt-2 text-xs tabular-nums text-muted-foreground">
+                      {p.count} problems
+                    </span>
+                  </div>
+                ))}
+              </div>
+
             </div>
+
             <FigureCaption
               fig={4}
-              title="Pattern mastery grid. Dither density encodes recall strength."
+              title="Pick a pattern, get a graded problem set. Shuffle for fresh picks."
               className="text-center"
             />
           </div>

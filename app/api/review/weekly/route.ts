@@ -31,6 +31,11 @@ export async function GET() {
           select: { at: true, correct: true },
         },
         problems: {
+          where: {
+            problem: {
+              entries: { some: { userId: user.id } },
+            },
+          },
           select: {
             problem: {
               select: {
