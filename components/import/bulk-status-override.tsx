@@ -8,11 +8,36 @@ import type { DryRunRow } from "@/app/actions/import-actions";
 
 export type OverrideMode = "CSV" | "ALL_COLD" | "ALL_HELP" | "PER_ROW";
 
-const MODES: Array<{ id: OverrideMode; label: string; hint: string }> = [
-  { id: "CSV", label: "Keep from CSV", hint: "Blank = cold (default)" },
-  { id: "ALL_COLD", label: "All Solved (cold)", hint: "Mark every row as unaided" },
-  { id: "ALL_HELP", label: "All Solved with help", hint: "Mark every row as with-help" },
-  { id: "PER_ROW", label: "Classify per row", hint: "Click cold / help / failed on each" },
+const MODES: Array<{
+  id: OverrideMode;
+  label: string;
+  hint: string;
+  effect: string;
+}> = [
+  {
+    id: "CSV",
+    label: "Keep from CSV",
+    hint: "Uses the Status column, if any.",
+    effect: "Rows with a blank Status behave like cold — long intervals, late in the spread.",
+  },
+  {
+    id: "ALL_COLD",
+    label: "All Solved (cold)",
+    hint: "Mark every row as unaided.",
+    effect: "Starts on the long end of the curve. Rows land later in the 60-day spread.",
+  },
+  {
+    id: "ALL_HELP",
+    label: "All Solved with help",
+    hint: "Mark every row as needing a hint.",
+    effect: "Starts on the shorter end of the curve. Rows surface sooner in the spread.",
+  },
+  {
+    id: "PER_ROW",
+    label: "Classify per row",
+    hint: "Click cold / help / failed on each.",
+    effect: "Each row gets its own starting interval. Failed rows land first, then help, then cold.",
+  },
 ];
 
 export interface BulkStatusOverrideProps {
@@ -53,14 +78,25 @@ export function BulkStatusOverride({
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div className="border border-border bg-muted/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
+        <span className="block font-medium text-foreground">
+          How this shapes your queue
+        </span>
+        Every import is spread over the next ~60 days so the queue doesn&apos;t flood. Within that
+        spread, <span className="font-mono">failed</span> rows come up first,{" "}
+        <span className="font-mono">with-help</span> next, and <span className="font-mono">cold</span>{" "}
+        rows sit at the back with the longest starting interval. Your choice below is the seed rating
+        the scheduler uses for the first review.
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
         {MODES.map((m) => (
           <button
             key={m.id}
             type="button"
             onClick={() => onModeChange(m.id)}
             className={cn(
-              "flex flex-col items-start gap-1 border p-3 text-left text-xs transition-colors",
+              "flex flex-col items-start gap-1.5 border p-3 text-left text-xs transition-colors",
               mode === m.id
                 ? "border-orange-500 bg-orange-500/5 text-foreground"
                 : "border-border bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground"
@@ -69,6 +105,14 @@ export function BulkStatusOverride({
           >
             <span className="font-medium text-foreground">{m.label}</span>
             <span className="type-caption">{m.hint}</span>
+            <span
+              className={cn(
+                "mt-1 border-t border-border/70 pt-1.5 text-[10.5px] leading-snug",
+                mode === m.id ? "text-foreground/80" : "text-muted-foreground/80"
+              )}
+            >
+              {m.effect}
+            </span>
           </button>
         ))}
       </div>

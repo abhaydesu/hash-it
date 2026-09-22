@@ -63,7 +63,7 @@ export function LeetcodeImportGuide() {
               n={2}
               icon={<Bot className="h-3.5 w-3.5" />}
               title="Run the prompt"
-              body="Open Claude / ChatGPT / Gemini, paste the prompt below, attach your screenshots. The reply is plain CSV text — copy it, or save it as a .csv file."
+              body="Open Claude / ChatGPT / Gemini, disable web search / grounding / citations, paste the prompt, attach your screenshots. The reply is plain CSV text — copy it, or save it as a .csv file."
             />
             <Step
               n={3}

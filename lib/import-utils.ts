@@ -64,6 +64,58 @@ export function mapRawRevisit(raw?: string): boolean {
 }
 
 /**
+ * Strip LLM citation / grounding artefacts from raw CSV text before it hits Papa.parse.
+ *
+ * Some assistants (notably Gemini with search grounding enabled) wrap URLs in
+ * markdown link syntax like `[https://leetcode.com/…/,BFS,Traverse](https://www.google.com/search?q=…&utm_source=gemini)`.
+ * Those wrappers contain unquoted commas that shatter column boundaries. We unwrap
+ * `[X](Y)` to just `X`, which is the label the model actually intended in the cell,
+ * and drop trailing citation footnotes like `[1]` or `[source]` that Gemini also emits.
+ *
+ * Also strips code fences the LLM may wrap the CSV in, and Unicode BOM.
+ *
+ * Returns `{ cleaned, artefactCount }` — callers can surface `artefactCount > 0` as a
+ * "your LLM injected citations, be careful" warning.
+ */
+export function sanitizeCsvText(raw: string): { cleaned: string; artefactCount: number } {
+  if (typeof raw !== "string" || raw.length === 0) return { cleaned: raw ?? "", artefactCount: 0 };
+
+  let text = raw;
+  let artefactCount = 0;
+
+  // Drop UTF-8 BOM.
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+
+  // Strip surrounding triple-backtick code fences (```csv ... ``` or ``` ... ```).
+  text = text.replace(/^\s*```(?:csv|CSV)?\s*\n([\s\S]*?)\n\s*```\s*$/m, (_m, inner) => {
+    artefactCount++;
+    return inner;
+  });
+
+  // Unwrap markdown links `[LABEL](URL)` → `LABEL`. Non-greedy label; URL must be http/https.
+  // We only match links whose URL starts with a scheme so we don't eat legit `[foo](bar)` text
+  // that isn't actually a link.
+  text = text.replace(/\[([^\]\n]{1,2000}?)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label) => {
+    artefactCount++;
+    return label;
+  });
+
+  // Strip common citation footnotes: [1], [12], [source], [ref], [note]
+  text = text.replace(/\[(?:\d{1,3}|source|ref|note|citation)\]/gi, () => {
+    artefactCount++;
+    return "";
+  });
+
+  // Strip Gemini's own `utm_source=gemini` trailing query fragment if it survived after unwrap.
+  text = text.replace(/[?&]utm_source=gemini(?:&|\b)/g, () => {
+    artefactCount++;
+    return "";
+  });
+
+  return { cleaned: text, artefactCount };
+}
+
+/**
  * Parse a solved-date cell. Accepts ISO-ish YYYY-MM-DD (what the LC prompt asks for)
  * plus a few forgiving variants (MM/DD/YYYY, DD/MM/YYYY when unambiguous, full ISO).
  * Rejects future dates and dates before LeetCode existed (2015-01-01), and returns

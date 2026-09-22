@@ -14,6 +14,7 @@ import {
   mapRawStatus,
   mapRawRevisit,
   parseSolvedDate,
+  sanitizeCsvText,
   mergeTwoRows,
 } from "@/lib/import-utils";
 
@@ -80,7 +81,9 @@ export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
     throw new Error("CSV is too large to import.");
   }
 
-  const parsed = Papa.parse<Record<string, string>>(csvText, {
+  const { cleaned: cleanedCsv } = sanitizeCsvText(csvText);
+
+  const parsed = Papa.parse<Record<string, string>>(cleanedCsv, {
     header: true,
     skipEmptyLines: "greedy",
     dynamicTyping: false,
@@ -134,7 +137,9 @@ export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
     const rawRevisit = (row["Revisit?"] || row["Revisit"] || "").trim() || undefined;
     const rawSource = (row["Source"] || "").trim() || undefined;
     const rawSolvedDate =
-      (row["Solved Date"] || row["Solved date"] || row["solved_date"] || "").trim() || undefined;
+      (row["Solved Date"] || row["Solved date"] || row["solved_date"] || "")
+        .trim()
+        .slice(0, 120) || undefined;
 
     if (!rawName && !rawLink) continue;
 
@@ -302,7 +307,7 @@ const CommitRowSchema = z.object({
   rawStatus: z.string().max(80).optional(),
   rawRevisit: z.string().max(20).optional(),
   rawSource: z.string().max(200).optional(),
-  rawSolvedDate: z.string().max(40).optional(),
+  rawSolvedDate: z.string().max(120).optional(),
   matchedProblemId: z.string().max(64).optional(),
   parsedStatus: z.nativeEnum(SolveStatus),
   parsedRevisit: z.boolean(),

@@ -1,127 +1,182 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import ImportPage from "@/app/import/page";
 
-// Mock server actions
 vi.mock("@/app/actions/import-actions", () => ({
   dryRunImportCSV: vi.fn(),
   commitImportBatch: vi.fn(),
   mergeTwoRows: vi.fn((a, b) => ({ ...a, rawIdea: `${a.rawIdea}\n${b.rawIdea}` })),
 }));
 
-describe("ImportPage", () => {
-  const originalFileReader = global.FileReader;
+// Stub clipboard API for the PromptCopyPanel — jsdom doesn't ship one.
+Object.assign(navigator, {
+  clipboard: {
+    writeText: vi.fn().mockResolvedValue(undefined),
+  },
+});
 
+const sampleRow = {
+  rowIndex: 1,
+  rawName: "1. Two Sum",
+  rawLink: "https://leetcode.com/problems/two-sum/",
+  rawTopic: undefined,
+  rawPattern: "HashMap",
+  rawIdea: "Use hash for complement",
+  rawMistake: undefined,
+  rawSolvedDate: "2025-08-27",
+  matchedProblemId: "prob-1",
+  matchedTitle: "Two Sum",
+  matchedNumber: 1,
+  matchedPlatform: "LEETCODE",
+  matchMethod: "NUMBER",
+  parsedStatus: "SOLVED_UNAIDED",
+  parsedRevisit: false,
+  isDuplicateInCSV: false,
+  alreadyExistsInDB: false,
+} as const;
+
+async function advanceToLoadPhase() {
+  // Brief → Compose
+  fireEvent.click(screen.getByRole("button", { name: /^start/i }));
+  // Compose → Load
+  fireEvent.click(await screen.findByRole("button", { name: /i have the csv/i }));
+}
+
+describe("ImportPage wizard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    class MockFileReader {
-      onload: any = null;
-      readAsText(file: any) {
-        if (this.onload) {
-          this.onload({ target: { result: "mock csv data" } });
-        }
-      }
-    }
-    global.FileReader = MockFileReader as any;
   });
 
-  afterEach(() => {
-    global.FileReader = originalFileReader;
-  });
-
-  it("renders file selection initially", () => {
+  it("opens on the brief phase with the intro headline", () => {
     render(<ImportPage />);
-    expect(screen.getByText("Choose .csv file...")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: /bring your leetcode history in/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^start/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /already have a csv/i })
+    ).toBeInTheDocument();
   });
 
-  it("runs dry run and displays row preview", async () => {
+  it("routes through the wizard: brief → compose → load and disables Verify until CSV is present", async () => {
+    render(<ImportPage />);
+    await advanceToLoadPhase();
+
+    // Paste mode is the default input tab on the load phase.
+    const verifyBtn = await screen.findByRole("button", { name: /verify import/i });
+    expect(verifyBtn).toBeDisabled();
+
+    // Typing CSV text into the paste box enables it.
+    const paste = screen.getByPlaceholderText(/paste the csv text here/i) as HTMLTextAreaElement;
+    fireEvent.change(paste, {
+      target: {
+        value: "Problem Name,Problem Link\n\"1. Two Sum\",https://leetcode.com/problems/two-sum/",
+      },
+    });
+    expect(verifyBtn).not.toBeDisabled();
+  });
+
+  it("warns when pasted CSV contains Gemini-style grounding artefacts", async () => {
+    render(<ImportPage />);
+    await advanceToLoadPhase();
+    const paste = screen.getByPlaceholderText(/paste the csv text here/i) as HTMLTextAreaElement;
+
+    fireEvent.change(paste, {
+      target: {
+        value:
+          "Problem Name,Problem Link\n1. Two Sum,[https://leetcode.com/problems/two-sum/](https://www.google.com/search?q=two-sum&utm_source=gemini)",
+      },
+    });
+
+    expect(
+      await screen.findByText(/your llm injected citations or grounding/i)
+    ).toBeInTheDocument();
+  });
+
+  it("advances to review after a successful dry-run and shows user-facing tile labels", async () => {
     const { dryRunImportCSV } = await import("@/app/actions/import-actions");
     vi.mocked(dryRunImportCSV).mockResolvedValue({
-      rows: [
-        {
-          rowIndex: 1,
-          rawName: "Two Sum",
-          rawLink: "https://leetcode.com/problems/two-sum",
-          rawTopic: "Algorithms",
-          rawPattern: "Hash Map",
-          rawIdea: "Use map",
-          rawMistake: "",
-          matchedProblemId: "prob-1",
-          matchedTitle: "Two Sum",
-          matchedNumber: 1,
-          matchedPlatform: "LEETCODE",
-          matchMethod: "URL_EXACT",
-          parsedStatus: "SOLVED_UNAIDED",
-          parsedRevisit: false,
-          isDuplicateInCSV: false,
-          alreadyExistsInDB: false,
-        },
-      ],
+      totalRows: 1,
+      matchedCatalogCount: 1,
+      newProblemsCount: 0,
+      existingEntryConflictCount: 0,
+      duplicateInCSVCount: 0,
+      rows: [sampleRow as never],
       duplicateGroups: [],
-    } as any);
+    } as never);
 
     render(<ImportPage />);
+    await advanceToLoadPhase();
 
-    // Upload file
-    const file = new File(["dummy,csv,content"], "test.csv", { type: "text/csv" });
-    const input = screen.getByLabelText(/choose \.csv file\.\.\./i, { selector: "input" });
-    fireEvent.change(input, { target: { files: [file] } });
-
-    // Click dry-run button
-    const dryRunBtn = await screen.findByRole("button", { name: /run dry-run verification/i });
-    fireEvent.click(dryRunBtn);
+    const paste = screen.getByPlaceholderText(/paste the csv text here/i) as HTMLTextAreaElement;
+    fireEvent.change(paste, {
+      target: { value: "Problem Name\n\"1. Two Sum\"" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /verify import/i }));
 
     await waitFor(() => {
       expect(dryRunImportCSV).toHaveBeenCalled();
-      expect(screen.getByText("Total rows")).toBeInTheDocument();
-      expect(screen.getByText("Commit 1 problems to database")).toBeInTheDocument();
     });
+
+    // Review phase tiles use user-facing labels (no "catalog").
+    expect(await screen.findByText(/problems detected/i)).toBeInTheDocument();
+    expect(screen.getByText(/new to add/i)).toBeInTheDocument();
+    expect(screen.getByText(/already logged/i)).toBeInTheDocument();
+    expect(screen.getByText(/needs your review/i)).toBeInTheDocument();
+    expect(screen.queryByText(/matched to catalog/i)).not.toBeInTheDocument();
   });
 
-  it("handles commit import batch", async () => {
+  it("walks review → assign → confirm → commit and lands on the success screen", async () => {
     const { dryRunImportCSV, commitImportBatch } = await import("@/app/actions/import-actions");
     vi.mocked(dryRunImportCSV).mockResolvedValue({
-      rows: [
-        {
-          rowIndex: 1,
-          rawName: "Two Sum",
-          rawLink: "https://leetcode.com/problems/two-sum",
-          rawTopic: "Algorithms",
-          rawPattern: "Hash Map",
-          rawIdea: "Use map",
-          rawMistake: "",
-          matchedProblemId: "prob-1",
-          matchedTitle: "Two Sum",
-          matchedNumber: 1,
-          matchedPlatform: "LEETCODE",
-          matchMethod: "URL_EXACT",
-          parsedStatus: "SOLVED_UNAIDED",
-          parsedRevisit: false,
-          isDuplicateInCSV: false,
-          alreadyExistsInDB: false,
-        },
-      ],
+      totalRows: 1,
+      matchedCatalogCount: 1,
+      newProblemsCount: 0,
+      existingEntryConflictCount: 0,
+      duplicateInCSVCount: 0,
+      rows: [sampleRow as never],
       duplicateGroups: [],
-    } as any);
-
-    vi.mocked(commitImportBatch).mockResolvedValue({ count: 1 } as any);
+    } as never);
+    vi.mocked(commitImportBatch).mockResolvedValue({ count: 1 } as never);
 
     render(<ImportPage />);
+    await advanceToLoadPhase();
 
-    const file = new File(["dummy,csv,content"], "test.csv", { type: "text/csv" });
-    const input = screen.getByLabelText(/choose \.csv file\.\.\./i, { selector: "input" });
-    fireEvent.change(input, { target: { files: [file] } });
+    const paste = screen.getByPlaceholderText(/paste the csv text here/i) as HTMLTextAreaElement;
+    fireEvent.change(paste, { target: { value: "Problem Name\n\"1. Two Sum\"" } });
+    fireEvent.click(screen.getByRole("button", { name: /verify import/i }));
 
-    const dryRunBtn = await screen.findByRole("button", { name: /run dry-run verification/i });
-    fireEvent.click(dryRunBtn);
+    // Review → Assign
+    const reviewContinue = await screen.findByRole("button", { name: /^continue/i });
+    fireEvent.click(reviewContinue);
 
-    const commitBtn = await screen.findByRole("button", { name: /commit 1 problems to database/i });
+    // Assign phase shows the scheduler-effect explainer.
+    expect(await screen.findByText(/how this shapes your queue/i)).toBeInTheDocument();
+
+    // Assign → Confirm
+    const assignContinue = screen.getByRole("button", { name: /^continue/i });
+    fireEvent.click(assignContinue);
+
+    // Confirm → Commit
+    const commitBtn = await screen.findByRole("button", { name: /commit 1 entries/i });
     fireEvent.click(commitBtn);
 
     await waitFor(() => {
       expect(commitImportBatch).toHaveBeenCalled();
-      expect(screen.getByText("Import committed successfully")).toBeInTheDocument();
     });
+
+    // Success screen.
+    expect(await screen.findByText(/^committed\.$/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /see your problems/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /import another/i })).toBeInTheDocument();
+  });
+
+  it("Skip-to-upload shortcut on the brief page jumps straight to the load phase", async () => {
+    render(<ImportPage />);
+    fireEvent.click(screen.getByRole("button", { name: /already have a csv/i }));
+    expect(
+      await screen.findByPlaceholderText(/paste the csv text here/i)
+    ).toBeInTheDocument();
   });
 });

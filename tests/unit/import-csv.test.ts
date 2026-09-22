@@ -7,6 +7,7 @@ import {
   mapRawRevisit,
   mergeTwoRows,
   parseSolvedDate,
+  sanitizeCsvText,
   DryRunRow,
 } from "@/lib/import-utils";
 import { mapGfgDifficulty } from "@/lib/gfg-metadata";
@@ -186,5 +187,68 @@ describe("parseSolvedDate", () => {
 
   it("rejects dates before LeetCode existed", () => {
     expect(parseSolvedDate("2010-06-01", now)).toBeUndefined();
+  });
+});
+
+describe("sanitizeCsvText", () => {
+  it("returns input unchanged when there are no artefacts", () => {
+    const csv = 'Problem Name,Problem Link,Pattern,Idea,Solved Date,Source\n"1. Two Sum",https://leetcode.com/problems/two-sum/,HashMap,"Hash for complement",2026-08-27,leetcode-progress-import\n';
+    const { cleaned, artefactCount } = sanitizeCsvText(csv);
+    expect(cleaned).toBe(csv);
+    expect(artefactCount).toBe(0);
+  });
+
+  it("strips markdown link wrappers around URLs (Gemini grounding shape)", () => {
+    const row =
+      "130. Surrounded Regions,[https://leetcode.com/problems/surrounded-regions/,BFS,Traverse](https://www.google.com/search?q=https://leetcode.com/problems/surrounded-regions/,BFS,Traverse&utm_source=gemini) from boundary Os to mark connected non-surrounded regions.,2026-09-17,leetcode-progress-import";
+    const { cleaned, artefactCount } = sanitizeCsvText(row);
+    expect(artefactCount).toBeGreaterThan(0);
+    expect(cleaned).not.toContain("](https://");
+    expect(cleaned).not.toContain("utm_source=gemini");
+    // After unwrap, the row parses to 6 columns aligned with the header.
+    const parsed = Papa.parse<string[]>(cleaned, { header: false });
+    expect(parsed.data[0]).toEqual([
+      "130. Surrounded Regions",
+      "https://leetcode.com/problems/surrounded-regions/",
+      "BFS",
+      "Traverse from boundary Os to mark connected non-surrounded regions.",
+      "2026-09-17",
+      "leetcode-progress-import",
+    ]);
+  });
+
+  it("strips surrounding triple-backtick code fences", () => {
+    const csv = "```csv\nProblem Name,Problem Link\n\"1. Two Sum\",https://leetcode.com/problems/two-sum/\n```";
+    const { cleaned, artefactCount } = sanitizeCsvText(csv);
+    expect(cleaned.startsWith("Problem Name")).toBe(true);
+    expect(cleaned).not.toContain("```");
+    expect(artefactCount).toBeGreaterThan(0);
+  });
+
+  it("strips citation footnotes like [1] and [source]", () => {
+    const csv = 'Problem Name,Idea\n"1. Two Sum","Hash for complement [1][source]"';
+    const { cleaned, artefactCount } = sanitizeCsvText(csv);
+    expect(cleaned).not.toContain("[1]");
+    expect(cleaned).not.toContain("[source]");
+    expect(artefactCount).toBeGreaterThan(0);
+  });
+
+  it("leaves non-link bracketed text (e.g. `[key, val]` inside Idea) alone", () => {
+    const csv = 'Problem Name,Idea\n"98. Validate BST","Pass valid range limits [min, max] down"';
+    const { cleaned, artefactCount } = sanitizeCsvText(csv);
+    expect(cleaned).toContain("[min, max]");
+    expect(artefactCount).toBe(0);
+  });
+
+  it("strips a leading BOM", () => {
+    const csv = "﻿Problem Name\n\"1. Two Sum\"";
+    const { cleaned } = sanitizeCsvText(csv);
+    expect(cleaned.charCodeAt(0)).not.toBe(0xfeff);
+  });
+
+  it("handles empty / missing input safely", () => {
+    expect(sanitizeCsvText("").cleaned).toBe("");
+    // @ts-expect-error - guarding non-string
+    expect(sanitizeCsvText(undefined).cleaned).toBe("");
   });
 });
