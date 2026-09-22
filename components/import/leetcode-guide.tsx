@@ -135,7 +135,7 @@ export function LeetcodeImportGuide() {
                 </li>
                 <li className="flex items-start gap-2">
                   <Zap className="mt-0.5 h-3 w-3 shrink-0 text-orange-500" />
-                  <span>Due dates spread over ~60 days so the review queue doesn't flood.</span>
+                  <span>Due dates spread over ~60 days so the review queue doesn&apos;t flood.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Zap className="mt-0.5 h-3 w-3 shrink-0 text-orange-500" />
