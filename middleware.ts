@@ -9,6 +9,7 @@ const { auth } = NextAuth(authConfig);
 export const PUBLIC_PATHS = [
   "/",
   "/auth/signin",
+  "/auth/error",
   "/api/auth",
   "/api/cron",
   "/favicon.ico",

@@ -33,6 +33,7 @@ describe("middleware auth gate", () => {
     expect(PUBLIC_PATHS).toEqual([
       "/",
       "/auth/signin",
+      "/auth/error",
       "/api/auth",
       "/api/cron",
       "/favicon.ico",

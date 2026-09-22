@@ -103,8 +103,19 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
     else if (token.sub) session.user.id = token.sub;
     return session;
   },
+  async signIn() {
+    return true;
+  },
+};
+
+/**
+ * Post-sign-in profile sync. Runs as an event (not a callback) so a DB failure
+ * cannot turn into a NextAuth Configuration error and break the login flow.
+ */
+export const authEvents: NonNullable<NextAuthConfig["events"]> = {
   async signIn({ user, account, profile }) {
-    if (account?.provider === "google" && profile?.email && user?.id) {
+    if (account?.provider !== "google" || !profile?.email || !user?.id) return;
+    try {
       const picture = (profile as Record<string, unknown>).picture as string | undefined;
       await prisma.user.update({
         where: { id: user.id },
@@ -114,8 +125,9 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
           ...(picture && { image: picture }),
         },
       });
+    } catch (err) {
+      console.error("[Auth] Google profile sync failed:", err);
     }
-    return true;
   },
 };
 
@@ -127,6 +139,11 @@ const config: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
   providers: buildAuthProviders(),
   callbacks: authCallbacks,
+  events: authEvents,
+  pages: {
+    ...authConfig.pages,
+    error: "/auth/error",
+  },
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth(config);
