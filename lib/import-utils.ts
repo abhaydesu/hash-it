@@ -11,6 +11,7 @@ export interface DryRunRow {
   rawStatus?: string;
   rawRevisit?: string;
   rawSource?: string;
+  rawSolvedDate?: string;
 
   // Derived / Mapped fields
   matchedProblemId?: string;
@@ -62,6 +63,61 @@ export function mapRawRevisit(raw?: string): boolean {
   return lower === "yes" || lower === "true" || lower === "y" || lower === "1";
 }
 
+/**
+ * Parse a solved-date cell. Accepts ISO-ish YYYY-MM-DD (what the LC prompt asks for)
+ * plus a few forgiving variants (MM/DD/YYYY, DD/MM/YYYY when unambiguous, full ISO).
+ * Rejects future dates and dates before LeetCode existed (2015-01-01), and returns
+ * undefined for anything unparsable so the caller can fall back to `new Date()`.
+ */
+export function parseSolvedDate(raw?: string, now: Date = new Date()): Date | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
+  const slashMatch = !isoMatch && trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+
+  let year: number, month: number, day: number;
+  if (isoMatch) {
+    year = Number(isoMatch[1]);
+    month = Number(isoMatch[2]);
+    day = Number(isoMatch[3]);
+  } else if (slashMatch) {
+    // Ambiguous: default to MM/DD/YYYY (LC's own display), swap if month > 12.
+    let a = Number(slashMatch[1]);
+    let b = Number(slashMatch[2]);
+    year = Number(slashMatch[3]);
+    if (a > 12 && b <= 12) {
+      [a, b] = [b, a];
+    }
+    month = a;
+    day = b;
+  } else {
+    return undefined;
+  }
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return undefined;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return undefined;
+
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  // Round-trip check to reject invalid days-in-month (e.g. Feb 31).
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return undefined;
+  }
+
+  const earliest = Date.UTC(2015, 0, 1);
+  if (parsed.getTime() < earliest) return undefined;
+  // Allow up to 1 day in the future for timezone slop; reject clearly-future dates.
+  if (parsed.getTime() > now.getTime() + 24 * 60 * 60 * 1000) return undefined;
+
+  return parsed;
+}
+
 export function mergeTwoRows(rowA: DryRunRow, rowB: DryRunRow): DryRunRow {
   // Merge Ideas
   let mergedIdea: string | undefined = undefined;
@@ -109,6 +165,16 @@ export function mergeTwoRows(rowA: DryRunRow, rowB: DryRunRow): DryRunRow {
   const uniqueSources = Array.from(new Set(sources));
   const mergedSource = uniqueSources.join(", ") || undefined;
 
+  // Merge Solved Date — pick the later of the two parseable dates.
+  const dateA = parseSolvedDate(rowA.rawSolvedDate);
+  const dateB = parseSolvedDate(rowB.rawSolvedDate);
+  let mergedSolvedDate: string | undefined = rowA.rawSolvedDate || rowB.rawSolvedDate;
+  if (dateA && dateB) {
+    mergedSolvedDate = dateA.getTime() >= dateB.getTime() ? rowA.rawSolvedDate : rowB.rawSolvedDate;
+  } else if (dateB && !dateA) {
+    mergedSolvedDate = rowB.rawSolvedDate;
+  }
+
   return {
     ...rowA,
     rawPattern: mergedPattern,
@@ -116,6 +182,7 @@ export function mergeTwoRows(rowA: DryRunRow, rowB: DryRunRow): DryRunRow {
     rawIdea: mergedIdea,
     rawMistake: mergedMistake,
     rawSource: mergedSource,
+    rawSolvedDate: mergedSolvedDate,
     parsedRevisit: mergedRevisit,
     rawRevisit: mergedRevisit ? "Yes" : "No",
     parsedStatus: mergedStatus,

@@ -13,6 +13,7 @@ import {
   parseLeadingNumber,
   mapRawStatus,
   mapRawRevisit,
+  parseSolvedDate,
   mergeTwoRows,
 } from "@/lib/import-utils";
 
@@ -132,6 +133,8 @@ export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
     const rawStatus = (row["Status"] || "").trim() || undefined;
     const rawRevisit = (row["Revisit?"] || row["Revisit"] || "").trim() || undefined;
     const rawSource = (row["Source"] || "").trim() || undefined;
+    const rawSolvedDate =
+      (row["Solved Date"] || row["Solved date"] || row["solved_date"] || "").trim() || undefined;
 
     if (!rawName && !rawLink) continue;
 
@@ -194,6 +197,7 @@ export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
       rawStatus,
       rawRevisit,
       rawSource,
+      rawSolvedDate,
       matchedProblemId: matchedProblem?.id,
       matchedTitle: matchedProblem?.title || rawName,
       matchedNumber: matchedProblem?.number,
@@ -298,6 +302,7 @@ const CommitRowSchema = z.object({
   rawStatus: z.string().max(80).optional(),
   rawRevisit: z.string().max(20).optional(),
   rawSource: z.string().max(200).optional(),
+  rawSolvedDate: z.string().max(40).optional(),
   matchedProblemId: z.string().max(64).optional(),
   parsedStatus: z.nativeEnum(SolveStatus),
   parsedRevisit: z.boolean(),
@@ -451,6 +456,8 @@ export async function commitImportBatch(params: {
           continue;
         }
 
+        const solvedAt = parseSolvedDate(row.rawSolvedDate) ?? new Date();
+
         const entry = await tx.entry.create({
           data: {
             userId: user.id,
@@ -464,7 +471,7 @@ export async function commitImportBatch(params: {
             customUrl: safeLink,
             sourceList: row.rawSource || "csv-import",
             revisit: row.parsedRevisit,
-            firstSolvedAt: new Date(),
+            firstSolvedAt: solvedAt,
             importBatchId: importBatch.id,
           },
         });

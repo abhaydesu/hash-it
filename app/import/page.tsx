@@ -13,6 +13,8 @@ import {
   Maximize2,
   X,
   Wand2,
+  ClipboardPaste,
+  Upload,
 } from "lucide-react";
 import {
   dryRunImportCSV,
@@ -26,6 +28,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
+import { LeetcodeImportGuide } from "@/components/import/leetcode-guide";
+import {
+  BulkStatusOverride,
+  applyStatusOverride,
+  type OverrideMode,
+} from "@/components/import/bulk-status-override";
+import { SolveStatus } from "@prisma/client";
 
 export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -37,6 +46,10 @@ export default function ImportPage() {
   const [error, setError] = useState<string | null>(null);
   const [committedCount, setCommittedCount] = useState<number | null>(null);
   const [selectedRowForDetail, setSelectedRowForDetail] = useState<DryRunRow | null>(null);
+  const [overrideMode, setOverrideMode] = useState<OverrideMode>("CSV");
+  const [perRowStatus, setPerRowStatus] = useState<Record<number, SolveStatus>>({});
+  const [inputMode, setInputMode] = useState<"file" | "paste">("file");
+  const [pastedText, setPastedText] = useState<string>("");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -154,8 +167,9 @@ export default function ImportPage() {
     setIsProcessing(true);
     setError(null);
     try {
+      const rowsToCommit = applyStatusOverride(rows, overrideMode, perRowStatus);
       const result = await commitImportBatch({
-        rows,
+        rows: rowsToCommit,
         filename: file?.name || "import.csv",
         conflictStrategy,
       });
@@ -166,6 +180,37 @@ export default function ImportPage() {
       setIsProcessing(false);
     }
   };
+
+  const handlePerRowStatus = (rowIndex: number, status: SolveStatus) => {
+    setPerRowStatus((prev) => ({ ...prev, [rowIndex]: status }));
+  };
+
+  const MAX_PASTE_CHARS = 2_000_000;
+
+  const handlePastedChange = (value: string) => {
+    if (value.length > MAX_PASTE_CHARS) {
+      setError("Pasted CSV is too large (max 2 MB).");
+      return;
+    }
+    setPastedText(value);
+    setCsvText(value);
+    setFile(null);
+    if (error) setError(null);
+  };
+
+  const switchInputMode = (mode: "file" | "paste") => {
+    setInputMode(mode);
+    setError(null);
+    if (mode === "file") {
+      setPastedText("");
+      if (!file) setCsvText("");
+    } else {
+      setFile(null);
+      setCsvText(pastedText);
+    }
+  };
+
+  const hasInput = Boolean(csvText.trim());
 
   const matchedCatalogCount = rows.filter((r) => r.matchedProblemId).length;
   const newProblemsCount = rows.filter((r) => !r.matchedProblemId).length;
@@ -209,6 +254,10 @@ export default function ImportPage() {
                 setDuplicateGroups([]);
                 setFile(null);
                 setCsvText("");
+                setPastedText("");
+                setInputMode("file");
+                setOverrideMode("CSV");
+                setPerRowStatus({});
               }}
             >
               Import another file
@@ -217,44 +266,120 @@ export default function ImportPage() {
         </SheetSection>
       ) : (
         <>
+          <SheetSection innerClassName="py-4">
+            <LeetcodeImportGuide />
+          </SheetSection>
+
           <SheetSection innerClassName="space-y-4 py-6">
             <div className="flex items-center gap-2 type-heading text-foreground">
               <span className="flex h-5 w-5 items-center justify-center border border-border bg-muted text-[10px] tabular-nums text-muted-foreground">
                 1
               </span>
-              Select solved-problems CSV file
+              Provide the CSV — upload a file or paste the text
             </div>
 
-            <div className="flex flex-col items-center gap-4 sm:flex-row">
-              <label className="flex w-full cursor-pointer items-center justify-center gap-2 border border-dashed border-border bg-background px-5 py-3 text-xs text-foreground transition-colors hover:bg-muted/40 sm:w-auto">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span>{file ? file.name : "Choose .csv file..."}</span>
-                <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
-              </label>
-
-              {file && rows.length === 0 && (
-                <Button
-                  variant="primary"
-                  onClick={handleDryRun}
-                  disabled={isProcessing}
-                  className="w-full sm:w-auto"
-                >
-                  {isProcessing && <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                  Run dry-run verification
-                </Button>
-              )}
+            <div className="inline-flex border border-border">
+              <button
+                type="button"
+                onClick={() => switchInputMode("file")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors",
+                  inputMode === "file"
+                    ? "bg-orange-500 text-white"
+                    : "bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                )}
+                aria-pressed={inputMode === "file"}
+              >
+                <Upload className="h-3 w-3" />
+                Upload file
+              </button>
+              <button
+                type="button"
+                onClick={() => switchInputMode("paste")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 border-l border-border px-3 py-1.5 text-xs transition-colors",
+                  inputMode === "paste"
+                    ? "bg-orange-500 text-white"
+                    : "bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                )}
+                aria-pressed={inputMode === "paste"}
+              >
+                <ClipboardPaste className="h-3 w-3" />
+                Paste text
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 type-caption sm:grid-cols-3 md:grid-cols-5">
+            {inputMode === "file" ? (
+              <div className="flex flex-col items-center gap-4 sm:flex-row">
+                <label className="flex w-full cursor-pointer items-center justify-center gap-2 border border-dashed border-border bg-background px-5 py-3 text-xs text-foreground transition-colors hover:bg-muted/40 sm:w-auto">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span>{file ? file.name : "Choose .csv file..."}</span>
+                  <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+                </label>
+
+                {hasInput && rows.length === 0 && (
+                  <Button
+                    variant="primary"
+                    onClick={handleDryRun}
+                    disabled={isProcessing}
+                    className="w-full sm:w-auto"
+                  >
+                    {isProcessing && <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                    Run dry-run verification
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <textarea
+                  value={pastedText}
+                  onChange={(e) => handlePastedChange(e.target.value)}
+                  placeholder={`Paste the CSV text here.\n\nFirst line must be the header row, e.g.:\nProblem Name,Problem Link,Pattern,Idea,Solved Date,Source`}
+                  rows={10}
+                  className="w-full resize-y border border-border bg-background p-3 font-mono text-[11px] leading-relaxed text-foreground outline-none focus:border-orange-500"
+                  spellCheck={false}
+                />
+                <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+                  <div className="flex items-center gap-3 type-caption">
+                    <span>
+                      {pastedText.length.toLocaleString()} / {MAX_PASTE_CHARS.toLocaleString()} chars
+                    </span>
+                    {pastedText && (
+                      <button
+                        type="button"
+                        onClick={() => handlePastedChange("")}
+                        className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {hasInput && rows.length === 0 && (
+                    <Button
+                      variant="primary"
+                      onClick={handleDryRun}
+                      disabled={isProcessing}
+                      className="w-full sm:w-auto"
+                    >
+                      {isProcessing && <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                      Run dry-run verification
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 type-caption sm:grid-cols-3 md:grid-cols-6">
               <span>1. Problem name</span>
               <span>2. Problem link</span>
-              <span>3. Topic</span>
-              <span>4. Pattern</span>
-              <span>5. Idea</span>
-              <span>6. What I did wrong</span>
-              <span>7. Status</span>
-              <span>8. Revisit?</span>
-              <span>9. Source</span>
+              <span>3. Pattern</span>
+              <span>4. Idea</span>
+              <span>5. Solved Date</span>
+              <span>6. Source</span>
+              <span className="col-span-full text-muted-foreground/70">
+                Original sheet columns (Topic, Status, Revisit?, What I did wrong) are still read when present.
+              </span>
             </div>
           </SheetSection>
 
@@ -398,8 +523,16 @@ export default function ImportPage() {
                 </SpecGrid>
               </SheetSection>
 
-              <SheetSection innerClassName="space-y-4 py-6">
-                <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+              <SheetSection innerClassName="space-y-6 py-6">
+                <BulkStatusOverride
+                  rows={rows}
+                  mode={overrideMode}
+                  perRow={perRowStatus}
+                  onModeChange={setOverrideMode}
+                  onPerRowChange={handlePerRowStatus}
+                />
+
+                <div className="flex flex-col items-start justify-between gap-3 border-t border-border pt-6 sm:flex-row sm:items-center">
                   <div>
                     <span className="block font-semibold text-foreground">
                       Prior database conflict strategy

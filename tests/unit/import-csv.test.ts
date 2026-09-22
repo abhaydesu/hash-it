@@ -6,6 +6,7 @@ import {
   mapRawStatus,
   mapRawRevisit,
   mergeTwoRows,
+  parseSolvedDate,
   DryRunRow,
 } from "@/lib/import-utils";
 import { mapGfgDifficulty } from "@/lib/gfg-metadata";
@@ -142,5 +143,48 @@ Line 2 of intuition.","i did not store unique elements separately, was returning
 
     // Verify row is cleared of duplicate flags
     expect(merged.isDuplicateInCSV).toBe(false);
+  });
+});
+
+describe("parseSolvedDate", () => {
+  const now = new Date("2026-09-22T00:00:00Z");
+
+  it("parses ISO YYYY-MM-DD as UTC", () => {
+    const d = parseSolvedDate("2025-03-14", now);
+    expect(d?.toISOString()).toBe("2025-03-14T00:00:00.000Z");
+  });
+
+  it("parses full ISO timestamps by taking the date portion", () => {
+    const d = parseSolvedDate("2024-11-05T14:22:00Z", now);
+    expect(d?.toISOString()).toBe("2024-11-05T00:00:00.000Z");
+  });
+
+  it("accepts MM/DD/YYYY (LeetCode display default)", () => {
+    const d = parseSolvedDate("03/14/2025", now);
+    expect(d?.toISOString()).toBe("2025-03-14T00:00:00.000Z");
+  });
+
+  it("auto-swaps to DD/MM/YYYY when the first field can't be a month", () => {
+    const d = parseSolvedDate("31/12/2024", now);
+    expect(d?.toISOString()).toBe("2024-12-31T00:00:00.000Z");
+  });
+
+  it("returns undefined for empty, blank, or nonsense", () => {
+    expect(parseSolvedDate(undefined, now)).toBeUndefined();
+    expect(parseSolvedDate("", now)).toBeUndefined();
+    expect(parseSolvedDate("   ", now)).toBeUndefined();
+    expect(parseSolvedDate("last tuesday", now)).toBeUndefined();
+  });
+
+  it("rejects impossible calendar dates like Feb 31", () => {
+    expect(parseSolvedDate("2025-02-31", now)).toBeUndefined();
+  });
+
+  it("rejects clearly-future dates", () => {
+    expect(parseSolvedDate("2099-01-01", now)).toBeUndefined();
+  });
+
+  it("rejects dates before LeetCode existed", () => {
+    expect(parseSolvedDate("2010-06-01", now)).toBeUndefined();
   });
 });
