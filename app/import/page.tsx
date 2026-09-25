@@ -302,7 +302,7 @@ export default function ImportPage() {
   // Post-commit success screen bypasses the wizard entirely.
   if (committedCount != null) {
     return (
-      <div className="max-w-5xl">
+      <div>
         <SheetSection innerClassName="py-6">
           <h1 className="type-title text-foreground">Import</h1>
         </SheetSection>
@@ -330,7 +330,7 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="max-w-5xl space-y-4">
+    <div>
       <SheetSection innerClassName="py-6">
         <h1 className="type-title text-foreground">Import</h1>
         <p className="mt-1 type-caption">
@@ -399,7 +399,7 @@ export default function ImportPage() {
             >
               Already have a CSV? Skip to upload →
             </button>
-            <Button variant="primary" onClick={() => advanceTo("compose")}>
+            <Button variant="primary" className="link-arrow" onClick={() => advanceTo("compose")}>
               Start
               <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
             </Button>
@@ -910,8 +910,8 @@ export default function ImportPage() {
       )}
 
       {selectedRowForDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-2xl space-y-4 border border-border bg-background p-6 shadow-xl">
+        <div className="ui-overlay fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+          <div className="ui-modal w-full max-w-2xl space-y-4 border border-border bg-background p-5 shadow-lg">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
                 <span className="type-label">Row #{selectedRowForDetail.rowIndex}</span>
@@ -1025,7 +1025,7 @@ function PhaseNav({
           variant="primary"
           onClick={primary.onClick}
           disabled={primary.disabled}
-          className="min-w-[10rem] justify-center"
+          className="link-arrow min-w-[10rem] justify-center"
         >
           {primary.loading ? (
             <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />

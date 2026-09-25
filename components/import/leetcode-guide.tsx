@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Copy, Check, Camera, Bot, Upload, Zap } from "lucide-react";
+import { ChevronRight, Copy, Check, Camera, Bot, Upload, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildLeetcodePrompt, CSV_HEADER } from "@/lib/leetcode-import-prompt";
 import { cn } from "@/lib/utils";
@@ -43,11 +43,12 @@ export function LeetcodeImportGuide() {
             </span>
           </div>
         </div>
-        {open ? (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        )}
+        <ChevronRight
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-popover ease-out",
+            open && "rotate-90"
+          )}
+        />
       </button>
 
       {open && (
@@ -84,7 +85,7 @@ export function LeetcodeImportGuide() {
               >
                 {copied === "prompt" ? (
                   <>
-                    <Check className="mr-1.5 h-3 w-3 text-easy" />
+                    <Check className="icon-pop mr-1.5 h-3 w-3 text-easy" />
                     Copied
                   </>
                 ) : (

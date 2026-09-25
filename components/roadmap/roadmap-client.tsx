@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Circle,
   BookOpen,
-  ChevronDown,
   ChevronRight,
   Search,
   ListCollapse,
@@ -471,11 +470,12 @@ export function RoadmapClient({ initialPatterns }: { initialPatterns: RoadmapPat
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="shrink-0 text-muted-foreground">
-                      {isCollapsed ? (
-                        <ChevronRight className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
+                      <ChevronRight
+                        className={cn(
+                          "h-4 w-4 transition-transform duration-popover ease-out",
+                          !isCollapsed && "rotate-90"
+                        )}
+                      />
                     </div>
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center bg-background text-[11px] font-medium tabular-nums text-foreground">
                       {section.order}

@@ -50,6 +50,8 @@
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    /* Critically-damped spring approximation: no overshoot, long quiet tail. */
+    --ease-morph: cubic-bezier(0.22, 1, 0.36, 1);
     --duration-press: 160ms;
     --duration-tooltip: 140ms;
     --duration-popover: 180ms;
@@ -319,6 +321,11 @@
     }
   }
 
+  .sheet-inner.sheet-inner-flush {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
   .type-display {
     @apply text-4xl sm:text-5xl font-semibold tracking-[-0.04em] leading-[1.05];
   }
@@ -442,7 +449,7 @@
   .stagger-in > * {
     opacity: 1;
     transform: translateY(0);
-    animation: stagger-fade 220ms var(--ease-out) both;
+    animation: stagger-fade 220ms var(--ease-out) backwards;
   }
 
   .stagger-in > *:nth-child(1) {
@@ -456,6 +463,219 @@
   }
   .stagger-in > *:nth-child(4) {
     animation-delay: 120ms;
+  }
+  .stagger-in > *:nth-child(5) {
+    animation-delay: 160ms;
+  }
+  .stagger-in > *:nth-child(n + 6) {
+    animation-delay: 200ms;
+  }
+
+  /* Trailing arrow on text links nudges toward its destination on hover. */
+  .link-arrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .link-arrow > svg {
+    transition: transform var(--duration-press) var(--ease-out);
+  }
+  @media (hover: hover) {
+    .link-arrow:hover > svg {
+      transform: translateX(2px);
+    }
+  }
+
+  /* Confirmation icons (copied, saved, done) land with a small overshoot. */
+  .icon-pop {
+    animation: icon-pop 240ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  /* Height-collapse for items leaving a list, so siblings slide up instead of jumping. */
+  .collapsible {
+    display: grid;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition:
+      grid-template-rows 280ms var(--ease-in-out),
+      opacity 180ms ease;
+  }
+  .collapsible > * {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .collapsible[data-leaving] {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+
+  /* Rejected input: a short, damped horizontal shake. */
+  .shake {
+    animation: shake 320ms var(--ease-out);
+  }
+
+  /* Physical keycap: sits on a hard 2px skirt, drops onto it when pressed,
+     and springs back slightly slower than it went down. */
+  .keycap {
+    display: inline-flex;
+    height: 1.125rem;
+    min-width: 1.125rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--background));
+    padding: 0 0.25rem;
+    font-size: 10px;
+    line-height: 1;
+    color: hsl(var(--foreground));
+    box-shadow:
+      0 2px 0 0 hsl(var(--border)),
+      0 3px 6px -3px rgb(0 0 0 / 0.18);
+    transform: translateY(0);
+    transition:
+      transform 140ms var(--ease-out),
+      box-shadow 140ms var(--ease-out);
+  }
+  .keycap[data-pressed] {
+    transform: translateY(2px);
+    box-shadow:
+      0 0 0 0 hsl(var(--border)),
+      0 1px 2px -1px rgb(0 0 0 / 0.18);
+    transition-duration: 40ms;
+  }
+
+  /* ── Theme toggle icon (components/theme-toggle.tsx) ──
+     Static states per theme; the morph between them only plays while
+     html[data-theme-anim] is set by a click, so page loads never animate. */
+  .theme-icon {
+    transform-origin: center;
+  }
+  .theme-icon-disc,
+  .theme-icon-ray {
+    transform-box: view-box;
+    transform-origin: 12px 12px;
+  }
+  .theme-icon-disc {
+    transform: scale(0.53125); /* sun disc: r 4.25 of the moon's 8 */
+  }
+  .theme-icon-bite {
+    transform: translateY(-20px); /* parked above, clear of the sun */
+  }
+  .dark .theme-icon {
+    transform: rotate(35deg);
+  }
+  .dark .theme-icon-disc {
+    transform: scale(1);
+  }
+  .dark .theme-icon-bite {
+    transform: translateY(-6px);
+  }
+  .dark .theme-icon-ray {
+    transform: translateX(-4.5px); /* tucked under the moon */
+    opacity: 0;
+  }
+
+  html[data-theme-anim].dark .theme-icon {
+    animation: theme-icon-tilt-in 400ms var(--ease-morph) backwards;
+  }
+  html[data-theme-anim].dark .theme-icon-disc {
+    animation: theme-disc-grow 400ms var(--ease-morph) backwards;
+  }
+  html[data-theme-anim].dark .theme-icon-bite {
+    animation: theme-bite-in 400ms var(--ease-morph) backwards;
+  }
+  /* Dots retract in dial order and are gone before they reach the disc. */
+  html[data-theme-anim].dark .theme-icon-ray {
+    animation:
+      theme-ray-retract 400ms var(--ease-morph) backwards,
+      theme-ray-fade-out 120ms var(--ease-out) backwards;
+    animation-delay: calc(var(--i) * 18ms);
+  }
+
+  html[data-theme-anim]:not(.dark) .theme-icon {
+    animation: theme-icon-tilt-out 400ms var(--ease-morph) backwards;
+  }
+  html[data-theme-anim]:not(.dark) .theme-icon-disc {
+    animation: theme-disc-shrink 400ms var(--ease-morph) backwards;
+  }
+  html[data-theme-anim]:not(.dark) .theme-icon-bite {
+    animation: theme-bite-out 400ms var(--ease-morph) backwards;
+  }
+  /* Dots extend in reverse order, 60ms late, once the disc has made room. */
+  html[data-theme-anim]:not(.dark) .theme-icon-ray {
+    animation:
+      theme-ray-extend 400ms var(--ease-morph) backwards,
+      theme-ray-fade-in 180ms var(--ease-out) backwards;
+    animation-delay: calc(60ms + var(--r) * 18ms);
+  }
+}
+
+/* Theme switch: the new theme is revealed by a circle growing from the toggle
+   (clip-path animated from JS). Drop the default cross-fade so it's a clean wipe. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+@keyframes theme-icon-tilt-in {
+  from { transform: rotate(0deg); }
+}
+@keyframes theme-icon-tilt-out {
+  from { transform: rotate(35deg); }
+}
+@keyframes theme-disc-grow {
+  from { transform: scale(0.53125); }
+}
+@keyframes theme-disc-shrink {
+  from { transform: scale(1); }
+}
+@keyframes theme-bite-in {
+  from { transform: translateY(-20px); }
+}
+@keyframes theme-bite-out {
+  from { transform: translateY(-6px); }
+}
+@keyframes theme-ray-retract {
+  from { transform: translateX(0); }
+}
+@keyframes theme-ray-extend {
+  from { transform: translateX(-4.5px); }
+}
+@keyframes theme-ray-fade-out {
+  from { opacity: 1; }
+}
+@keyframes theme-ray-fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes icon-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(1px);
   }
 }
 
@@ -482,7 +702,7 @@
 
 @keyframes curve-draw {
   from {
-    stroke-dashoffset: 1800;
+    stroke-dashoffset: 1;
   }
   to {
     stroke-dashoffset: 0;
@@ -492,24 +712,28 @@
 @keyframes dot-pop {
   0% {
     opacity: 0;
-    r: 0;
+    transform: scale(0);
   }
   60% {
     opacity: 1;
-    r: 4.5;
+    transform: scale(1.5);
   }
   100% {
     opacity: 1;
-    r: 3;
+    transform: scale(1);
   }
 }
 
 .forgetting-curve-draw {
-  animation: curve-draw 2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  /* Linear so the pen moves at constant speed along the time axis;
+     duration is set inline to stay in sync with the dot delays. */
+  animation: curve-draw 2.4s linear forwards;
 }
 
 .forgetting-dot-pop {
-  animation: dot-pop 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  animation: dot-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform-box: fill-box;
+  transform-origin: center;
   opacity: 0;
 }
 
@@ -541,6 +765,35 @@
 
   .stagger-in > * {
     animation: none;
+  }
+
+  .icon-pop,
+  .shake {
+    animation: none;
+  }
+
+  .link-arrow:hover > svg,
+  .keycap[data-pressed] {
+    transform: none;
+  }
+
+  html[data-theme-anim] .theme-icon,
+  html[data-theme-anim] .theme-icon-disc,
+  html[data-theme-anim] .theme-icon-bite,
+  html[data-theme-anim] .theme-icon-ray {
+    animation: none !important;
+  }
+
+  .collapsible {
+    transition: opacity 160ms ease;
+  }
+
+  .forgetting-curve-draw,
+  .forgetting-dot-pop {
+    animation: none;
+    /* !important beats the inline pre-animation state */
+    stroke-dashoffset: 0 !important;
+    opacity: 1 !important;
   }
 
   .skeleton {

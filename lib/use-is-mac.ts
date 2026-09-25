@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
-export function useIsMac() {
-  const [isMac, setIsMac] = useState(false);
+const subscribeNever = () => () => {};
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.userAgent));
-  }, []);
-
-  return isMac;
+/**
+ * `null` on the server and during hydration — the platform is unknown there,
+ * so callers must not guess (guessing `false` flashes "Ctrl" on Macs).
+ * Resolves to a boolean before first paint on the client.
+ */
+export function useIsMac(): boolean | null {
+  return useSyncExternalStore<boolean | null>(
+    subscribeNever,
+    () => /Mac|iPhone|iPad|iPod/.test(navigator.userAgent),
+    () => null
+  );
 }

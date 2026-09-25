@@ -1,10 +1,10 @@
 "use client";
 import React from 'react';
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, AlertCircle, HelpCircle, Clock, Check } from "lucide-react";
 import { recordReviewAttempt } from "@/app/actions/entry-actions";
-import { formatDifficulty, safeHref } from "@/lib/utils";
+import { cn, formatDifficulty, safeHref } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAlertDialog } from "@/components/ui/alert-dialog";
@@ -32,6 +32,20 @@ interface ReviewCardItemProps {
 export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
   const [minutes, setMinutes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [minutesMissing, setMinutesMissing] = useState(false);
+  const [shakeCount, setShakeCount] = useState(0);
+  const minutesRef = useRef<HTMLInputElement>(null);
+
+  // Runs after commit so React's className update can't strip the class mid-shake;
+  // the reflow restarts the animation on repeat attempts.
+  useEffect(() => {
+    const input = minutesRef.current;
+    if (!shakeCount || !input) return;
+    input.classList.remove("shake");
+    void input.offsetWidth;
+    input.classList.add("shake");
+    input.focus();
+  }, [shakeCount]);
   const [result, setResult] = useState<{
     rating: string;
     nextDue: Date;
@@ -53,7 +67,9 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
     const trimmedMinutes = minutes.trim();
     const parsedMinutes = trimmedMinutes === "" ? null : Number.parseInt(trimmedMinutes, 10);
     if (status !== "ATTEMPTED_FAILED" && parsedMinutes === null) {
-      showAlert("Please enter the minutes spent before marking a problem as solved.");
+      // Point at the field instead of interrupting with a dialog.
+      setMinutesMissing(true);
+      setShakeCount((n) => n + 1);
       return;
     }
 
@@ -85,7 +101,10 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
     const diff = formatDifficulty(item.difficulty);
     return (
       <article className="idea-preview border border-border bg-background p-4 sm:p-5">
-        <div className="type-heading text-foreground">{item.title}</div>
+        <div className="flex items-center gap-2 type-heading text-foreground">
+          <Check className="icon-pop h-4 w-4 shrink-0 text-easy" />
+          {item.title}
+        </div>
         <p className="mt-2 type-caption">
           Next review in{" "}
           <span className="font-semibold text-foreground tabular-numbers">
@@ -147,17 +166,33 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
           your outcome.
         </p>
 
-        <div className="flex items-center gap-3">
-          <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <input
-            type="number"
-            min="0"
-            placeholder="Minutes taken"
-            value={minutes}
-            onChange={(e) => setMinutes(e.target.value)}
-            className="w-full max-w-xs border border-border bg-background px-3 py-1.5 text-sm tabular-numbers text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
-            disabled={isSubmitting}
-          />
+        <div>
+          <div className="flex items-center gap-3">
+            <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              ref={minutesRef}
+              type="number"
+              min="0"
+              placeholder="Minutes taken"
+              value={minutes}
+              onChange={(e) => {
+                setMinutes(e.target.value);
+                if (e.target.value.trim()) setMinutesMissing(false);
+              }}
+              onAnimationEnd={(e) => e.currentTarget.classList.remove("shake")}
+              aria-invalid={minutesMissing || undefined}
+              className={cn(
+                "w-full max-w-xs border bg-background px-3 py-1.5 text-sm tabular-numbers text-foreground placeholder:text-muted-foreground transition-[border-color,box-shadow] duration-press ease focus:outline-none focus:ring-2 focus:ring-orange-500",
+                minutesMissing ? "border-warning" : "border-border"
+              )}
+              disabled={isSubmitting}
+            />
+          </div>
+          {minutesMissing && (
+            <p className="idea-preview mt-1.5 pl-7 text-xs text-warning">
+              Enter minutes spent to mark as solved.
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">

@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { MonthlyMockNavControls } from "@/components/monthly-mock-nav";
 import { useIsMac } from "@/lib/use-is-mac";
+import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
 
 interface NavbarProps {
   user?: {
@@ -85,6 +86,7 @@ export function Navbar({ user, userMenu }: NavbarProps) {
   const pathname = usePathname();
   const isMarketingPage = pathname === "/" || pathname === "/auth/signin";
   const isMac = useIsMac();
+  const [logPressed, setLogPressed] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-sm">
@@ -117,14 +119,18 @@ export function Navbar({ user, userMenu }: NavbarProps) {
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("open-command-bar"));
                   }}
+                  onPointerDown={(e) => {
+                    if (e.button === 0) setLogPressed(true);
+                  }}
+                  onPointerUp={() => setLogPressed(false)}
+                  onPointerLeave={() => setLogPressed(false)}
+                  aria-keyshortcuts={isMac === null ? undefined : isMac ? "Meta+K" : "Control+K"}
                   className="pressable hidden h-8 items-center justify-between gap-2 border border-border bg-background px-2 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:flex"
                 >
                   <span>
                     <span className="font-medium">Log problem</span>
                   </span>
-                  <kbd className="border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
-                    {isMac ? <span className="flex items-center gap-0.5"><span className="text-xs">⌘</span> K</span> : "Ctrl+K"}
-                  </kbd>
+                  <ShortcutKeycaps pressed={logPressed} />
                 </button>
               </>
             )}

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { AlertCircle } from "lucide-react";
+import { SheetSection } from "@/components/ui/sheet-section";
 
 export default function Error({
   error,
@@ -15,11 +16,11 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex h-[50vh] w-full flex-col items-center justify-center gap-4 text-center">
+    <SheetSection innerClassName="flex min-h-[50vh] flex-col items-center justify-center gap-4 py-16 text-center" last>
       <div className="flex flex-col items-center gap-2">
-        <AlertCircle className="h-10 w-10 text-red-500" />
-        <h2 className="text-xl font-bold tracking-tight">Something went wrong</h2>
-        <p className="max-w-md text-sm text-muted-foreground">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <h2 className="type-heading text-foreground">Something went wrong</h2>
+        <p className="max-w-md type-body text-muted-foreground">
           An unexpected error occurred while rendering this page.
         </p>
       </div>
@@ -29,6 +30,6 @@ export default function Error({
       >
         Try again
       </button>
-    </div>
+    </SheetSection>
   );
 }

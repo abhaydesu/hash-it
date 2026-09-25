@@ -20,6 +20,8 @@ export {
 } from "@/lib/auth-guards";
 export type { AuthEnv } from "@/lib/auth-guards";
 
+export const DEV_USER = { email: "jake@hashit.local", name: "Jake Peralta" } as const;
+
 /** Build providers for the given env (testable without NextAuth init). */
 export function buildAuthProviders(env: AuthEnv = process.env): NextAuthConfig["providers"] {
   const providers: NextAuthConfig["providers"] = [];
@@ -37,20 +39,11 @@ export function buildAuthProviders(env: AuthEnv = process.env): NextAuthConfig["
     providers.push(
       Credentials({
         name: "Local Dev",
-        credentials: {
-          email: { label: "Email", type: "email" },
-          name: { label: "Name", type: "text" },
-          password: { label: "Password", type: "password" },
-        },
-        async authorize(credentials) {
-          const emailRaw = String(credentials?.email ?? "dev-user-local@example.com").trim().toLowerCase();
-          const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)
-            ? emailRaw.slice(0, 254)
-            : "dev-user-local@example.com";
-          const name =
-            String(credentials?.name ?? email.split("@")[0] ?? "Local Dev").trim().slice(0, 80) ||
-            "Local Dev";
-          const user = await findOrCreateLocalUser(email, name);
+        credentials: {},
+        // Always the one dev test user. Its email is on a non-routable domain so
+        // it can never collide with (and log into) a real Google account.
+        async authorize() {
+          const user = await findOrCreateLocalUser(DEV_USER.email, DEV_USER.name);
           return {
             id: user.id,
             name: user.name,

@@ -46,7 +46,7 @@ export function WizardStepper({
               disabled={!isReachable || !onJump}
               onClick={() => isReachable && onJump?.(step.id)}
               className={cn(
-                "group flex w-full flex-col items-start gap-1 px-3 py-2.5 text-left transition-colors",
+                "group flex w-full flex-col items-center gap-1 px-2 py-2.5 text-left transition-colors sm:items-start sm:px-3",
                 isCurrent && "bg-orange-500/10",
                 !isCurrent && isReachable && "hover:bg-muted/40",
                 !isReachable && "cursor-not-allowed opacity-50"
@@ -62,11 +62,11 @@ export function WizardStepper({
                     !isCurrent && !isCompleted && "border-border bg-muted text-muted-foreground"
                   )}
                 >
-                  {isCompleted ? <Check className="h-2.5 w-2.5" /> : idx + 1}
+                  {isCompleted ? <Check className="icon-pop h-2.5 w-2.5" /> : idx + 1}
                 </span>
                 <span
                   className={cn(
-                    "type-label",
+                    "type-label hidden sm:inline",
                     isCurrent ? "text-foreground" : "text-muted-foreground"
                   )}
                 >

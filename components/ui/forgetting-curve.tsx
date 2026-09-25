@@ -2,9 +2,32 @@
 
 import React, { useEffect, useRef, useState } from "react";
 
+const DRAW_SECONDS = 2.4;
+const REVIEW_XS = [64, 84, 126, 202, 340];
+
 export function ForgettingCurveGraph() {
   const ref = useRef<SVGSVGElement>(null);
+  const pathRef = useRef<SVGPathElement>(null);
   const [visible, setVisible] = useState(false);
+  const [dotDelays, setDotDelays] = useState<number[]>([]);
+
+  // Time each dot to the moment the line reaches its review peak, so dots
+  // pop in sync with the draw instead of on a fixed stagger.
+  useEffect(() => {
+    const path = pathRef.current;
+    if (!path) return;
+    const total = path.getTotalLength();
+    const steps = 600;
+    setDotDelays(
+      REVIEW_XS.map((cx) => {
+        for (let i = 0; i <= steps; i++) {
+          const pt = path.getPointAtLength((i / steps) * total);
+          if (pt.x >= cx - 0.5 && pt.y <= 11) return (i / steps) * DRAW_SECONDS;
+        }
+        return 0;
+      })
+    );
+  }, []);
 
   useEffect(() => {
     const el = ref.current;
@@ -59,12 +82,18 @@ export function ForgettingCurveGraph() {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        ref={pathRef}
+        pathLength={1}
         className={visible ? "forgetting-curve-draw" : ""}
-        style={{ strokeDasharray: 1800, strokeDashoffset: visible ? 0 : 1800 }}
+        style={{
+          strokeDasharray: 1,
+          strokeDashoffset: 1,
+          animationDuration: `${DRAW_SECONDS}s`,
+        }}
       />
 
       {/* Review dots */}
-      {[64, 84, 126, 202, 340].map((cx, i) => (
+      {REVIEW_XS.map((cx, i) => (
         <circle
           key={cx}
           cx={cx}
@@ -73,8 +102,8 @@ export function ForgettingCurveGraph() {
           fill="hsl(var(--orange-500))"
           className={visible ? "forgetting-dot-pop" : ""}
           style={{
-            opacity: visible ? 1 : 0,
-            animationDelay: visible ? `${0.3 + i * 0.15}s` : undefined,
+            opacity: 0,
+            animationDelay: visible ? `${dotDelays[i] ?? 0}s` : undefined,
           }}
         />
       ))}

@@ -428,7 +428,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       <div
         className={cn(
           "w-full border border-border bg-background shadow-2xl",
-          !inline && "fixed top-16 left-1/2 z-50 max-w-2xl -translate-x-1/2",
+          !inline && "fixed top-16 left-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2",
           inline && "relative"
         )}
         onKeyDown={handleFormKeyDown}

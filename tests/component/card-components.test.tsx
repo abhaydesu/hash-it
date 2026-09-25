@@ -97,9 +97,8 @@ describe("ReviewCardItem", () => {
     const solvedColdButton = screen.getByRole("button", { name: /solved cold/i });
     fireEvent.click(solvedColdButton);
 
-    expect(
-      screen.getByText("Please enter the minutes spent before marking a problem as solved.")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Enter minutes spent to mark as solved.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Minutes taken")).toHaveAttribute("aria-invalid", "true");
   });
 
   it("submits review successfully and shows next due info", async () => {

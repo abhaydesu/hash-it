@@ -107,7 +107,7 @@ export function RecallCardItem({ item, onComplete }: RecallCardItemProps) {
                 size="sm"
                 disabled={isSubmitting}
                 onClick={() => handleRate("GOOD")}
-                className={rating === "GOOD" ? "ring-2 ring-orange-500" : undefined}
+                className={rating === "GOOD" ? "ring-2 ring-orange-500 disabled:opacity-100" : undefined}
               >
                 Matched
               </Button>
@@ -117,7 +117,7 @@ export function RecallCardItem({ item, onComplete }: RecallCardItemProps) {
                 size="sm"
                 disabled={isSubmitting}
                 onClick={() => handleRate("HARD")}
-                className={rating === "HARD" ? "ring-2 ring-orange-500" : undefined}
+                className={rating === "HARD" ? "ring-2 ring-orange-500 disabled:opacity-100" : undefined}
               >
                 Close
               </Button>
@@ -127,7 +127,7 @@ export function RecallCardItem({ item, onComplete }: RecallCardItemProps) {
                 size="sm"
                 disabled={isSubmitting}
                 onClick={() => handleRate("AGAIN")}
-                className={rating === "AGAIN" ? "ring-2 ring-orange-500" : undefined}
+                className={rating === "AGAIN" ? "ring-2 ring-orange-500 disabled:opacity-100" : undefined}
               >
                 Blank
               </Button>

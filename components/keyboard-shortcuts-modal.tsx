@@ -82,7 +82,7 @@ export function KeyboardShortcutsModal() {
       }}
     >
       <div
-        className="w-full max-w-lg border border-border bg-background p-4 shadow-2xl sm:p-5"
+        className="w-full max-w-lg border border-border bg-background p-5 shadow-lg"
         role="dialog"
         aria-modal="true"
         aria-labelledby="shortcuts-title"

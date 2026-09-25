@@ -261,7 +261,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="flex items-center gap-1 border border-border bg-background px-2 py-1 hover:text-foreground disabled:opacity-50"
+            className="pressable flex items-center gap-1 border border-border bg-background px-2 py-1 hover:text-foreground disabled:opacity-50"
           >
             <ChevronLeft className="h-3 w-3" /> Prev
           </button>
@@ -271,7 +271,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           <button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="flex items-center gap-1 border border-border bg-background px-2 py-1 hover:text-foreground disabled:opacity-50"
+            className="pressable flex items-center gap-1 border border-border bg-background px-2 py-1 hover:text-foreground disabled:opacity-50"
           >
             Next <ChevronRight className="h-3 w-3" />
           </button>

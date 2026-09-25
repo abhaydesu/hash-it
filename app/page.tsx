@@ -7,6 +7,7 @@ import { FigureCaption } from "@/components/ui/spec-sheet";
 import { PixelBlast } from "@/components/ui/pixel-blast";
 import { ForgettingCurveGraph } from "@/components/ui/forgetting-curve";
 import { HeroDemo } from "@/components/hero-demo";
+import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
 
 export default async function HomePage() {
   const session = await auth();
@@ -64,9 +65,7 @@ export default async function HomePage() {
               <h2 className="mb-4 text-lg font-medium">Log once, review forever</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Hit{" "}
-                <kbd className="border border-border bg-background px-1 py-0.5 font-mono text-[10px]">
-                  ⌘K
-                </kbd>{" "}
+                <ShortcutKeycaps className="align-middle" />{" "}
                 to log a problem. Record the time, the core idea, and any mistakes. The next review
                 is scheduled automatically based on how you performed.
               </p>
@@ -266,7 +265,43 @@ export default async function HomePage() {
             />
           </div>
         </SheetSection>
-        
+
+        {/* ── LeetCode import ── */}
+        <SheetSection innerClassName="py-10 px-6 sm:px-12">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-12 md:items-center md:gap-8">
+            <div className="space-y-3 md:col-span-5">
+              <h2 className="text-xl font-medium">Bring your LeetCode history</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Already solved a few hundred? Import them from a screenshot. Reviews are spread
+                over 60 days so day one isn&apos;t a wall.
+              </p>
+              <Link
+                href={session?.user ? "/import" : "/auth/signin"}
+                className="inline-flex items-center gap-1.5 border-b border-orange-500 pb-0.5 text-xs text-orange-600 transition-colors hover:text-orange-700"
+              >
+                Import your problems
+              </Link>
+            </div>
+            <ol className="grid grid-cols-1 divide-y divide-border border border-border bg-background sm:grid-cols-3 sm:divide-x sm:divide-y-0 md:col-span-7 stagger-in">
+              {[
+                { title: "Screenshot", desc: "Your LeetCode progress page" },
+                { title: "Ask any LLM", desc: "Paste our prompt, get a CSV" },
+                { title: "Upload", desc: "Review matches, commit" },
+              ].map((s, i) => (
+                <li key={s.title} className="space-y-1.5 p-4">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center border border-orange-500 text-[10px] font-semibold text-orange-600">
+                      {i + 1}
+                    </span>
+                    <h3 className="text-sm font-medium">{s.title}</h3>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{s.desc}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </SheetSection>
+
         {/* ── Closing CTA with PixelBlast frame ── */}
         <SheetSection>
           <div className="relative">

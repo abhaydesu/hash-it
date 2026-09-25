@@ -119,12 +119,12 @@ describe("getCurrentUser and auth providers", () => {
     expect(devBoth).toHaveLength(2);
   });
 
-  it("dev credentials authorize creates a local user and inherits no foreign rows", async () => {
+  it("dev credentials always sign in as the fixed dev user, ignoring submitted identity", async () => {
     vi.stubEnv("NODE_ENV", "development");
     findOrCreateMock.mockResolvedValue({
-      id: "new-user",
-      name: "alice",
-      email: "alice@example.com",
+      id: "dev-user",
+      name: "Jake Peralta",
+      email: "jake@hashit.local",
       image: null,
     });
 
@@ -133,9 +133,10 @@ describe("getCurrentUser and auth providers", () => {
     const credsCall = credentialsFactory.mock.calls.at(-1)?.[0] as {
       authorize: (c: Record<string, string>) => Promise<unknown>;
     };
-    const result = await credsCall.authorize({ email: "alice@example.com", name: "Alice" });
-    expect(findOrCreateMock).toHaveBeenCalledWith("alice@example.com", "Alice");
-    expect(result).toMatchObject({ id: "new-user", email: "alice@example.com" });
+    // A real user's email must not be able to reach their account.
+    const result = await credsCall.authorize({ email: "someone@gmail.com", name: "Alice" });
+    expect(findOrCreateMock).toHaveBeenCalledWith("jake@hashit.local", "Jake Peralta");
+    expect(result).toMatchObject({ id: "dev-user", email: "jake@hashit.local" });
   });
 
   it("jwt callback upserts settings for the signing-in user only", async () => {

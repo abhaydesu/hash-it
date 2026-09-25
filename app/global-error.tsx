@@ -18,8 +18,8 @@ export default function GlobalError({
     <html lang="en">
       <body className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-4 text-center text-foreground font-sans antialiased">
         <div className="flex flex-col items-center gap-2">
-          <AlertCircle className="h-10 w-10 text-red-500" />
-          <h2 className="text-xl font-bold tracking-tight">Critical Application Error</h2>
+          <AlertCircle className="h-10 w-10 text-destructive" />
+          <h2 className="text-xl font-medium tracking-tight">Critical Application Error</h2>
           <p className="max-w-md text-sm text-muted-foreground">
             A critical error occurred at the root level of the application.
           </p>

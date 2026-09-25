@@ -98,10 +98,10 @@ export default async function AuthErrorPage({
     <div className="flex min-h-[calc(100dvh-3.5rem)] w-full flex-col justify-center bg-background font-sans text-foreground">
       <SheetSection
         className="before:pointer-events-none before:absolute before:left-1/2 before:top-0 before:z-20 before:w-screen before:-translate-x-1/2 before:border-t before:border-border before:content-['']"
-        innerClassName="px-0"
+        flush
       >
         <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-12 md:divide-x md:divide-y-0">
-          <div className="flex flex-col justify-center gap-10 px-6 py-12 sm:px-8 sm:py-16 md:col-span-7">
+          <div className="flex flex-col justify-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:px-8 md:col-span-7">
             <div className="max-w-xl space-y-5">
               <h1 className="text-3xl font-medium tracking-tight sm:text-5xl">{copy.title}</h1>
               <p className="type-body">{copy.detail}</p>
@@ -114,7 +114,7 @@ export default async function AuthErrorPage({
             </SpecGrid>
           </div>
 
-          <div className="relative flex flex-col justify-center bg-dither-25 px-6 py-12 sm:px-8 sm:py-16 md:col-span-5">
+          <div className="relative flex flex-col justify-center bg-dither-25 px-4 py-12 sm:px-6 sm:py-16 lg:px-8 md:col-span-5">
             <div className="mx-auto w-full max-w-sm border border-border bg-background">
               <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-2.5">
                 <span className="type-label text-muted-foreground">Error panel</span>

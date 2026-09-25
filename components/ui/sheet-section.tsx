@@ -15,6 +15,7 @@ export function SheetSection({
   innerClassName,
   band = "none",
   last = false,
+  flush = false,
   as: Tag = "section",
 }: {
   children: React.ReactNode;
@@ -22,6 +23,8 @@ export function SheetSection({
   innerClassName?: string;
   band?: Band;
   last?: boolean;
+  /** Drop the gutter so children can run edge-to-edge (they own their own padding). */
+  flush?: boolean;
   as?: "section" | "div" | "header" | "footer";
 }) {
   const bandClass =
@@ -44,7 +47,7 @@ export function SheetSection({
           )}
         </div>
       ) : null}
-      <div className={cn("sheet-inner", innerClassName)}>{children}</div>
+      <div className={cn("sheet-inner", flush && "sheet-inner-flush", innerClassName)}>{children}</div>
     </Tag>
   );
 }

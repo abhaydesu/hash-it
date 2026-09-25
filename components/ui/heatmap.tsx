@@ -106,7 +106,7 @@ export function Heatmap({ data, className, selectedYear = "last365" }: HeatmapPr
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              "h-[11px] w-[11px] rounded-[2px] transition-colors duration-press ease",
+                              "h-[11px] w-[11px] rounded-[2px] transition-[background-color,box-shadow] duration-press ease hover:ring-1 hover:ring-foreground/50",
                               isFuture && "opacity-20",
                               level === 0 && "bg-muted/40",
                               level === 1 && "bg-orange-200 dark:bg-orange-950",

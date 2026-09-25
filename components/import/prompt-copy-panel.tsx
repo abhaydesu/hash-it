@@ -26,7 +26,7 @@ export function PromptCopyPanel() {
         <Button variant="primary" size="sm" onClick={() => copy(prompt, "prompt")}>
           {copied === "prompt" ? (
             <>
-              <Check className="mr-1.5 h-3 w-3" />
+              <Check className="icon-pop mr-1.5 h-3 w-3" />
               Copied
             </>
           ) : (

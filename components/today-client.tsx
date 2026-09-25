@@ -2,13 +2,13 @@
 import React from "react";
 
 import Link from "next/link";
-import { CalendarRange, Clock3, X } from "lucide-react";
+import { ArrowRight, CalendarRange, Clock3, X } from "lucide-react";
 import { useState } from "react";
 import { RecallCardItem } from "@/components/recall-card-item";
 import { ReviewCardItem } from "@/components/review-card-item";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
-import { useIsMac } from "@/lib/use-is-mac";
+import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
 
 type ReviewLane = "RECALL" | "RESOLVE";
 
@@ -44,14 +44,20 @@ export interface TodayData {
   overdueCount: number;
 }
 
+const COLLAPSE_MS = 300;
+
 export function TodayClient({ data }: { data: TodayData }) {
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   const [overdueDismissed, setOverdueDismissed] = useState(false);
-  const isMac = useIsMac();
-  const shortcutHint = isMac ? "⌘K" : "Ctrl+K";
+  const [overdueLeaving, setOverdueLeaving] = useState(false);
 
+  // Collapse the card first, then drop it once siblings have slid up.
   const handleCardComplete = (entryId: string) => {
-    setCompletedIds((prev) => new Set([...prev, entryId]));
+    setLeavingIds((prev) => new Set([...prev, entryId]));
+    window.setTimeout(() => {
+      setCompletedIds((prev) => new Set([...prev, entryId]));
+    }, COLLAPSE_MS);
   };
 
   const { queue, resolveCount, recallCount, snapshot, overdueCount } = data;
@@ -89,6 +95,7 @@ export function TodayClient({ data }: { data: TodayData }) {
 
       {overdueCount > 20 && !overdueDismissed && (
         <SheetSection innerClassName="py-3">
+          <div className="collapsible" data-leaving={overdueLeaving || undefined}>
           <div className="flex items-start justify-between gap-3 border border-warning/40 bg-background px-4 py-3 text-sm text-warning">
             <p>
               <span className="font-semibold tabular-numbers">{overdueCount} cards overdue.</span> Reviews
@@ -100,12 +107,16 @@ export function TodayClient({ data }: { data: TodayData }) {
             </p>
             <button
               type="button"
-              onClick={() => setOverdueDismissed(true)}
-              className="shrink-0 p-1 hover:bg-muted"
+              onClick={() => {
+                setOverdueLeaving(true);
+                window.setTimeout(() => setOverdueDismissed(true), COLLAPSE_MS);
+              }}
+              className="pressable shrink-0 p-1 hover:bg-muted"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />
             </button>
+          </div>
           </div>
         </SheetSection>
       )}
@@ -127,27 +138,28 @@ export function TodayClient({ data }: { data: TodayData }) {
             </p>
             <p className="mt-1 type-caption">
               {queue.length > 0
-                ? `Log new problems with ${shortcutHint} or review the catalogue.`
-                : `Log new problems with ${shortcutHint}, or work through your roadmap.`}
+                ? <>Log new problems with <ShortcutKeycaps className="align-middle" /> or review the catalogue.</>
+                : <>Log new problems with <ShortcutKeycaps className="align-middle" />, or work through your roadmap.</>}
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {activeQueue.map((item) =>
-              item.lane === "RECALL" ? (
-                <RecallCardItem
-                  key={item.entryId}
-                  item={item}
-                  onComplete={() => handleCardComplete(item.entryId)}
-                />
-              ) : (
-                <ReviewCardItem
-                  key={item.entryId}
-                  item={item}
-                  onComplete={() => handleCardComplete(item.entryId)}
-                />
-              )
-            )}
+          <div className="stagger-in">
+            {activeQueue.map((item) => (
+              <div
+                key={item.entryId}
+                className="collapsible"
+                data-leaving={leavingIds.has(item.entryId) || undefined}
+              >
+                {/* Spacing lives inside the collapsing row so the gap closes with it. */}
+                <div className="pb-3">
+                  {item.lane === "RECALL" ? (
+                    <RecallCardItem item={item} onComplete={() => handleCardComplete(item.entryId)} />
+                  ) : (
+                    <ReviewCardItem item={item} onComplete={() => handleCardComplete(item.entryId)} />
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </SheetSection>
@@ -166,8 +178,8 @@ export function TodayClient({ data }: { data: TodayData }) {
             </div>
             <div className="mt-4 flex items-center justify-between border-t border-border pt-3 type-caption">
               <span>Interval: 14 days</span>
-              <Link href="/review/weekly" className="font-medium text-orange-600 hover:text-orange-700">
-                Open drill
+              <Link href="/review/weekly" className="link-arrow font-medium text-orange-600 hover:text-orange-700">
+                Open drill <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
           </div>
@@ -184,8 +196,8 @@ export function TodayClient({ data }: { data: TodayData }) {
             </div>
             <div className="mt-4 flex items-center justify-between border-t border-border pt-3 type-caption">
               <span>Interval: 30 days</span>
-              <Link href="/review/monthly" className="font-medium text-orange-600 hover:text-orange-700">
-                Start mock
+              <Link href="/review/monthly" className="link-arrow font-medium text-orange-600 hover:text-orange-700">
+                Start mock <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
           </div>

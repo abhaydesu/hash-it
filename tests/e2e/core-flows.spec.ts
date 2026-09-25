@@ -2,14 +2,9 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Hash-It Core E2E Flows", () => {
   test.beforeEach(async ({ page }) => {
-    // 1. Sign in via local credentials form
+    // 1. Sign in as the fixed dev test user
     await page.goto("/auth/signin");
-    const emailInput = page.locator('input[name="email"]');
-    if (await emailInput.isVisible()) {
-      await emailInput.fill("e2e-tester@example.com");
-      await page.locator('input[name="name"]').fill("E2E Tester");
-      await page.locator('button[type="submit"]:has-text("Continue as local account")').click();
-    }
+    await page.locator('button[type="submit"]:has-text("Continue as Jake Peralta")').click();
     // Wait for redirect to /today
     await page.waitForURL("**/today", { timeout: 30000 });
   });
