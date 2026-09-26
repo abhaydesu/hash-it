@@ -2,7 +2,8 @@
 import React from 'react';
 
 import { useEffect, useState } from "react";
-import { Save, Sparkles, CheckCircle2, AlertCircle, Cpu } from "lucide-react";
+import { Save, Sparkles, CheckCircle2, AlertCircle, Cpu, Columns3 } from "lucide-react";
+import { CustomFieldsManager } from "@/components/custom-fields-manager";
 import { getUserSettings, updateUserSettings, optimizeFSRSParams } from "@/app/actions/settings-actions";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { PageSkeleton } from "@/components/ui/loader";
@@ -239,6 +240,19 @@ export default function SettingsPage() {
             </Button>
           </div>
         </form>
+      </SheetSection>
+
+      <SheetSection innerClassName="space-y-4 py-6">
+        <div id="custom-fields" className="scroll-mt-28 space-y-1 border-b border-border pb-2">
+          <h2 className="flex items-center gap-2 type-heading text-foreground">
+            <Columns3 className="h-4 w-4" /> Your fields
+          </h2>
+          <p className="type-caption">
+            Columns you track beyond ours. They show up when you log a problem and on each problem page.
+            Scheduling never reads them.
+          </p>
+        </div>
+        <CustomFieldsManager />
       </SheetSection>
 
       <SheetSection innerClassName="space-y-4 py-6" last>

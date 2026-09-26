@@ -1,0 +1,36 @@
+Date,#,Problem,Difficulty,Topics,Status,Time (min),Language,Notes
+2026-08-03,1,Two Sum,Easy,"Array, Hash Table",Accepted,18,Python,Remembered hash map approach quickly
+2026-08-04,2,Valid Parentheses,Easy,"Stack, String",Accepted,12,C++,Used stack with matching brackets
+2026-08-05,3,Best Time to Buy and Sell Stock,Easy,"Array, Greedy",Accepted,16,C++,One-pass min price
+2026-08-06,4,Binary Search,Easy,"Array, Binary Search",Accepted,14,C++,Standard binary search template
+2026-08-07,5,Reverse Linked List,Easy,"Linked List, Recursion",Accepted,21,C++,Did iterative version
+2026-08-08,6,Valid Anagram,Easy,"Hash Table, String, Sorting",Accepted,11,Python,Could also sort both strings
+2026-08-10,7,Group Anagrams,Medium,"Array, Hash Table, String",Accepted,32,Python,Used sorted string as key
+2026-08-11,8,Top K Frequent Elements,Medium,"Array, Hash Table, Heap",Accepted,38,C++,Min heap solution
+2026-08-12,9,Product of Array Except Self,Medium,"Array, Prefix Sum",Accepted,29,C++,Prefix + suffix without division
+2026-08-14,10,Longest Substring Without Repeating Characters,Medium,"Hash Table, Sliding Window",Accepted,34,C++,Sliding window clicked
+2026-08-15,11,3Sum,Medium,"Array, Two Pointers, Sorting",Accepted,47,C++,Sort then fix one element
+2026-08-17,12,Container With Most Water,Medium,"Array, Two Pointers",Accepted,25,C++,Move shorter pointer
+2026-08-18,13,Maximum Subarray,Medium,"Array, DP, Greedy",Accepted,19,C++,Kadane's algorithm
+2026-08-20,14,Climbing Stairs,Easy,"DP, Memoization",Accepted,9,C++,Simple Fibonacci DP
+2026-08-21,15,House Robber,Medium,"Array, DP",Accepted,24,C++,Track take / skip
+2026-08-23,16,Merge Intervals,Medium,"Array, Sorting",Accepted,31,C++,Sort by start time
+2026-08-24,17,Course Schedule,Medium,"Graph, BFS, Topological Sort",Accepted,44,C++,Kahn's algorithm
+2026-08-25,18,Number of Islands,Medium,"Array, DFS, BFS, Matrix",Accepted,27,C++,DFS flood fill
+2026-08-27,19,Kth Largest Element in an Array,Medium,"Array, Heap, Sorting",Accepted,36,C++,Solved using priority queue
+2026-08-29,20,LRU Cache,Medium,"Hash Table, Linked List, Design",Accepted,61,C++,Hash map + doubly linked list
+2026-09-01,21,Search in Rotated Sorted Array,Medium,"Array, Binary Search",Accepted,39,C++,Modified binary search
+2026-09-02,22,Find Minimum in Rotated Sorted Array,Medium,"Array, Binary Search",Accepted,22,C++,Compare mid with right
+2026-09-04,23,Daily Temperatures,Medium,"Array, Stack, Monotonic Stack",Accepted,35,C++,Monotonic decreasing stack
+2026-09-05,24,Min Stack,Medium,"Stack, Design",Accepted,28,C++,Stored current minimum
+2026-09-07,25,Linked List Cycle,Easy,"Hash Table, Linked List, Two Pointers",Accepted,13,C++,Floyd's cycle detection
+2026-09-09,26,Remove Nth Node From End of List,Medium,"Linked List, Two Pointers",Accepted,26,C++,Fast/slow pointer
+2026-09-11,27,Binary Tree Level Order Traversal,Medium,"Tree, BFS, Queue",Accepted,23,C++,Queue-based BFS
+2026-09-12,28,Validate Binary Search Tree,Medium,"Tree, DFS, BST",Accepted,31,C++,Inorder traversal
+2026-09-14,29,Koko Eating Bananas,Medium,"Binary Search, Array",Accepted,42,C++,Binary search on answer
+2026-09-16,30,Capacity To Ship Packages Within D Days,Medium,"Binary Search, Greedy",Accepted,48,C++,Binary search on capacity
+2026-09-18,31,Task Scheduler,Medium,"Array, Hash Table, Greedy, Heap",Accepted,52,C++,Worked through max frequency formula
+2026-09-20,32,Array Rank Transform,Easy,"Array, Hash Table, Sorting",Accepted,20,C++,Used sorted copy + rank map
+2026-09-22,33,Delete Node in a Linked List,Medium,Linked List,Accepted,15,C++,Copy next node's value
+2026-09-24,34,Maximum Number of Airplanes,Medium,"Sorting, Heap, Greedy",Accepted,55,C++,Tried min heap + binary search idea
+2026-09-25,35,Least Interval,Medium,"Array, Greedy, Heap",Accepted,43,C++,Revisited scheduling formula

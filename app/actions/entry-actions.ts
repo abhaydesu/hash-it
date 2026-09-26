@@ -15,6 +15,38 @@ import {
 import { Platform, Difficulty, SolveStatus, Rating, CardState } from "@prisma/client";
 import { LIMITS, storedHttpUrl } from "@/lib/safe";
 import { parseSlugFromUrl } from "@/lib/problem-url";
+import { readCustomFieldDefs, sanitizeCustomValues, mergeSelectOptions } from "@/lib/custom-fields";
+import type { Prisma } from "@prisma/client";
+
+const CustomValuesInput = z
+  .record(z.string().max(40), z.union([z.string().max(2000), z.number(), z.boolean(), z.null()]))
+  .optional();
+
+/** Validate submitted custom values against the user's current field definitions. */
+async function resolveCustomValues(userId: string, raw: unknown) {
+  if (!raw) return null;
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { customFields: true },
+  });
+  const defs = readCustomFieldDefs(settings?.customFields);
+  if (defs.length === 0) return null;
+  // Explicitly blanked fields (null / "") are removed on merge.
+  const cleared = Object.entries(raw as Record<string, unknown>)
+    .filter(([id, v]) => (v === null || v === "") && defs.some((d) => d.id === id))
+    .map(([id]) => id);
+  return { values: sanitizeCustomValues(defs, raw), cleared };
+}
+
+function mergeCustomValues(
+  existing: unknown,
+  update: { values: Record<string, unknown>; cleared: string[] } | null
+): Prisma.InputJsonObject | undefined {
+  if (!update) return undefined;
+  const base = { ...((existing as Record<string, unknown> | null) ?? {}) };
+  for (const id of update.cleared) delete base[id];
+  return { ...base, ...update.values } as Prisma.InputJsonObject;
+}
 
 const CreateEntrySchema = z.object({
   problemId: z.string().max(64).optional(),
@@ -32,11 +64,13 @@ const CreateEntrySchema = z.object({
   sourceList: z.string().max(200).optional().nullable(),
   revisit: z.boolean().default(false),
   patternOverride: z.array(z.string().max(120)).max(20).default([]),
+  customValues: CustomValuesInput,
 });
 
 export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
   const user = await getCurrentUser();
   const data = CreateEntrySchema.parse(input);
+  const custom = await resolveCustomValues(user.id, data.customValues);
 
   let targetProblemId = data.problemId;
 
@@ -154,6 +188,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
           revisit: data.revisit,
           minutes: data.minutes ?? existingEntry.minutes,
           patternOverride: data.patternOverride.length > 0 ? data.patternOverride : existingEntry.patternOverride,
+          customValues: mergeCustomValues(existingEntry.customValues, custom),
           topic:
             data.manualTopicTags[0] ||
             data.patternOverride[0] ||
@@ -245,6 +280,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
         firstSolvedAt: now,
         patternOverride: data.patternOverride,
         topic: data.manualTopicTags[0] || data.patternOverride[0] || null,
+        customValues: mergeCustomValues(null, custom),
       },
     });
 
@@ -501,15 +537,23 @@ const UpdateInlineSchema = z.discriminatedUnion("field", [
     field: z.literal("status"),
     value: z.enum(["SOLVED_UNAIDED", "SOLVED_WITH_HELP", "ATTEMPTED_FAILED"]),
   }),
+  z.object({ entryId: z.string().max(64), field: z.literal("patternOverride"), value: z.array(z.string().max(120)).max(10) }),
+  z.object({ entryId: z.string().max(64), field: z.literal("minutes"), value: z.number().int().min(0).max(9999).nullable() }),
 ]);
 
 export async function updateEntryInline(params: z.input<typeof UpdateInlineSchema>) {
   const user = await getCurrentUser();
   const { entryId, field, value } = UpdateInlineSchema.parse(params);
 
+  const data: Record<string, unknown> = { [field]: value };
+  if (field === "patternOverride") {
+    const patterns = value as string[];
+    data.customPattern = patterns[0] ?? null;
+  }
+
   const result = await prisma.entry.updateMany({
     where: { id: entryId, userId: user.id },
-    data: { [field]: value },
+    data,
   });
 
   if (result.count === 0) {
@@ -519,6 +563,52 @@ export async function updateEntryInline(params: z.input<typeof UpdateInlineSchem
   revalidatePath("/problems");
   revalidatePath(`/problems/${entryId}`);
   return { success: true };
+}
+
+/** Set or clear custom field values on one entry (problem page editor). */
+export async function updateEntryCustomValues(entryId: string, values: z.input<typeof CustomValuesInput>) {
+  const user = await getCurrentUser();
+  const id = z.string().max(64).parse(entryId);
+  const parsed = CustomValuesInput.parse(values);
+  const entry = await prisma.entry.findFirst({
+    where: { id, userId: user.id },
+    select: { id: true, customValues: true },
+  });
+  if (!entry) throw new Error("Entry not found");
+
+  const custom = await resolveCustomValues(user.id, parsed);
+  const next = mergeCustomValues(entry.customValues, custom);
+  if (next) {
+    await prisma.entry.update({ where: { id: entry.id }, data: { customValues: next } });
+  }
+
+  // Persist new select options to the field definitions
+  if (parsed && typeof parsed === "object") {
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId: user.id },
+      select: { customFields: true },
+    });
+    const defs = readCustomFieldDefs(settings?.customFields);
+    let defsChanged = false;
+    const updatedDefs = defs.map((def) => {
+      if (def.type !== "select") return def;
+      const val = (parsed as Record<string, unknown>)[def.id];
+      if (typeof val !== "string" || !val.trim()) return def;
+      if (def.options?.some((o) => o.toLowerCase() === val.trim().toLowerCase())) return def;
+      defsChanged = true;
+      return mergeSelectOptions(def, [val.trim()]);
+    });
+    if (defsChanged) {
+      await prisma.userSettings.update({
+        where: { userId: user.id },
+        data: { customFields: updatedDefs as any },
+      });
+    }
+  }
+
+  revalidatePath("/problems");
+  revalidatePath(`/problems/${id}`);
+  return { success: true, customValues: next ?? {} };
 }
 
 export async function toggleScheduleReview(entryId: string, schedule: boolean) {

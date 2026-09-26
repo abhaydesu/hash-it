@@ -231,7 +231,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           <tbody className="divide-y divide-border">
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="hover:bg-muted/40">
+                <tr key={row.id} className="group/row hover:bg-muted/40">
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}

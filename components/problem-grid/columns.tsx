@@ -2,8 +2,8 @@
 import React from 'react';
 
 import { ColumnDef } from "@tanstack/react-table";
-import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Check, HelpCircle, XCircle, Pencil } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { ExternalLink, Check, HelpCircle, XCircle, Pencil, Trash2 } from "lucide-react";
 import {
   cn,
   formatDifficulty,
@@ -13,7 +13,24 @@ import {
   patternClayStyle,
   safeHref,
 } from "@/lib/utils";
-import { updateEntryInline } from "@/app/actions/entry-actions";
+import { updateEntryInline, deleteEntry } from "@/app/actions/entry-actions";
+
+const GRID_EDIT_EVENT = "grid-cell-edit";
+
+function broadcastEditStart(cellId: string) {
+  window.dispatchEvent(new CustomEvent(GRID_EDIT_EVENT, { detail: { cellId } }));
+}
+
+function useCloseOnOtherEdit(cellId: React.RefObject<string | null>, onClose: () => void) {
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.cellId !== cellId.current) onClose();
+    };
+    window.addEventListener(GRID_EDIT_EVENT, handler);
+    return () => window.removeEventListener(GRID_EDIT_EVENT, handler);
+  }, [cellId, onClose]);
+}
 
 export interface ProblemGridRow {
   id: string;
@@ -53,16 +70,34 @@ function InlineEditCell({
   const [value, setValue] = useState(initialValue || "");
   const [isSaving, setIsSaving] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const cellId = useRef(`edit-${entryId}-${field}`);
+
+  const closeAll = React.useCallback(() => {
+    setIsEditing(false);
+    setIsOpen(false);
+    setValue(initialValue || "");
+  }, [initialValue]);
+
+  useCloseOnOtherEdit(cellId, closeAll);
 
   useEffect(() => {
     if (!isOpen) return;
     const onPointerDown = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
         setIsOpen(false);
+        setIsEditing(false);
+        setValue(initialValue || "");
       }
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsOpen(false);
+      if (event.key === "Escape") {
+        if (isEditing) {
+          setIsEditing(false);
+          setValue(initialValue || "");
+        } else {
+          setIsOpen(false);
+        }
+      }
     };
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -70,7 +105,7 @@ function InlineEditCell({
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, isEditing, initialValue]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -85,7 +120,8 @@ function InlineEditCell({
     }
   };
 
-  if (isEditing) {
+  // Empty cell → inline input directly in the cell
+  if (isEditing && !isOpen) {
     return (
       <div className="flex min-w-[200px] items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
         <input
@@ -94,20 +130,19 @@ function InlineEditCell({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") handleSave();
-            if (e.key === "Escape") setIsEditing(false);
+            if (e.key === "Escape") { setValue(initialValue || ""); setIsEditing(false); }
+          }}
+          onBlur={() => {
+            if ((value.trim() || null) === (initialValue || null)) {
+              setIsEditing(false);
+              return;
+            }
+            handleSave();
           }}
           disabled={isSaving}
           autoFocus
           className="w-full border border-border bg-background px-2 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
-        <button
-          type="button"
-          onClick={handleSave}
-          className="p-1 text-foreground hover:bg-muted"
-          title="Save"
-        >
-          <Check className="h-3.5 w-3.5" />
-        </button>
       </div>
     );
   }
@@ -117,6 +152,7 @@ function InlineEditCell({
       <button
         type="button"
         onClick={() => {
+          broadcastEditStart(cellId.current);
           if (!initialValue) {
             setIsEditing(true);
             return;
@@ -130,29 +166,278 @@ function InlineEditCell({
         {initialValue ? initialValue : <span className="italic text-muted-foreground">—</span>}
       </button>
 
-      {isOpen && initialValue && (
+      {isOpen && (
         <div className="absolute left-0 top-[calc(100%+4px)] z-50 w-[min(22rem,70vw)] border border-border bg-background shadow-lg">
-          <div className="max-h-56 overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-foreground">
-            <p className="whitespace-pre-wrap">{initialValue}</p>
-          </div>
-          <div className="flex items-center justify-between border-t border-border px-3 py-2">
-            <span className="type-label">
-              {field === "idea" ? "Core idea" : "Mistake log"}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                setIsEditing(true);
-              }}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 transition-colors hover:text-orange-700"
-            >
-              <Pencil className="h-3 w-3" /> Edit
-            </button>
-          </div>
+          {isEditing ? (
+            <>
+              <textarea
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                disabled={isSaving}
+                autoFocus
+                rows={5}
+                className="w-full resize-y border-0 px-3 py-2.5 text-sm leading-relaxed text-foreground bg-background focus:outline-none"
+              />
+              <div className="flex items-center justify-end gap-2 border-t border-border px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => { setIsEditing(false); setValue(initialValue || ""); }}
+                  className="text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 transition-colors hover:text-orange-700"
+                >
+                  <Check className="h-3 w-3" />
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="max-h-56 overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-foreground">
+                <p className="whitespace-pre-wrap">{initialValue}</p>
+              </div>
+              <div className="flex items-center justify-between border-t border-border px-3 py-2">
+                <span className="type-label">
+                  {field === "idea" ? "Core idea" : "Mistake log"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 transition-colors hover:text-orange-700"
+                >
+                  <Pencil className="h-3 w-3" /> Edit
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+function InlinePatternCell({
+  entryId,
+  patterns,
+}: {
+  entryId: string;
+  patterns: string[];
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(patterns.join(", "));
+  const [isSaving, setIsSaving] = useState(false);
+  const cellId = useRef(`pattern-${entryId}`);
+
+  const closeAll = React.useCallback(() => {
+    setIsEditing(false);
+    setValue(patterns.join(", "));
+  }, [patterns]);
+
+  useCloseOnOtherEdit(cellId, closeAll);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const parsed = value
+        .split(/[,;|]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      await updateEntryInline({ entryId, field: "patternOverride", value: parsed });
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Save error:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+            if (e.key === "Escape") { setValue(patterns.join(", ")); setIsEditing(false); }
+          }}
+          onBlur={() => {
+            const parsed = value.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
+            if (JSON.stringify(parsed) === JSON.stringify(patterns)) {
+              setIsEditing(false);
+              return;
+            }
+            handleSave();
+          }}
+          disabled={isSaving}
+          autoFocus
+          placeholder="e.g. Two Pointer, DFS"
+          className="w-full border border-border bg-background px-2 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        broadcastEditStart(cellId.current);
+        setIsEditing(true);
+      }}
+      className="w-full text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 px-1.5 py-0.5"
+    >
+      {patterns.length > 0 ? (
+        <div className="flex max-w-[220px] flex-wrap gap-1">
+          {normalizePatternList(patterns).map((p) => (
+            <span
+              key={p}
+              className="border px-1.5 py-0.5 text-[10px] font-semibold"
+              style={patternClayStyle(p)}
+            >
+              {p}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span className="text-xs italic text-muted-foreground">—</span>
+      )}
+    </button>
+  );
+}
+
+function InlineMinutesCell({
+  entryId,
+  initialValue,
+}: {
+  entryId: string;
+  initialValue?: number | null;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(initialValue != null ? String(initialValue) : "");
+  const [isSaving, setIsSaving] = useState(false);
+  const cellId = useRef(`minutes-${entryId}`);
+
+  const closeAll = React.useCallback(() => {
+    setIsEditing(false);
+    setValue(initialValue != null ? String(initialValue) : "");
+  }, [initialValue]);
+
+  useCloseOnOtherEdit(cellId, closeAll);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const num = value.trim() === "" ? null : parseInt(value.trim(), 10);
+      if (num !== null && (isNaN(num) || num < 0 || num > 9999)) return;
+      await updateEntryInline({ entryId, field: "minutes", value: num });
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Save error:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div onClick={(e) => e.stopPropagation()}>
+        <input
+          type="number"
+          min="0"
+          max="9999"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+            if (e.key === "Escape") { setValue(initialValue != null ? String(initialValue) : ""); setIsEditing(false); }
+          }}
+          onBlur={() => {
+            const num = value.trim() === "" ? null : parseInt(value.trim(), 10);
+            if (num === (initialValue ?? null)) {
+              setIsEditing(false);
+              return;
+            }
+            handleSave();
+          }}
+          disabled={isSaving}
+          autoFocus
+          className="w-full border border-border bg-background px-2 py-0.5 text-xs tabular-nums text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        broadcastEditStart(cellId.current);
+        setIsEditing(true);
+      }}
+      className="w-full text-left px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground transition-colors hover:bg-muted/50"
+    >
+      {formatMinutes(initialValue)}
+    </button>
+  );
+}
+
+function GridDeleteButton({ entryId }: { entryId: string }) {
+  const [confirming, setConfirming] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!confirming) return;
+    const handler = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setConfirming(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [confirming]);
+
+  if (confirming) {
+    return (
+      <div ref={rootRef} className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            startTransition(async () => {
+              await deleteEntry(entryId);
+            });
+          }}
+          disabled={isPending}
+          className="text-[10px] font-medium text-red-600 hover:text-red-700"
+        >
+          {isPending ? "..." : "Yes"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          className="text-[10px] text-muted-foreground hover:text-foreground"
+        >
+          No
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      className="opacity-0 group-hover/row:opacity-100 p-0.5 text-muted-foreground transition-opacity hover:text-red-600"
+      title="Delete entry"
+    >
+      <Trash2 className="h-3 w-3" />
+    </button>
   );
 }
 
@@ -190,7 +475,7 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
               target="_blank"
               rel="noopener noreferrer"
               className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-              title="Open problem link"
+              title="Open on LeetCode"
             >
               <ExternalLink className="h-3 w-3" />
             </a>
@@ -257,34 +542,16 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
     accessorKey: "patterns",
     header: "Pattern",
     size: 180,
-    cell: ({ row }) => {
-      const patterns = normalizePatternList(row.original.patterns);
-      if (patterns.length === 0) {
-        return <span className="text-xs italic text-muted-foreground">—</span>;
-      }
-      return (
-        <div className="flex max-w-[220px] flex-wrap gap-1">
-          {patterns.map((p) => (
-            <span
-              key={p}
-              className="border px-1.5 py-0.5 text-[10px] font-semibold"
-              style={patternClayStyle(p)}
-            >
-              {p}
-            </span>
-          ))}
-        </div>
-      );
-    },
+    cell: ({ row }) => (
+      <InlinePatternCell entryId={row.original.id} patterns={row.original.patterns} />
+    ),
   },
   {
     accessorKey: "minutes",
     header: "Time",
     size: 72,
     cell: ({ row }) => (
-      <span className="text-xs tabular-numbers text-muted-foreground">
-        {formatMinutes(row.original.minutes)}
-      </span>
+      <InlineMinutesCell entryId={row.original.id} initialValue={row.original.minutes} />
     ),
   },
   {
@@ -341,5 +608,13 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
         </span>
       );
     },
+  },
+  {
+    id: "actions",
+    header: "",
+    size: 36,
+    cell: ({ row }) => (
+      <GridDeleteButton entryId={row.original.id} />
+    ),
   },
 ];

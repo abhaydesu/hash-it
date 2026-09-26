@@ -16,17 +16,24 @@ import {
   ArrowLeft,
   ArrowRight,
   Camera,
-  Bot,
-  UploadCloud,
 } from "lucide-react";
 import {
   dryRunImportCSV,
   commitImportBatch,
+  inspectImportCSV,
   DryRunRow,
   DuplicateGroup,
   mergeTwoRows,
+  type CsvInspection,
 } from "@/app/actions/import-actions";
-import { cn, safeHref } from "@/lib/utils";
+import {
+  ColumnMapper,
+  initialChoices,
+  resolveChoices,
+  type ColumnChoices,
+} from "@/components/import/column-mapper";
+import type { CustomFieldDef } from "@/lib/custom-fields";
+import { cn, formatDifficulty, safeHref } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
@@ -52,7 +59,7 @@ function detectCitationArtefacts(text: string): string | null {
   return null;
 }
 
-const PHASE_ORDER: WizardPhase[] = ["brief", "compose", "load", "review", "assign", "confirm"];
+const PHASE_ORDER: WizardPhase[] = ["brief", "compose", "load", "map", "review", "assign", "confirm"];
 
 export default function ImportPage() {
   // Wizard state
@@ -60,12 +67,16 @@ export default function ImportPage() {
   const [furthestReached, setFurthestReached] = useState<WizardPhase>("brief");
 
   // Input state
+  const [pathway, setPathway] = useState<"screenshot" | "upload" | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [csvText, setCsvText] = useState<string>("");
   const [pastedText, setPastedText] = useState<string>("");
   const [inputMode, setInputMode] = useState<"paste" | "file">("paste");
 
   // Dry-run state
+  const [inspection, setInspection] = useState<CsvInspection | null>(null);
+  const [choices, setChoices] = useState<ColumnChoices>({});
+  const [importFields, setImportFields] = useState<CustomFieldDef[]>([]);
   const [rows, setRows] = useState<DryRunRow[]>([]);
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
   const [conflictStrategy, setConflictStrategy] = useState<"SKIP" | "OVERWRITE">("SKIP");
@@ -97,10 +108,14 @@ export default function ImportPage() {
   const resetAll = () => {
     setPhase("brief");
     setFurthestReached("brief");
+    setPathway(null);
     setFile(null);
     setCsvText("");
     setPastedText("");
     setInputMode("paste");
+    setInspection(null);
+    setChoices({});
+    setImportFields([]);
     setRows([]);
     setDuplicateGroups([]);
     setConflictStrategy("SKIP");
@@ -175,12 +190,39 @@ export default function ImportPage() {
 
   // --- Dry run + commit ----------------------------------------------------
 
-  const handleDryRun = async () => {
+  // Read the sheet's columns and suggest where each one goes.
+  const handleInspect = async () => {
     if (!csvText.trim()) return;
     setIsProcessing(true);
     setError(null);
     try {
-      const summary = await dryRunImportCSV(csvText);
+      const result = await inspectImportCSV(csvText);
+      if (result.columns.length === 0 || result.rowCount === 0) {
+        setError("No rows detected. Make sure the first line is a header row.");
+        return;
+      }
+      setInspection(result);
+      setChoices(initialChoices(result));
+      advanceTo("map");
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDryRun = async () => {
+    if (!csvText.trim() || !inspection) return;
+    const { mapping, fields, errors } = resolveChoices(choices, inspection.existingFields);
+    if (errors.length > 0) {
+      setError(errors[0]);
+      return;
+    }
+    setIsProcessing(true);
+    setError(null);
+    try {
+      const summary = await dryRunImportCSV(csvText, mapping);
+      setImportFields(fields);
       setRows(summary.rows);
       setDuplicateGroups(summary.duplicateGroups);
       if (summary.rows.length === 0) {
@@ -282,6 +324,7 @@ export default function ImportPage() {
         rows: rowsToCommit,
         filename: file?.name || "import.csv",
         conflictStrategy,
+        customFields: importFields,
       });
       setCommittedCount(result.count);
     } catch (err) {
@@ -334,7 +377,7 @@ export default function ImportPage() {
       <SheetSection innerClassName="py-6">
         <h1 className="type-title text-foreground">Import</h1>
         <p className="mt-1 type-caption">
-          Bring your LeetCode history in. Six quick steps.
+          Bring your LeetCode history or your own sheet in. Seven quick steps.
         </p>
       </SheetSection>
 
@@ -358,51 +401,76 @@ export default function ImportPage() {
       {/* ================================================================ */}
       {phase === "brief" && (
         <SheetSection innerClassName="space-y-8 py-8">
-          <div className="max-w-2xl space-y-3">
+          <div className="max-w-2xl space-y-2">
             <h2 className="text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
-              Bring your LeetCode history in.
+              How do you want to import?
             </h2>
-            <p className="type-body">
-              Any LLM can turn screenshots of your{" "}
-              <span className="font-mono text-foreground">leetcode.com/progress</span> page
-              into a CSV. Paste that here and we&apos;ll schedule everything into your review
-              queue — spread out so you&apos;re not buried on day one.
+            <p className="type-body text-muted-foreground">
+              Pick how your data is coming in. Both paths end at the same review step.
             </p>
           </div>
 
-          <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <BriefStep
-              n={1}
-              icon={<Camera className="h-4 w-4" />}
-              title="Screenshot /progress"
-              body="Scroll through your solved list on leetcode.com/progress and take screenshots covering every row."
-            />
-            <BriefStep
-              n={2}
-              icon={<Bot className="h-4 w-4" />}
-              title="Give them to an LLM"
-              body="We give you a prompt. Paste it into Claude / ChatGPT / Gemini with your screenshots. Out comes plain-text CSV."
-            />
-            <BriefStep
-              n={3}
-              icon={<UploadCloud className="h-4 w-4" />}
-              title="Paste the result here"
-              body="Drop the CSV text into this page. We match against our catalog, you pick status, and we schedule the reviews."
-            />
-          </ol>
-
-          <div className="flex flex-col items-start justify-between gap-3 border-t border-border pt-6 sm:flex-row sm:items-center">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Path A: Screenshot → LLM → CSV */}
             <button
               type="button"
-              onClick={() => advanceTo("load")}
-              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              onClick={() => {
+                setPathway("screenshot");
+                advanceTo("compose");
+              }}
+              className="group flex flex-col items-start gap-3 border border-border bg-background p-5 text-left transition-colors hover:border-orange-500/50 hover:bg-orange-500/5"
             >
-              Already have a CSV? Skip to upload →
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center border border-border bg-muted text-muted-foreground group-hover:border-orange-500/50 group-hover:text-orange-600">
+                  <Camera className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-semibold text-foreground">From screenshots</span>
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Already solved questions on LeetCode? Screenshot your{" "}
+                <span className="font-mono text-foreground">leetcode.com/progress</span>{" "}
+                page, feed the images to any LLM with our prompt, and paste the CSV it gives you.
+                We&apos;ll match everything to our catalog and schedule reviews.
+              </p>
+              <span className="mt-auto flex items-center gap-1.5 text-xs font-medium text-orange-600 opacity-0 transition-opacity group-hover:opacity-100">
+                Start here <ArrowRight className="h-3 w-3" />
+              </span>
             </button>
-            <Button variant="primary" className="link-arrow" onClick={() => advanceTo("compose")}>
-              Start
-              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-            </Button>
+
+            {/* Path B: Already have a CSV / spreadsheet */}
+            <button
+              type="button"
+              onClick={() => {
+                setPathway("upload");
+                setInputMode("file");
+                advanceTo("load");
+              }}
+              className="group flex flex-col items-start gap-3 border border-border bg-background p-5 text-left transition-colors hover:border-orange-500/50 hover:bg-orange-500/5"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center border border-border bg-muted text-muted-foreground group-hover:border-orange-500/50 group-hover:text-orange-600">
+                  <Upload className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-semibold text-foreground">Upload a spreadsheet</span>
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Already tracking in Google Sheets, Excel, or a .csv? Export as CSV and upload it directly.
+                We&apos;ll map your columns to ours.
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {[".csv", "Google Sheets", "Excel"].map((tag) => (
+                  <span
+                    key={tag}
+                    className="border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <span className="mt-auto flex items-center gap-1.5 text-xs font-medium text-orange-600 opacity-0 transition-opacity group-hover:opacity-100">
+                Upload CSV <ArrowRight className="h-3 w-3" />
+              </span>
+            </button>
           </div>
         </SheetSection>
       )}
@@ -415,6 +483,19 @@ export default function ImportPage() {
             title="Get the CSV from any LLM"
             body="Copy the prompt below. Open Claude, ChatGPT, or Gemini — disable web search / grounding / citations first — paste the prompt, and attach your /progress screenshots. The reply will be plain CSV text."
           />
+
+          <div className="flex items-center gap-2 border border-border bg-muted/20 p-3 text-xs">
+            <span className="text-muted-foreground">Go to your progress page:</span>
+            <a
+              href="https://leetcode.com/progress/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-mono text-orange-600 underline underline-offset-2 hover:text-orange-700"
+            >
+              leetcode.com/progress
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
 
           <PromptCopyPanel />
 
@@ -433,8 +514,10 @@ export default function ImportPage() {
         <SheetSection innerClassName="space-y-6 py-6">
           <PhaseHeader
             step={2}
-            title="Paste or upload the CSV"
-            body="Most LLMs return plain text — paste it in. If you saved it as a file, use Upload."
+            title={pathway === "upload" ? "Upload your CSV" : "Paste the CSV"}
+            body={pathway === "upload"
+              ? "Drop your .csv file here. We'll read the columns and let you map them in the next step."
+              : "Paste the CSV text from your LLM below, or switch to file upload if you saved it."}
           />
 
           <div className="inline-flex border border-border">
@@ -512,39 +595,36 @@ export default function ImportPage() {
             </div>
           )}
 
-          <details className="border border-border bg-muted/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
-            <summary className="cursor-pointer font-medium text-foreground">
-              Expected columns
-            </summary>
-            <div className="mt-2 space-y-1">
-              <div>
-                <span className="font-mono text-foreground">Problem Name</span> — number and title
-                (required)
-              </div>
-              <div>
-                <span className="font-mono text-foreground">Problem Link</span> — leetcode.com URL
-              </div>
-              <div>
-                <span className="font-mono text-foreground">Pattern</span>,{" "}
-                <span className="font-mono text-foreground">Idea</span>,{" "}
-                <span className="font-mono text-foreground">Solved Date</span>,{" "}
-                <span className="font-mono text-foreground">Source</span>
-              </div>
-              <div className="pt-1 text-muted-foreground/70">
-                Legacy sheets with <span className="font-mono">Topic</span> /{" "}
-                <span className="font-mono">Status</span> /{" "}
-                <span className="font-mono">Revisit?</span> /{" "}
-                <span className="font-mono">What I did wrong</span> are still read.
-              </div>
-            </div>
-          </details>
-
           <PhaseNav
             onBack={goBack}
             primary={{
+              label: isProcessing ? "Reading columns…" : "Continue",
+              onClick: handleInspect,
+              disabled: !hasInput || isProcessing,
+              loading: isProcessing,
+            }}
+          />
+        </SheetSection>
+      )}
+
+      {/* ================================================================ */}
+      {phase === "map" && inspection && (
+        <SheetSection innerClassName="space-y-6 py-6">
+          <PhaseHeader
+            step={3}
+            title="Map your columns"
+            body="Keep your sheet the way it works for you. Columns that match ours are linked automatically; anything else becomes your own field, shown when you log and on each problem. Scheduling only uses our built-in fields."
+          />
+
+          <ColumnMapper inspection={inspection} choices={choices} onChange={setChoices} />
+
+          <PhaseNav
+            onBack={() => advanceTo("load")}
+            backLabel="Back to CSV"
+            primary={{
               label: isProcessing ? "Verifying…" : "Verify import",
               onClick: handleDryRun,
-              disabled: !hasInput || isProcessing,
+              disabled: isProcessing,
               loading: isProcessing,
             }}
           />
@@ -555,7 +635,7 @@ export default function ImportPage() {
       {phase === "review" && (
         <SheetSection innerClassName="space-y-6 py-6">
           <PhaseHeader
-            step={3}
+            step={4}
             title="Review the matches"
             body="We tried to match every row to our problem catalog. Here's what we found."
           />
@@ -730,7 +810,9 @@ export default function ImportPage() {
                     <tr>
                       <th className="px-3 py-2.5">#</th>
                       <th className="px-3 py-2.5">Row</th>
+                      <th className="px-3 py-2.5">Diff</th>
                       <th className="px-3 py-2.5">Pattern</th>
+                      <th className="px-3 py-2.5">Time</th>
                       <th className="px-3 py-2.5">Matched to</th>
                       <th className="px-3 py-2.5"></th>
                     </tr>
@@ -755,11 +837,23 @@ export default function ImportPage() {
                           {row.rawName}
                         </td>
                         <td className="px-3 py-2">
+                          {row.parsedDifficulty ? (
+                            <span className={cn("px-1.5 py-0.5 text-[10px]", formatDifficulty(row.parsedDifficulty).className)}>
+                              {formatDifficulty(row.parsedDifficulty).label}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/60">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
                           {row.rawPattern ? (
                             <Badge variant="pattern">{row.rawPattern}</Badge>
                           ) : (
                             <span className="text-muted-foreground/60">—</span>
                           )}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums text-muted-foreground">
+                          {row.parsedMinutes != null ? `${row.parsedMinutes}m` : "—"}
                         </td>
                         <td
                           className="max-w-[220px] truncate px-3 py-2 text-muted-foreground"
@@ -790,9 +884,9 @@ export default function ImportPage() {
             onBack={() => {
               setRows([]);
               setDuplicateGroups([]);
-              advanceTo("load");
+              advanceTo("map");
             }}
-            backLabel="Back to CSV"
+            backLabel="Back to columns"
             primary={{
               label: "Continue",
               onClick: () => advanceTo("assign"),
@@ -809,7 +903,7 @@ export default function ImportPage() {
       {phase === "assign" && (
         <SheetSection innerClassName="space-y-6 py-6">
           <PhaseHeader
-            step={4}
+            step={5}
             title="How were they solved?"
             body="Screenshots don't say whether you needed a hint. Pick one bulk answer, or click through each row individually. This decides where each problem starts on the review curve."
           />
@@ -843,7 +937,7 @@ export default function ImportPage() {
       {phase === "confirm" && (
         <SheetSection innerClassName="space-y-6 py-6">
           <PhaseHeader
-            step={5}
+            step={6}
             title="Ready to commit"
             body="Last look before we write to your log."
           />
@@ -1039,32 +1133,6 @@ function PhaseNav({
   );
 }
 
-function BriefStep({
-  n,
-  icon,
-  title,
-  body,
-}: {
-  n: number;
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-}) {
-  return (
-    <li className="space-y-2 border border-border bg-muted/20 p-4">
-      <div className="flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center border border-border bg-background text-[10px] tabular-nums text-muted-foreground">
-          {n}
-        </span>
-        <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-          {icon}
-          {title}
-        </span>
-      </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">{body}</p>
-    </li>
-  );
-}
 
 function SummaryCard({
   label,

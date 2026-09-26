@@ -114,6 +114,8 @@ model Entry {
   topic           String?
   customUrl       String?
   customPattern   String?
+  /// Values for the user's own columns, keyed by CustomFieldDef.id (see lib/custom-fields.ts).
+  customValues    Json?
   importBatchId   String?
 
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -164,6 +166,8 @@ model UserSettings {
   easyBaseline     Int     @default(20)
   mediumBaseline   Int     @default(40)
   hardBaseline     Int     @default(60)
+  /// User-defined columns: CustomFieldDef[] (see lib/custom-fields.ts).
+  customFields     Json?
 
   user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

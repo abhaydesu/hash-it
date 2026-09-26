@@ -1,4 +1,4 @@
-import { SolveStatus } from "@prisma/client";
+import { SolveStatus, Difficulty } from "@prisma/client";
 
 export interface DryRunRow {
   rowIndex: number;
@@ -12,6 +12,10 @@ export interface DryRunRow {
   rawRevisit?: string;
   rawSource?: string;
   rawSolvedDate?: string;
+  rawDifficulty?: string;
+  rawMinutes?: string;
+  /** Raw cells for the user's own columns, keyed by custom field id. */
+  customRaw?: Record<string, string>;
 
   // Derived / Mapped fields
   matchedProblemId?: string;
@@ -21,6 +25,8 @@ export interface DryRunRow {
   matchMethod?: "SLUG" | "NUMBER" | "TITLE_EXACT" | "FUZZY_CONFIRMATION" | "WILL_CREATE_GFG" | "WILL_CREATE_OTHER";
   parsedStatus: SolveStatus;
   parsedRevisit: boolean;
+  parsedDifficulty?: Difficulty;
+  parsedMinutes?: number;
   needsConfirmation: boolean;
 
   // Duplicate / conflict detection
@@ -55,6 +61,23 @@ export function mapRawStatus(raw?: string): SolveStatus {
     return SolveStatus.ATTEMPTED_FAILED;
   }
   return SolveStatus.SOLVED_UNAIDED;
+}
+
+export function mapRawDifficulty(raw?: string): Difficulty | undefined {
+  if (!raw) return undefined;
+  const lower = raw.trim().toLowerCase();
+  if (lower === "easy" || lower === "e") return Difficulty.EASY;
+  if (lower === "medium" || lower === "med" || lower === "m") return Difficulty.MEDIUM;
+  if (lower === "hard" || lower === "h") return Difficulty.HARD;
+  return undefined;
+}
+
+export function parseRawMinutes(raw?: string): number | undefined {
+  if (!raw) return undefined;
+  const cleaned = raw.trim().replace(/\s*(min|mins|minutes|m)$/i, "").trim();
+  const num = parseInt(cleaned, 10);
+  if (isNaN(num) || num < 0 || num > 9999) return undefined;
+  return num;
 }
 
 export function mapRawRevisit(raw?: string): boolean {
@@ -235,6 +258,9 @@ export function mergeTwoRows(rowA: DryRunRow, rowB: DryRunRow): DryRunRow {
     rawMistake: mergedMistake,
     rawSource: mergedSource,
     rawSolvedDate: mergedSolvedDate,
+    // Custom cells: first row wins per field, gaps filled from the second.
+    customRaw:
+      rowA.customRaw || rowB.customRaw ? { ...rowB.customRaw, ...rowA.customRaw } : undefined,
     parsedRevisit: mergedRevisit,
     rawRevisit: mergedRevisit ? "Yes" : "No",
     parsedStatus: mergedStatus,

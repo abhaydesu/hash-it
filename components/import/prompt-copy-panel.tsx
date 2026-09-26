@@ -23,7 +23,7 @@ export function PromptCopyPanel() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <span className="type-label text-foreground">The prompt (patterns baked in)</span>
-        <Button variant="primary" size="sm" onClick={() => copy(prompt, "prompt")}>
+        <Button variant="primary" size="sm" className="min-w-[5.5rem] justify-center" onClick={() => copy(prompt, "prompt")}>
           {copied === "prompt" ? (
             <>
               <Check className="icon-pop mr-1.5 h-3 w-3" />
@@ -32,7 +32,7 @@ export function PromptCopyPanel() {
           ) : (
             <>
               <Copy className="mr-1.5 h-3 w-3" />
-              Copy prompt
+              Copy
             </>
           )}
         </Button>

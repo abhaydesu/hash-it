@@ -8,6 +8,8 @@ vi.mock("@/app/actions/settings-actions", () => ({
   getUserSettings: vi.fn(),
   updateUserSettings: vi.fn(),
   optimizeFSRSParams: vi.fn(),
+  getCustomFields: vi.fn().mockResolvedValue([]),
+  saveCustomFields: vi.fn(),
 }));
 
 describe("SettingsPage", () => {

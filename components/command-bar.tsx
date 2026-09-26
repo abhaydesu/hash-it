@@ -9,6 +9,9 @@ import { createEntry, deleteEntry } from "@/app/actions/entry-actions";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAlertDialog } from "@/components/ui/alert-dialog";
 import { useIsMac } from "@/lib/use-is-mac";
+import { getCustomFields } from "@/app/actions/settings-actions";
+import { CustomFieldInputs, type CustomDraft } from "@/components/custom-field-inputs";
+import { filterNonOverlappingFields, type CustomFieldDef } from "@/lib/custom-fields";
 
 interface SearchResult {
   id: string;
@@ -132,6 +135,8 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   const [manualDifficulty, setManualDifficulty] = useState<"EASY" | "MEDIUM" | "HARD">("MEDIUM");
   const [patternTags, setPatternTags] = useState<string[]>([]);
   const [urlEnrichmentSource, setUrlEnrichmentSource] = useState<string | null>(null);
+  const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
+  const [customDraft, setCustomDraft] = useState<CustomDraft>({});
 
   // Undo Toast state
   const [toast, setToast] = useState<{ id: string; title: string } | null>(null);
@@ -147,6 +152,18 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   const minutesInputRef = useRef<HTMLInputElement>(null);
   const ideaRef = useRef<HTMLTextAreaElement>(null);
   const mistakeRef = useRef<HTMLTextAreaElement>(null);
+
+  // The user's own columns, refreshed each time the bar opens (they can change in Settings/Import).
+  useEffect(() => {
+    if (!isOpen && !inline) return;
+    let cancelled = false;
+    getCustomFields()
+      .then((defs) => !cancelled && setCustomFields(filterNonOverlappingFields(defs)))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, inline]);
 
   // Listen to Cmd+K & global events
   useEffect(() => {
@@ -324,6 +341,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     setManualDifficulty("MEDIUM");
     setPatternTags([]);
     setUrlEnrichmentSource(null);
+    setCustomDraft({});
     if (!inline) setIsOpen(false);
     setTimeout(() => searchInputRef.current?.focus(), 50);
   };
@@ -368,6 +386,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
           idea: idea.trim() || null,
           mistake: mistake.trim() || null,
           revisit,
+          ...(Object.keys(customDraft).length > 0 ? { customValues: customDraft } : {}),
         });
 
         if (res.success && res.entryId) {
@@ -453,7 +472,10 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     Searching...
                   </span>
                 ) : (
-                  <kbd className="border border-border bg-muted/40 px-1 py-0.5 text-[10px]">Esc to exit</kbd>
+                  <span className="inline-flex items-center gap-1 pb-0.5">
+                    <span className="keycap">Esc</span>
+                    <span>to exit</span>
+                  </span>
                 )}
               </div>
             </div>
@@ -655,6 +677,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                     />
                   </div>
+                  <CustomFieldInputs fields={customFields} values={customDraft} onChange={setCustomDraft} />
                 </div>
 
                 {/* Bottom Actions */}
@@ -896,6 +919,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                 />
               </div>
+              <CustomFieldInputs fields={customFields} values={customDraft} onChange={setCustomDraft} />
             </div>
 
             {/* Bottom Actions Bar */}

@@ -5,6 +5,10 @@ import userEvent from "@testing-library/user-event";
 import { CommandBar } from "@/components/command-bar";
 
 // Mock server actions
+vi.mock("@/app/actions/settings-actions", () => ({
+  getCustomFields: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/app/actions/entry-actions", () => ({
   createEntry: vi.fn(),
   deleteEntry: vi.fn(),

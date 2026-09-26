@@ -4,12 +4,13 @@ import React from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type WizardPhase = "brief" | "compose" | "load" | "review" | "assign" | "confirm";
+export type WizardPhase = "brief" | "compose" | "load" | "map" | "review" | "assign" | "confirm";
 
 const STEPS: Array<{ id: WizardPhase; label: string }> = [
   { id: "brief", label: "Overview" },
   { id: "compose", label: "Get the CSV" },
   { id: "load", label: "Upload" },
+  { id: "map", label: "Columns" },
   { id: "review", label: "Review" },
   { id: "assign", label: "Status" },
   { id: "confirm", label: "Commit" },
@@ -33,7 +34,7 @@ export function WizardStepper({
   const maxIdx = ORDER[furthestReached];
 
   return (
-    <ol className="grid grid-cols-6 gap-0 border border-border bg-background">
+    <ol className="grid grid-cols-7 gap-0 border border-border bg-background">
       {STEPS.map((step, idx) => {
         const isCurrent = idx === currentIdx;
         const isCompleted = idx < currentIdx;

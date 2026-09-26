@@ -7,9 +7,12 @@ import { formatDifficulty, formatMinutes, safeHref } from "@/lib/utils";
 import { ExternalLink, Sparkles, ArrowLeft } from "lucide-react";
 import { calculateRetrievability, isLeech } from "@/lib/scheduler";
 import { ScheduleReviewToggle } from "@/components/schedule-review-toggle";
+import { DeleteEntryButton } from "@/components/delete-entry-button";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { Badge } from "@/components/ui/badge";
+import { EntryCustomFields } from "@/components/entry-custom-fields";
+import { readCustomFieldDefs, filterNonOverlappingFields, type CustomValues } from "@/lib/custom-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +44,12 @@ export default async function ProblemDetailPage({
   if (!entry) {
     notFound();
   }
+
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId: user.id },
+    select: { customFields: true },
+  });
+  const customFields = filterNonOverlappingFields(readCustomFieldDefs(settings?.customFields));
 
   const p = entry.problem;
   const card = entry.reviewCard;
@@ -84,6 +93,7 @@ export default async function ProblemDetailPage({
           </div>
 
           <div className="flex items-center gap-2">
+            <DeleteEntryButton entryId={entry.id} />
             <ScheduleReviewToggle entryId={entry.id} initialScheduled={Boolean(card)} />
             <Badge variant={diff.variant} className="px-2.5 py-1 text-xs">
               {diff.label}
@@ -138,6 +148,16 @@ export default async function ProblemDetailPage({
           </div>
         </div>
       </SheetSection>
+
+      {customFields.length > 0 && (
+        <SheetSection innerClassName="py-6">
+          <EntryCustomFields
+            entryId={entry.id}
+            fields={customFields}
+            initialValues={(entry.customValues as CustomValues | null) ?? {}}
+          />
+        </SheetSection>
+      )}
 
       {card && (
         <SheetSection innerClassName="space-y-3 py-6" band="neutral">

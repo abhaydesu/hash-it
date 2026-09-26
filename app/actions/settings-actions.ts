@@ -3,6 +3,13 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+import {
+  CustomFieldDefSchema,
+  MAX_CUSTOM_FIELDS,
+  readCustomFieldDefs,
+  type CustomFieldDef,
+} from "@/lib/custom-fields";
 
 const SettingsSchema = z.object({
   dailyResolveCap: z.number().int().min(1).max(50),
@@ -81,4 +88,43 @@ export async function optimizeFSRSParams() {
     success: true,
     fsrsParams: updated.fsrsParams,
   };
+}
+
+/** The signed-in user's custom field definitions, in display order. */
+export async function getCustomFields(): Promise<CustomFieldDef[]> {
+  const user = await getCurrentUser();
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId: user.id },
+    select: { customFields: true },
+  });
+  return readCustomFieldDefs(settings?.customFields);
+}
+
+/**
+ * Replace the definitions (rename, reorder, edit options, delete, add).
+ * Ids are the join key into Entry.customValues, so an id's type can't change:
+ * values stored under it would no longer match. Deleting a field leaves its
+ * stored values in place, unreferenced, so re-adding the same id restores them.
+ */
+export async function saveCustomFields(input: CustomFieldDef[]): Promise<CustomFieldDef[]> {
+  const user = await getCurrentUser();
+  const next = z.array(CustomFieldDefSchema).max(MAX_CUSTOM_FIELDS).parse(input);
+  if (new Set(next.map((f) => f.id)).size !== next.length) {
+    throw new Error("Duplicate field ids.");
+  }
+  const current = await getCustomFields();
+  for (const f of next) {
+    const prev = current.find((c) => c.id === f.id);
+    if (prev && prev.type !== f.type) {
+      throw new Error(`"${prev.label}" is a ${prev.type} field; its type can't be changed.`);
+    }
+  }
+  await prisma.userSettings.upsert({
+    where: { userId: user.id },
+    update: { customFields: next },
+    create: { userId: user.id, customFields: next },
+  });
+  revalidatePath("/settings");
+  revalidatePath("/problems");
+  return next;
 }

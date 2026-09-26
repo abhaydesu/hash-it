@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { Platform, SolveStatus } from "@prisma/client";
+import { Difficulty, Platform, SolveStatus, type Prisma } from "@prisma/client";
 import Papa from "papaparse";
 import { z } from "zod";
 import { seedCard, spreadImportDueDates } from "@/lib/scheduler";
@@ -13,10 +13,27 @@ import {
   parseLeadingNumber,
   mapRawStatus,
   mapRawRevisit,
+  mapRawDifficulty,
+  parseRawMinutes,
   parseSolvedDate,
   sanitizeCsvText,
   mergeTwoRows,
 } from "@/lib/import-utils";
+import {
+  ColumnMappingSchema,
+  CustomFieldDefSchema,
+  MAX_CUSTOM_FIELDS,
+  inferFieldType,
+  mergeSelectOptions,
+  readCustomFieldDefs,
+  sanitizeCustomValues,
+  suggestMapping,
+  type BuiltinFieldKey,
+  type ColumnMapping,
+  type ColumnTarget,
+  type CustomFieldDef,
+  type CustomFieldType,
+} from "@/lib/custom-fields";
 
 export type { DryRunRow };
 export { mergeTwoRows };
@@ -75,23 +92,98 @@ export async function searchCatalogProblems(query: string) {
   });
 }
 
-export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
-  const user = await getCurrentUser();
+function parseCsv(csvText: string) {
   if (typeof csvText !== "string" || csvText.length > LIMITS.csvChars) {
     throw new Error("CSV is too large to import.");
   }
-
-  const { cleaned: cleanedCsv } = sanitizeCsvText(csvText);
-
-  const parsed = Papa.parse<Record<string, string>>(cleanedCsv, {
+  const { cleaned } = sanitizeCsvText(csvText);
+  const parsed = Papa.parse<Record<string, string>>(cleaned, {
     header: true,
     skipEmptyLines: "greedy",
     dynamicTyping: false,
   });
-
   if (parsed.data.length > LIMITS.importRows) {
     throw new Error(`CSV has too many rows (max ${LIMITS.importRows}).`);
   }
+  const headers = (parsed.meta.fields ?? []).filter((h) => h.trim() !== "").slice(0, 60);
+  return { rows: parsed.data, headers };
+}
+
+async function loadCustomFieldDefs(userId: string): Promise<CustomFieldDef[]> {
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { customFields: true },
+  });
+  return readCustomFieldDefs(settings?.customFields);
+}
+
+export interface ColumnInspection {
+  header: string;
+  samples: string[];
+  filledCount: number;
+  /** Suggested destination; null = not ours, suggest keeping as a new custom field. */
+  suggestion: ColumnTarget | null;
+  inferred: { type: CustomFieldType; options?: string[] };
+}
+
+export interface CsvInspection {
+  rowCount: number;
+  columns: ColumnInspection[];
+  existingFields: CustomFieldDef[];
+}
+
+/** Step before the dry-run: what columns does this sheet have, and where should each go? */
+export async function inspectImportCSV(csvText: string): Promise<CsvInspection> {
+  const user = await getCurrentUser();
+  const { rows, headers } = parseCsv(csvText);
+  const existingFields = await loadCustomFieldDefs(user.id);
+  const suggestions = suggestMapping(headers, existingFields);
+
+  const columns = headers.map((header) => {
+    const values = rows.map((r) => (r[header] ?? "").toString());
+    const filled = values.filter((v) => v.trim() !== "");
+    return {
+      header,
+      samples: [...new Set(filled.map((v) => v.trim().slice(0, 80)))].slice(0, 4),
+      filledCount: filled.length,
+      suggestion: suggestions[header] ?? null,
+      inferred: inferFieldType(values),
+    };
+  });
+
+  return { rowCount: rows.length, columns, existingFields };
+}
+
+/** Default mapping when the caller gives none: our known header names, extras ignored. */
+function defaultMapping(headers: string[]): ColumnMapping {
+  const suggested = suggestMapping(headers);
+  return Object.fromEntries(
+    headers.map((h) => [h, suggested[h] ?? { kind: "ignore" as const }])
+  );
+}
+
+export async function dryRunImportCSV(csvText: string, mappingInput?: ColumnMapping): Promise<DryRunSummary> {
+  const user = await getCurrentUser();
+  const csv = parseCsv(csvText);
+  const parsed = { data: csv.rows };
+  const headers = csv.headers;
+  const mapping = mappingInput ? ColumnMappingSchema.parse(mappingInput) : defaultMapping(headers);
+
+  // Resolve which header feeds each built-in, and which feed custom fields.
+  const builtinHeader = new Map<BuiltinFieldKey, string>();
+  const customHeaders: Array<{ header: string; fieldId: string }> = [];
+  for (const [header, target] of Object.entries(mapping)) {
+    if (!headers.includes(header)) continue;
+    if (target.kind === "builtin" && !builtinHeader.has(target.key)) builtinHeader.set(target.key, header);
+    if (target.kind === "custom") customHeaders.push({ header, fieldId: target.fieldId });
+  }
+  if (!builtinHeader.has("name") && !builtinHeader.has("link")) {
+    throw new Error("Map at least one column to Problem name or Problem link.");
+  }
+  const cell = (row: Record<string, string>, key: BuiltinFieldKey) => {
+    const h = builtinHeader.get(key);
+    return h ? (row[h] ?? "").toString().trim() : "";
+  };
 
   const [allProblems, userEntries] = await Promise.all([
     prisma.problem.findMany({
@@ -127,19 +219,24 @@ export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
 
   for (let i = 0; i < parsed.data.length; i++) {
     const row = parsed.data[i];
-    const rawName = (row["Problem Name"] || row["title"] || row["Name"] || "").trim();
-    const rawLink = (row["Problem Link font"] || row["Problem Link"] || row["link"] || row["URL"] || "").trim();
-    const rawTopic = (row["Topic"] || "").trim() || undefined;
-    const rawPattern = (row["Pattern"] || "").trim() || undefined;
-    const rawIdea = (row["Idea"] || "").trim() || undefined;
-    const rawMistake = (row["What I did wrong"] || row["Mistake"] || "").trim() || undefined;
-    const rawStatus = (row["Status"] || "").trim() || undefined;
-    const rawRevisit = (row["Revisit?"] || row["Revisit"] || "").trim() || undefined;
-    const rawSource = (row["Source"] || "").trim() || undefined;
-    const rawSolvedDate =
-      (row["Solved Date"] || row["Solved date"] || row["solved_date"] || "")
-        .trim()
-        .slice(0, 120) || undefined;
+    const rawName = cell(row, "name");
+    const rawLink = cell(row, "link");
+    const rawTopic = cell(row, "topic") || undefined;
+    const rawPattern = cell(row, "pattern") || undefined;
+    const rawIdea = cell(row, "idea") || undefined;
+    const rawMistake = cell(row, "mistake") || undefined;
+    const rawDifficulty = cell(row, "difficulty") || undefined;
+    const rawMinutes = cell(row, "minutes") || undefined;
+    const rawStatus = cell(row, "status") || undefined;
+    const rawRevisit = cell(row, "revisit") || undefined;
+    const rawSource = cell(row, "source") || undefined;
+    const rawSolvedDate = cell(row, "solvedDate").slice(0, 120) || undefined;
+
+    let customRaw: Record<string, string> | undefined;
+    for (const { header, fieldId } of customHeaders) {
+      const v = (row[header] ?? "").toString().trim();
+      if (v) (customRaw ??= {})[fieldId] = v.slice(0, 2000);
+    }
 
     if (!rawName && !rawLink) continue;
 
@@ -190,6 +287,8 @@ export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
 
     const parsedStatus = mapRawStatus(rawStatus);
     const parsedRevisit = mapRawRevisit(rawRevisit);
+    const parsedDifficulty = mapRawDifficulty(rawDifficulty);
+    const parsedMinutes = parseRawMinutes(rawMinutes);
 
     const rowObj: DryRunRow = {
       rowIndex: i + 1,
@@ -199,10 +298,13 @@ export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
       rawPattern,
       rawIdea,
       rawMistake,
+      rawDifficulty,
+      rawMinutes,
       rawStatus,
       rawRevisit,
       rawSource,
       rawSolvedDate,
+      customRaw,
       matchedProblemId: matchedProblem?.id,
       matchedTitle: matchedProblem?.title || rawName,
       matchedNumber: matchedProblem?.number,
@@ -210,6 +312,8 @@ export async function dryRunImportCSV(csvText: string): Promise<DryRunSummary> {
       matchMethod,
       parsedStatus,
       parsedRevisit,
+      parsedDifficulty,
+      parsedMinutes,
       needsConfirmation,
       alreadyExistsInDB,
       existingEntrySummary,
@@ -308,18 +412,42 @@ const CommitRowSchema = z.object({
   rawRevisit: z.string().max(20).optional(),
   rawSource: z.string().max(200).optional(),
   rawSolvedDate: z.string().max(120).optional(),
+  customRaw: z.record(z.string().max(40), z.string().max(2000)).optional(),
   matchedProblemId: z.string().max(64).optional(),
   parsedStatus: z.nativeEnum(SolveStatus),
   parsedRevisit: z.boolean(),
+  parsedDifficulty: z.nativeEnum(Difficulty).optional(),
+  parsedMinutes: z.number().int().min(0).max(9999).optional(),
   isDuplicateInCSV: z.boolean().optional(),
 });
+
+/**
+ * Fold the fields used by this import into the user's saved definitions.
+ * Existing fields keep their label and type (select options grow); new ones are
+ * appended. Capped at MAX_CUSTOM_FIELDS.
+ */
+function mergeFieldDefs(existing: CustomFieldDef[], incoming: CustomFieldDef[]): CustomFieldDef[] {
+  const out = [...existing];
+  for (const def of incoming) {
+    const idx = out.findIndex((f) => f.id === def.id);
+    if (idx >= 0) {
+      out[idx] = mergeSelectOptions(out[idx], def.options ?? []);
+    } else if (out.length < MAX_CUSTOM_FIELDS) {
+      out.push(def);
+    }
+  }
+  return out;
+}
 
 export async function commitImportBatch(params: {
   rows: DryRunRow[];
   filename?: string;
   conflictStrategy?: "SKIP" | "OVERWRITE";
+  /** Custom fields this import writes to (new ones are created). */
+  customFields?: CustomFieldDef[];
 }) {
   const user = await getCurrentUser();
+  const incomingDefs = z.array(CustomFieldDefSchema).max(MAX_CUSTOM_FIELDS).parse(params.customFields ?? []);
   const filename = z.string().max(255).optional().parse(params.filename) ?? "sheet_import.csv";
   const conflictStrategy = z.enum(["SKIP", "OVERWRITE"]).parse(params.conflictStrategy ?? "SKIP");
   if (!Array.isArray(params.rows) || params.rows.length > LIMITS.importRows) {
@@ -368,6 +496,22 @@ export async function commitImportBatch(params: {
 
   return await prisma.$transaction(
     async (tx) => {
+      let fieldDefs: CustomFieldDef[] = [];
+      if (incomingDefs.length > 0) {
+        const settings = await tx.userSettings.findUnique({
+          where: { userId: user.id },
+          select: { customFields: true },
+        });
+        fieldDefs = mergeFieldDefs(readCustomFieldDefs(settings?.customFields), incomingDefs);
+        await tx.userSettings.upsert({
+          where: { userId: user.id },
+          update: { customFields: fieldDefs },
+          create: { userId: user.id, customFields: fieldDefs },
+        });
+      }
+      const customValuesFor = (row: (typeof rows)[number]) =>
+        fieldDefs.length > 0 && row.customRaw ? sanitizeCustomValues(fieldDefs, row.customRaw) : {};
+
       const importBatch = await tx.importBatch.create({
         data: {
           userId: user.id,
@@ -389,6 +533,7 @@ export async function commitImportBatch(params: {
           patternOverride: true,
           customUrl: true,
           sourceList: true,
+          customValues: true,
         },
       });
       const existingEntryMap = new Map(userExistingEntries.map((e) => [e.problemId, e]));
@@ -421,6 +566,7 @@ export async function commitImportBatch(params: {
               slug: `${cleanSlug}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
               title: (row.rawName || "Untitled Problem").slice(0, LIMITS.title),
               url: storedHttpUrl(row.rawLink) || "",
+              difficulty: row.parsedDifficulty ?? null,
               topicTags: row.rawTopic ? [row.rawTopic.slice(0, 80)] : [],
             },
           });
@@ -448,6 +594,11 @@ export async function commitImportBatch(params: {
               patternOverride: row.rawPattern ? [row.rawPattern] : existingEntry.patternOverride,
               customUrl: safeLink || existingEntry.customUrl,
               sourceList: row.rawSource || existingEntry.sourceList,
+              customValues: {
+                ...((existingEntry.customValues as Record<string, unknown> | null) ?? {}),
+                ...customValuesFor(row),
+              } as Prisma.InputJsonObject,
+              minutes: row.parsedMinutes ?? undefined,
               revisit: row.parsedRevisit,
               importBatchId: importBatch.id,
             },
@@ -475,6 +626,8 @@ export async function commitImportBatch(params: {
             patternOverride: row.rawPattern ? [row.rawPattern] : [],
             customUrl: safeLink,
             sourceList: row.rawSource || "csv-import",
+            ...(row.customRaw && fieldDefs.length > 0 ? { customValues: customValuesFor(row) } : {}),
+            minutes: row.parsedMinutes ?? null,
             revisit: row.parsedRevisit,
             firstSolvedAt: solvedAt,
             importBatchId: importBatch.id,
