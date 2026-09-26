@@ -20,8 +20,8 @@ export function DeleteEntryButton({ entryId }: { entryId: string }) {
 
   if (confirming) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Delete this entry?</span>
+      <div className="flex items-center gap-2 whitespace-nowrap">
+        <span className="text-xs text-muted-foreground">Delete entry?</span>
         <Button variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={isPending}>
           Cancel
         </Button>
@@ -43,6 +43,8 @@ export function DeleteEntryButton({ entryId }: { entryId: string }) {
       variant="ghost"
       size="sm"
       onClick={() => setConfirming(true)}
+      aria-label="Delete entry"
+      title="Delete entry"
       className="text-muted-foreground hover:text-red-600"
     >
       <Trash2 className="h-3.5 w-3.5" />

@@ -1,0 +1,133 @@
+/* Landing illustrations.
+   Base styles are the still pose (what reduced-motion users see); every loop
+   lives under no-preference and is driven by `data-a` + the --t / --d vars. */
+
+.illo svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.illo-fb {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.illo-fb-bottom {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.illo-fb-left {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+}
+
+.illo:not([data-play]) * {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .illo [data-a] {
+    animation-duration: var(--t, 6s);
+    animation-delay: var(--d, 0s);
+    animation-iteration-count: infinite;
+    animation-fill-mode: backwards;
+    animation-timing-function: var(--ease-in-out);
+  }
+
+  .illo [data-a="q-row"] { animation-name: illo-q-row; }
+  .illo [data-a="q-check"] { animation-name: illo-q-check; }
+  .illo [data-a="grow-x"] { animation-name: illo-grow-x; }
+  .illo [data-a="scan"] { animation-name: illo-scan; }
+  .illo [data-a="pick"] { animation-name: illo-pick; }
+  .illo [data-a="ask"] {
+    animation-name: illo-bob, illo-ask;
+    animation-duration: 1.6s, var(--t, 6s);
+  }
+  .illo [data-a="timer"] { animation-name: illo-timer; animation-timing-function: linear; }
+  .illo [data-a="step-1"] { animation-name: illo-step-1; }
+  .illo [data-a="step-2"] { animation-name: illo-step-2; }
+  .illo [data-a="step-3"] { animation-name: illo-step-3; }
+  .illo [data-a="step-4"] { animation-name: illo-step-4; }
+  .illo [data-a="step-5"] { animation-name: illo-step-5; }
+}
+
+/* Daily queue: four rows share one loop, a quarter-cycle apart. Each moves up a
+   slot per quarter, gets checked at the front, then leaves. */
+@keyframes illo-q-row {
+  0%, 15% { transform: translate(0, 102px); opacity: 0; }
+  25%, 40% { transform: translate(0, 68px); opacity: 1; }
+  50%, 65% { transform: translate(0, 34px); opacity: 1; }
+  75%, 85% { transform: translate(0, 0); opacity: 1; }
+  100% { transform: translate(-40px, 0); opacity: 0; }
+}
+
+@keyframes illo-q-check {
+  0%, 76% { opacity: 0; transform: scale(0.5); }
+  80%, 100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes illo-grow-x {
+  0% { transform: scaleX(0); opacity: 1; }
+  15%, 92% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+/* Weekly drill: the frame weighs each pattern, then settles on the answer. */
+@keyframes illo-scan {
+  0%, 16% { transform: translateX(0); opacity: 0; }
+  20% { transform: translateX(0); opacity: 1; }
+  32% { transform: translateX(128px); opacity: 1; }
+  44%, 90% { transform: translateX(64px); opacity: 1; }
+  97%, 100% { transform: translateX(64px); opacity: 0; }
+}
+
+@keyframes illo-pick {
+  0%, 46% { opacity: 0; }
+  52%, 90% { opacity: 1; }
+  97%, 100% { opacity: 0; }
+}
+
+@keyframes illo-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes illo-ask {
+  0%, 44% { opacity: 1; }
+  50%, 92% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes illo-timer {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 100; }
+}
+
+/* Staggered reveals that all reset together at the end of the loop. */
+@keyframes illo-step-1 {
+  0%, 10% { opacity: 0; transform: var(--illo-from, scale(0.6)); }
+  14%, 92% { opacity: 1; transform: none; }
+  97%, 100% { opacity: 0; transform: none; }
+}
+@keyframes illo-step-2 {
+  0%, 26% { opacity: 0; transform: var(--illo-from, scale(0.6)); }
+  30%, 92% { opacity: 1; transform: none; }
+  97%, 100% { opacity: 0; transform: none; }
+}
+@keyframes illo-step-3 {
+  0%, 42% { opacity: 0; transform: var(--illo-from, scale(0.6)); }
+  46%, 92% { opacity: 1; transform: none; }
+  97%, 100% { opacity: 0; transform: none; }
+}
+@keyframes illo-step-4 {
+  0%, 58% { opacity: 0; transform: var(--illo-from, scale(0.6)); }
+  62%, 92% { opacity: 1; transform: none; }
+  97%, 100% { opacity: 0; transform: none; }
+}
+@keyframes illo-step-5 {
+  0%, 74% { opacity: 0; transform: var(--illo-from, scale(0.6)); }
+  78%, 92% { opacity: 1; transform: none; }
+  97%, 100% { opacity: 0; transform: none; }
+}
+

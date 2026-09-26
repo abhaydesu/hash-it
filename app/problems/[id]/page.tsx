@@ -92,8 +92,7 @@ export default async function ProblemDetailPage({
             <h1 className="mt-1 type-title text-foreground">{p.title}</h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            <DeleteEntryButton entryId={entry.id} />
+          <div className="flex flex-wrap items-center gap-2">
             <ScheduleReviewToggle entryId={entry.id} initialScheduled={Boolean(card)} />
             <Badge variant={diff.variant} className="px-2.5 py-1 text-xs">
               {diff.label}
@@ -109,6 +108,7 @@ export default async function ProblemDetailPage({
                 <ExternalLink className="h-3 w-3" />
               </a>
             )}
+            <DeleteEntryButton entryId={entry.id} />
           </div>
         </div>
 

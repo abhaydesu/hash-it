@@ -463,7 +463,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Type problem number (e.g. 15), title, or paste URL..."
-                className="w-full border border-border bg-background py-2 pl-9 pr-24 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full border border-border bg-background py-2 pl-9 pr-3 text-xs sm:pr-24 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <div className="absolute right-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 {isLoading ? (
@@ -472,7 +472,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     Searching...
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 pb-0.5">
+                  <span className="hidden items-center gap-1 pb-0.5 sm:inline-flex">
                     <span className="keycap">Esc</span>
                     <span>to exit</span>
                   </span>
@@ -580,14 +580,14 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
 
                 {/* Hot Fields */}
                 <div className="space-y-3 pt-2 border-t border-border">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-medium text-muted-foreground">Status</span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => setStatus("SOLVED_UNAIDED")}
                         className={cn(
-                          "flex items-center gap-1 px-2.5 py-1 text-xs transition-colors border",
+                          "flex items-center gap-1 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
                           status === "SOLVED_UNAIDED"
                             ? "outcome-fill-good"
                             : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -595,14 +595,14 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       >
                         <Check className="h-3 w-3" />
                         <span>Unaided</span>
-                        <kbd className="text-[10px] opacity-70">[1]</kbd>
+                        <kbd className="hidden text-[10px] opacity-70 sm:inline">[1]</kbd>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setStatus("SOLVED_WITH_HELP")}
                         className={cn(
-                          "flex items-center gap-1 px-2.5 py-1 text-xs transition-colors border",
+                          "flex items-center gap-1 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
                           status === "SOLVED_WITH_HELP"
                             ? "outcome-fill-hint"
                             : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -610,14 +610,14 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       >
                         <HelpCircle className="h-3 w-3" />
                         <span>With Help</span>
-                        <kbd className="text-[10px] opacity-70">[2]</kbd>
+                        <kbd className="hidden text-[10px] opacity-70 sm:inline">[2]</kbd>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setStatus("ATTEMPTED_FAILED")}
                         className={cn(
-                          "flex items-center gap-1 px-2.5 py-1 text-xs transition-colors border",
+                          "flex items-center gap-1 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
                           status === "ATTEMPTED_FAILED"
                             ? "outcome-fill-failed"
                             : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -625,7 +625,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       >
                         <AlertCircle className="h-3 w-3" />
                         <span>Failed</span>
-                        <kbd className="text-[10px] opacity-70">[3]</kbd>
+                        <kbd className="hidden text-[10px] opacity-70 sm:inline">[3]</kbd>
                       </button>
                     </div>
                   </div>
@@ -813,14 +813,14 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
 
             {/* The 4 Hot Fields */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-medium text-muted-foreground">Status</span>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setStatus("SOLVED_UNAIDED")}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 text-xs transition-colors border",
+                      "flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
                       status === "SOLVED_UNAIDED"
                         ? "outcome-fill-good"
                         : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -828,14 +828,14 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   >
                     <Check className="h-3 w-3" />
                     <span>Unaided</span>
-                    <kbd className="text-[10px] opacity-70">[1]</kbd>
+                    <kbd className="hidden text-[10px] opacity-70 sm:inline">[1]</kbd>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setStatus("SOLVED_WITH_HELP")}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 text-xs transition-colors border",
+                      "flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
                       status === "SOLVED_WITH_HELP"
                         ? "outcome-fill-hint"
                         : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -843,14 +843,14 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   >
                     <HelpCircle className="h-3 w-3" />
                     <span>With Help</span>
-                    <kbd className="text-[10px] opacity-70">[2]</kbd>
+                    <kbd className="hidden text-[10px] opacity-70 sm:inline">[2]</kbd>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setStatus("ATTEMPTED_FAILED")}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 text-xs transition-colors border",
+                      "flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
                       status === "ATTEMPTED_FAILED"
                         ? "outcome-fill-failed"
                         : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -858,7 +858,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   >
                     <AlertCircle className="h-3 w-3" />
                     <span>Failed</span>
-                    <kbd className="text-[10px] opacity-70">[3]</kbd>
+                    <kbd className="hidden text-[10px] opacity-70 sm:inline">[3]</kbd>
                   </button>
                 </div>
               </div>
@@ -893,7 +893,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
                   <span>Idea / Core insight</span>
-                  <span className="text-muted-foreground/60 text-[10px]">Tab to mistake</span>
+                  <span className="hidden text-[10px] text-muted-foreground/60 sm:inline">Tab to mistake</span>
                 </div>
                 <textarea
                   ref={ideaRef}
@@ -908,7 +908,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
                   <span>What I did wrong / Trap to avoid</span>
-                  <span className="text-muted-foreground/60 text-[10px]">Highest-value artifact</span>
+                  <span className="hidden text-[10px] text-muted-foreground/60 sm:inline">Highest-value artifact</span>
                 </div>
                 <textarea
                   ref={mistakeRef}

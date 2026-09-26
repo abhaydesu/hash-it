@@ -433,8 +433,9 @@ function GridDeleteButton({ entryId }: { entryId: string }) {
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      className="opacity-0 group-hover/row:opacity-100 p-0.5 text-muted-foreground transition-opacity hover:text-red-600"
+      className="p-0.5 text-muted-foreground transition-opacity hover:text-red-600 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-visible:opacity-100 [@media(hover:hover)]:group-hover/row:opacity-100"
       title="Delete entry"
+      aria-label="Delete entry"
     >
       <Trash2 className="h-3 w-3" />
     </button>

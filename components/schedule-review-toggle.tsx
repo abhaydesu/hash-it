@@ -36,7 +36,7 @@ export function ScheduleReviewToggle({ entryId, initialScheduled }: ScheduleRevi
         type="button"
         onClick={handleToggle}
         disabled={isPending}
-        className={`pressable flex items-center gap-1.5 border px-2.5 py-1 text-xs font-medium disabled:opacity-50 ${
+        className={`pressable flex items-center gap-1.5 whitespace-nowrap border px-2.5 py-1 text-xs font-medium disabled:opacity-50 ${
           isScheduled
             ? "border-easy/50 bg-easy/10 text-easy hover:bg-easy/20"
             : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"

@@ -8,6 +8,13 @@ import { PixelBlast } from "@/components/ui/pixel-blast";
 import { ForgettingCurveGraph } from "@/components/ui/forgetting-curve";
 import { HeroDemo } from "@/components/hero-demo";
 import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
+import { DailyQueueIllo, WeeklyDrillIllo, MonthlyMockIllo } from "@/components/landing/bento-illos";
+
+const CADENCES = [
+  { title: "Daily queue", desc: "Re-solve due problems from scratch. The queue fills itself.", Illo: DailyQueueIllo },
+  { title: "Weekly drill", desc: "Read a cue, name the pattern. Tests recognition without code.", Illo: WeeklyDrillIllo },
+  { title: "Monthly mock", desc: "Five blind problems, timed. No labels, no hints. The stress test.", Illo: MonthlyMockIllo },
+];
 
 export default async function HomePage() {
   const session = await auth();
@@ -155,24 +162,15 @@ export default async function HomePage() {
         <SheetSection innerClassName="space-y-4 py-8">
           <div className="text-center text-xl font-medium pb-4">Three review cadences</div>
           <div className="grid grid-cols-1 divide-y divide-border border border-border bg-background md:grid-cols-3 md:divide-x md:divide-y-0 stagger-in">
-            <div className="space-y-3 p-6 sm:p-8">
-              <h3 className="text-sm font-medium">Daily queue</h3>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Re-solve due problems from scratch. The queue fills itself.
-              </p>
-            </div>
-            <div className="space-y-3 p-6 sm:p-8">
-              <h3 className="text-sm font-medium">Weekly drill</h3>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Read a cue, name the pattern. Tests recognition without code.
-              </p>
-            </div>
-            <div className="space-y-3 p-6 sm:p-8">
-              <h3 className="text-sm font-medium">Monthly mock</h3>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Five blind problems, timed. No labels, no hints. The stress test.
-              </p>
-            </div>
+            {CADENCES.map(({ title, desc, Illo }) => (
+              <div key={title} className="space-y-3 p-6 sm:p-8">
+                <div className="mb-5 border border-border bg-muted/20 px-4 py-4 md:px-2 lg:px-6 lg:py-5">
+                  <Illo />
+                </div>
+                <h3 className="text-sm font-medium">{title}</h3>
+                <p className="text-xs leading-relaxed text-muted-foreground">{desc}</p>
+              </div>
+            ))}
           </div>
         </SheetSection>
 
