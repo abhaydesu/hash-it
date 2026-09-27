@@ -57,51 +57,56 @@ export function DailyQueueIllo() {
   );
 }
 
-const CHIPS = ["Two Ptr", "Window", "Heap"];
+const CONFIDENCE = ["Blank", "Hazy", "Clear"];
 
-export function WeeklyDrillIllo() {
-  const T = 6;
+export function WeeklyReviewIllo() {
+  const T = 7;
   return (
-    <IlloFrame label="A problem cue is shown; the drill weighs each pattern and settles on sliding window.">
+    <IlloFrame label="A problem's title is shown; you rate how sure you are, your notes are revealed, then a three-problem plan is set and ticked off.">
       <svg viewBox="0 0 240 124" aria-hidden="true">
-        <rect x={28} y={8} width={184} height={50} className="fill-background stroke-foreground" strokeWidth={1.25} />
-        <text x={38} y={21} fontSize={7} letterSpacing={1} className="fill-muted-foreground">CUE</text>
-        <rect x={38} y={29} width={150} height={3} className="fill-border" />
-        <rect x={38} y={39} width={40} height={3} className="fill-border" />
-        <rect x={82} y={38} width={58} height={5} className="fill-primary/25" />
-        <rect
-          x={82}
-          y={41}
-          width={58}
-          height={2}
-          data-a="grow-x"
-          style={timing(T)}
-          className="illo-fb-left fill-primary"
-        />
-        <rect x={144} y={39} width={44} height={3} className="fill-border" />
-        <rect x={38} y={49} width={100} height={3} className="fill-border" />
-        <text x={220} y={24} fontSize={18} data-a="ask" style={timing(T)} className="fill-foreground">?</text>
+        {/* Title only, until you commit to a confidence. */}
+        <rect x={28} y={6} width={184} height={40} className="fill-background stroke-foreground" strokeWidth={1.25} />
+        <text x={38} y={17} fontSize={7} letterSpacing={1} className="fill-muted-foreground">RECALL</text>
+        <rect x={38} y={22} width={96} height={4} className="fill-foreground" />
+        <text x={196} y={30} fontSize={18} data-a="ask" style={timing(T)} className="fill-foreground">?</text>
+        {/* Notes reveal only after the confidence pick. */}
+        <g data-a="step-4" style={timing(T, 0, { "--illo-from": "translateY(3px)" } as React.CSSProperties)}>
+          <rect x={38} y={32} width={126} height={3} className="fill-border" />
+          <rect x={38} y={38} width={84} height={3} className="fill-primary" />
+        </g>
 
-        {CHIPS.map((label, i) => (
+        {CONFIDENCE.map((label, i) => (
           <g key={label}>
-            <rect x={28 + i * 64} y={84} width={56} height={24} className="fill-background stroke-foreground" strokeWidth={1.25} />
-            <text x={56 + i * 64} y={99} fontSize={8.5} textAnchor="middle" className="fill-foreground">{label}</text>
+            <rect x={28 + i * 64} y={54} width={56} height={22} className="fill-background stroke-foreground" strokeWidth={1.25} />
+            <text x={56 + i * 64} y={68} fontSize={8.5} textAnchor="middle" className="fill-foreground">{label}</text>
           </g>
         ))}
         <g data-a="pick" style={timing(T)}>
-          <rect x={92} y={84} width={56} height={24} className="fill-primary" />
-          <text x={120} y={99} fontSize={8.5} textAnchor="middle" className="fill-primary-foreground">Window</text>
+          <rect x={92} y={54} width={56} height={22} className="fill-primary" />
+          <text x={120} y={68} fontSize={8.5} textAnchor="middle" className="fill-primary-foreground">Hazy</text>
         </g>
         <rect
           x={24}
-          y={80}
+          y={50}
           width={64}
-          height={32}
+          height={30}
           data-a="scan"
           style={timing(T, 0, { transform: "translateX(64px)" })}
           className="fill-none stroke-primary"
           strokeWidth={1.5}
         />
+
+        {/* The week's plan: three problems, the first already done. */}
+        <g data-a="step-5" style={timing(T, 0, { "--illo-from": "translateY(4px)" } as React.CSSProperties)}>
+          <text x={28} y={104} fontSize={7} letterSpacing={1} className="fill-muted-foreground">PLAN</text>
+          {[0, 1, 2].map((i) => (
+            <g key={i}>
+              <rect x={60 + i * 52} y={95} width={12} height={12} className="fill-background stroke-foreground" strokeWidth={1.25} />
+              <rect x={76 + i * 52} y={99} width={24} height={4} className="fill-border" />
+            </g>
+          ))}
+          <Check x={60} y={95} size={12} />
+        </g>
       </svg>
     </IlloFrame>
   );

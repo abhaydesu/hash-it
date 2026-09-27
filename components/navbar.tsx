@@ -23,6 +23,8 @@ interface NavbarProps {
     image?: string | null;
   } | null;
   userMenu?: ReactNode;
+  /** Next LeetCode contest chip; shown only inside the app, not on marketing pages. */
+  contestReminder?: ReactNode;
 }
 
 const navItems = [
@@ -30,7 +32,7 @@ const navItems = [
   { href: "/problems", label: "Problems" },
   { href: "/roadmap", label: "Roadmap" },
   { href: "/practice", label: "Practice" },
-  { href: "/review/weekly", label: "Weekly drill" },
+  { href: "/review/weekly", label: "Weekly review" },
   { href: "/review/monthly", label: "Monthly mock" },
   { href: "/stats", label: "Stats" },
   { href: "/import", label: "Import" },
@@ -83,7 +85,7 @@ export function SidebarNav() {
   );
 }
 
-export function Navbar({ user, userMenu }: NavbarProps) {
+export function Navbar({ user, userMenu, contestReminder }: NavbarProps) {
   const pathname = usePathname();
   const isMarketingPage = pathname === "/" || pathname === "/auth/signin";
   const isMac = useIsMac();
@@ -144,6 +146,8 @@ export function Navbar({ user, userMenu }: NavbarProps) {
                 Dashboard
               </Link>
             )}
+
+            {!isMarketingPage && contestReminder}
 
             {!isMarketingPage && <MonthlyMockNavControls />}
 

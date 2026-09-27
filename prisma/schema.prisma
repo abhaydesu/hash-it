@@ -39,27 +39,41 @@ enum CardState {
   RELEARNING
 }
 
+/// How sure the user was before revealing their notes in the weekly recall check.
+enum RecallConfidence {
+  BLANK
+  HAZY
+  CLEAR
+}
+
+enum PlanItemKind {
+  REDO
+  FRESH
+  REVISIT
+}
+
 enum PatternSource {
   SHEET
   USER
 }
 
 model Problem {
-  id          String      @id @default(cuid())
-  platform    Platform
-  slug        String
-  number      Int?
-  title       String
-  url         String
-  difficulty  Difficulty?
-  acRate      Float?
-  isPaidOnly  Boolean     @default(false)
-  topicTags   String[]
+  id           String      @id @default(cuid())
+  platform     Platform
+  slug         String
+  number       Int?
+  title        String
+  url          String
+  difficulty   Difficulty?
+  acRate       Float?
+  isPaidOnly   Boolean     @default(false)
+  topicTags    String[]
   lastSyncedAt DateTime?
 
-  patterns    ProblemPattern[]
-  entries     Entry[]
+  patterns     ProblemPattern[]
+  entries      Entry[]
   roadmapItems RoadmapItem[]
+  planItems    WeeklyPlanItem[]
 
   @@unique([platform, slug])
   @@index([number])
@@ -71,21 +85,7 @@ model Pattern {
   family    String
   sortOrder Int
 
-  problems  ProblemPattern[]
-  drills    PatternDrill[]
-}
-
-model PatternDrill {
-  id        String   @id @default(cuid())
-  userId    String
-  patternId String
-  at        DateTime @default(now())
-  correct   Boolean
-
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pattern   Pattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
-
-  @@index([userId, patternId, at])
+  problems ProblemPattern[]
 }
 
 model ProblemPattern {
@@ -93,8 +93,8 @@ model ProblemPattern {
   patternId String
   source    PatternSource @default(SHEET)
 
-  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  pattern   Pattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  pattern Pattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
 
   @@id([problemId, patternId])
 }
@@ -118,26 +118,28 @@ model Entry {
   customValues    Json?
   importBatchId   String?
 
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  problem         Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  attempts        Attempt[]
-  reviewCard      ReviewCard?
-  importBatch     ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem      Problem       @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  attempts     Attempt[]
+  reviewCard   ReviewCard?
+  weeklyChecks WeeklyCheck[]
+  importBatch  ImportBatch?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
   @@unique([userId, problemId])
   @@index([userId])
 }
 
 model Attempt {
-  id        String   @id @default(cuid())
-  entryId   String
-  at        DateTime @default(now())
-  rating    Rating
-  minutes   Int?
-  usedHint  Boolean  @default(false)
-  note      String?
+  id       String   @id @default(cuid())
+  entryId  String
+  at       DateTime @default(now())
+  rating   Rating
+  minutes  Int?
+  usedHint Boolean  @default(false)
+  note     String?
 
-  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
   @@index([entryId])
 }
 
@@ -153,7 +155,8 @@ model ReviewCard {
   state         CardState
   lastReview    DateTime?
 
-  entry         Entry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
   @@index([due])
 }
 
@@ -171,7 +174,7 @@ model UserSettings {
   /// Per-user stats page layout: which sections are visible + display order.
   statsPreferences Json?
 
-  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ImportBatch {
@@ -182,23 +185,25 @@ model ImportBatch {
   entryCount Int
   status     String   @default("COMMITTED")
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entries    Entry[]
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries Entry[]
 
   @@index([userId])
 }
 
 // NextAuth Models
 model User {
-  id            String         @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String?
-  email         String?        @unique
+  email         String?       @unique
   emailVerified DateTime?
   image         String?
   accounts      Account[]
   sessions      Session[]
   entries       Entry[]
-  patternDrills PatternDrill[]
+  weeklyChecks  WeeklyCheck[]
+  weeklyPlans   WeeklyPlan[]
+  monthlyMocks  MonthlyMock[]
   settings      UserSettings?
   importBatches ImportBatch[]
 }
@@ -217,7 +222,7 @@ model Account {
   id_token          String?
   session_state     String?
 
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -228,7 +233,7 @@ model Session {
   userId       String
   expires      DateTime
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -241,26 +246,88 @@ model VerificationToken {
 
 // Separate Study Roadmap (e.g. YouTuber DSA Patterns Sheet)
 model RoadmapPattern {
-  id        String        @id @default(cuid())
-  name      String        @unique
-  order     Int
-  items     RoadmapItem[]
+  id    String        @id @default(cuid())
+  name  String        @unique
+  order Int
+  items RoadmapItem[]
 
-  createdAt DateTime      @default(now())
+  createdAt DateTime @default(now())
 }
 
 model RoadmapItem {
-  id                 String          @id @default(cuid())
+  id                 String   @id @default(cuid())
   roadmapPatternId   String
   title              String
   primaryUrl         String?
-  additionalUrls     String[]        @default([])
+  additionalUrls     String[] @default([])
   order              Int
   canonicalProblemId String?
 
-  roadmapPattern     RoadmapPattern  @relation(fields: [roadmapPatternId], references: [id], onDelete: Cascade)
-  canonicalProblem   Problem?        @relation(fields: [canonicalProblemId], references: [id], onDelete: SetNull)
+  roadmapPattern   RoadmapPattern @relation(fields: [roadmapPatternId], references: [id], onDelete: Cascade)
+  canonicalProblem Problem?       @relation(fields: [canonicalProblemId], references: [id], onDelete: SetNull)
 
   @@index([roadmapPatternId])
   @@index([canonicalProblemId])
+}
+
+/// One weekly recall check: confidence tapped before reveal, then whether the user had it.
+/// `weekStart` is the local Monday (YYYY-MM-DD) in the user's timezone.
+model WeeklyCheck {
+  id         String           @id @default(cuid())
+  userId     String
+  entryId    String
+  weekStart  String
+  at         DateTime         @default(now())
+  confidence RecallConfidence
+  recalled   Boolean
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, weekStart])
+  @@index([userId, weekStart])
+}
+
+/// The problems a user committed to for the coming week. Completion is derived from attempts.
+model WeeklyPlan {
+  id        String   @id @default(cuid())
+  userId    String
+  weekStart String
+  createdAt DateTime @default(now())
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WeeklyPlanItem[]
+
+  @@unique([userId, weekStart])
+}
+
+model WeeklyPlanItem {
+  id        String       @id @default(cuid())
+  planId    String
+  kind      PlanItemKind
+  problemId String
+
+  plan    WeeklyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  problem Problem    @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, kind])
+}
+
+/// A completed monthly mock. `period` (YYYY-MM) is the month it counts for: mocks open on
+/// the month's last local day, and each completion credits the earliest month still owed.
+model MonthlyMock {
+  id          String   @id @default(cuid())
+  userId      String
+  period      String
+  /// Client session id, so a finished session reloaded from storage can't be recorded twice.
+  sessionId   String   @unique
+  completedAt DateTime @default(now())
+  solved      Int
+  hinted      Int
+  failed      Int
+  durationSec Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])
 }

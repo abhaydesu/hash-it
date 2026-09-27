@@ -549,6 +549,7 @@
      html[data-theme-anim] is set by a click, so page loads never animate. */
   .theme-icon {
     transform-origin: center;
+    transform: rotate(35deg);
   }
   .theme-icon-disc,
   .theme-icon-ray {
@@ -556,57 +557,61 @@
     transform-origin: 12px 12px;
   }
   .theme-icon-disc {
-    transform: scale(0.53125); /* sun disc: r 4.25 of the moon's 8 */
+    transform: scale(1); /* moon disc: full size */
   }
   .theme-icon-bite {
-    transform: translateY(-20px); /* parked above, clear of the sun */
+    transform: translateY(-6px); /* bite the crescent */
   }
-  .dark .theme-icon {
-    transform: rotate(35deg);
-  }
-  .dark .theme-icon-disc {
-    transform: scale(1);
-  }
-  .dark .theme-icon-bite {
-    transform: translateY(-6px);
-  }
-  .dark .theme-icon-ray {
+  .theme-icon-ray {
     transform: translateX(-4.5px); /* tucked under the moon */
     opacity: 0;
   }
+  .dark .theme-icon {
+    transform: rotate(0deg);
+  }
+  .dark .theme-icon-disc {
+    transform: scale(0.53125); /* sun disc: r 4.25 of the moon's 8 */
+  }
+  .dark .theme-icon-bite {
+    transform: translateY(-20px); /* parked above, clear of the sun */
+  }
+  .dark .theme-icon-ray {
+    transform: translateX(0); /* rays visible */
+    opacity: 1;
+  }
 
   html[data-theme-anim].dark .theme-icon {
-    animation: theme-icon-tilt-in 400ms var(--ease-morph) backwards;
-  }
-  html[data-theme-anim].dark .theme-icon-disc {
-    animation: theme-disc-grow 400ms var(--ease-morph) backwards;
-  }
-  html[data-theme-anim].dark .theme-icon-bite {
-    animation: theme-bite-in 400ms var(--ease-morph) backwards;
-  }
-  /* Dots retract in dial order and are gone before they reach the disc. */
-  html[data-theme-anim].dark .theme-icon-ray {
-    animation:
-      theme-ray-retract 400ms var(--ease-morph) backwards,
-      theme-ray-fade-out 120ms var(--ease-out) backwards;
-    animation-delay: calc(var(--i) * 18ms);
-  }
-
-  html[data-theme-anim]:not(.dark) .theme-icon {
     animation: theme-icon-tilt-out 400ms var(--ease-morph) backwards;
   }
-  html[data-theme-anim]:not(.dark) .theme-icon-disc {
+  html[data-theme-anim].dark .theme-icon-disc {
     animation: theme-disc-shrink 400ms var(--ease-morph) backwards;
   }
-  html[data-theme-anim]:not(.dark) .theme-icon-bite {
+  html[data-theme-anim].dark .theme-icon-bite {
     animation: theme-bite-out 400ms var(--ease-morph) backwards;
   }
   /* Dots extend in reverse order, 60ms late, once the disc has made room. */
-  html[data-theme-anim]:not(.dark) .theme-icon-ray {
+  html[data-theme-anim].dark .theme-icon-ray {
     animation:
       theme-ray-extend 400ms var(--ease-morph) backwards,
       theme-ray-fade-in 180ms var(--ease-out) backwards;
     animation-delay: calc(60ms + var(--r) * 18ms);
+  }
+
+  html[data-theme-anim]:not(.dark) .theme-icon {
+    animation: theme-icon-tilt-in 400ms var(--ease-morph) backwards;
+  }
+  html[data-theme-anim]:not(.dark) .theme-icon-disc {
+    animation: theme-disc-grow 400ms var(--ease-morph) backwards;
+  }
+  html[data-theme-anim]:not(.dark) .theme-icon-bite {
+    animation: theme-bite-in 400ms var(--ease-morph) backwards;
+  }
+  /* Dots retract in dial order and are gone before they reach the disc. */
+  html[data-theme-anim]:not(.dark) .theme-icon-ray {
+    animation:
+      theme-ray-retract 400ms var(--ease-morph) backwards,
+      theme-ray-fade-out 120ms var(--ease-out) backwards;
+    animation-delay: calc(var(--i) * 18ms);
   }
 }
 

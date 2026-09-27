@@ -35,12 +35,14 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   return originalFetch(input, init);
 }) as typeof fetch;
 
-// Ensure integration tests use test schema
-if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("schema=test_hash_it")) {
-  const url = new URL(process.env.DATABASE_URL);
-  url.searchParams.set("schema", "test_hash_it");
-  process.env.DATABASE_URL = url.toString();
-}
+// Safety net: refuse to run against anything but the test schema on a direct connection.
+// (Prisma applies ?schema= by qualifying table names, so current_schema() can't tell us.)
+beforeAll(() => {
+  const url = new URL(process.env.DATABASE_URL ?? "postgres://missing");
+  if (url.searchParams.get("schema") !== "test_hash_it" || url.hostname.includes("-pooler.")) {
+    throw new Error("Integration tests must use the test_hash_it schema over a direct (unpooled) connection.");
+  }
+});
 
 afterAll(async () => {
   await prisma.$disconnect();

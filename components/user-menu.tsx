@@ -17,6 +17,7 @@ interface UserMenuProps {
 
 export function UserMenu({ user }: UserMenuProps) {
   const [open, setOpen] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,11 +61,14 @@ export function UserMenu({ user }: UserMenuProps) {
         aria-expanded={open}
         aria-haspopup="menu"
       >
-        {user.image ? (
+        {user.image && !avatarFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={user.image}
             alt={user.name ?? "avatar"}
+            // Google's avatar host rate-limits (429) requests that carry a referrer.
+            referrerPolicy="no-referrer"
+            onError={() => setAvatarFailed(true)}
             className="h-4 w-4 object-cover"
           />
         ) : (

@@ -2,13 +2,17 @@
 import React from "react";
 
 import Link from "next/link";
-import { ArrowRight, CalendarRange, Clock3, X } from "lucide-react";
+import { ArrowRight, CalendarRange, Check, Clock3, X } from "lucide-react";
 import { useState } from "react";
 import { RecallCardItem } from "@/components/recall-card-item";
 import { ReviewCardItem } from "@/components/review-card-item";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
+import type { PlanItemView } from "@/lib/weekly-review";
+import type { MonthlyStatus } from "@/lib/review-windows";
+import { Countdown } from "@/components/ui/countdown";
+import { cn } from "@/lib/utils";
 
 type ReviewLane = "RECALL" | "RESOLVE";
 
@@ -42,6 +46,104 @@ export interface TodayData {
   recallCount: number;
   snapshot: Snapshot;
   overdueCount: number;
+  weeklyPlan: { items: PlanItemView[] | null; reviewedThisWeek: boolean; nextReviewAt: number };
+  monthlyStatus: MonthlyStatus;
+  lastMock: { solved: number; total: number } | null;
+}
+
+function MonthlyTile({ status, lastMock }: { status: MonthlyStatus; lastMock: TodayData["lastMock"] }) {
+  const locked = status.state === "locked";
+  return (
+    <div className="flex flex-col justify-between bg-background p-4 sm:p-5">
+      <div>
+        <div className="flex items-center justify-between">
+          <h2 className="type-heading text-foreground">Monthly mock</h2>
+          {lastMock ? (
+            <span className="type-caption tabular-nums">
+              Last: {lastMock.solved}/{lastMock.total} cold
+            </span>
+          ) : (
+            <Clock3 className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
+        <p className="mt-2 type-caption leading-relaxed">
+          Five blind problems, timed. No labels, no hints. Opens on the last day of each month.
+        </p>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3 type-caption">
+        <span className={cn(status.state === "open" && status.overdue && "font-medium text-medium")}>
+          {status.state === "locked" ? (
+            <>
+              Opens <Countdown to={status.opensAt} showDate={false} />
+            </>
+          ) : status.state === "open" ? (
+            status.overdue ? "Overdue" : "Due today"
+          ) : (
+            "Ready"
+          )}
+        </span>
+        <Link href="/review/monthly" className="link-arrow font-medium text-orange-600 hover:text-orange-700">
+          {locked ? "View" : "Start mock"} <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+const PLAN_LABEL: Record<PlanItemView["kind"], string> = { REDO: "Redo", FRESH: "New", REVISIT: "Revisit" };
+
+/** Today's view of the weekly review: the committed plan, or a nudge to do this week's review. */
+function WeeklyTile({ plan }: { plan: TodayData["weeklyPlan"] }) {
+  const items = plan.items;
+  const done = items?.filter((i) => i.done).length ?? 0;
+  return (
+    <div className="flex flex-col justify-between bg-background p-4 sm:p-5">
+      <div>
+        <div className="flex items-center justify-between">
+          <h2 className="type-heading text-foreground">{items ? "This week's plan" : "Weekly review"}</h2>
+          {items ? (
+            <span className="type-caption tabular-nums">
+              {done} / {items.length}
+            </span>
+          ) : (
+            <CalendarRange className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
+        {items ? (
+          <ul className="mt-2 space-y-1.5">
+            {items.map((i) => (
+              <li key={i.kind} className="flex items-center gap-2 text-xs">
+                <span className="w-14 shrink-0 type-label text-muted-foreground">{PLAN_LABEL[i.kind]}</span>
+                <span className={cn("min-w-0 flex-1 truncate", i.done ? "text-muted-foreground line-through" : "text-foreground")}>
+                  {i.number != null && <span className="tabular-nums text-muted-foreground">{i.number}. </span>}
+                  {i.title}
+                </span>
+                {i.done && <Check className="h-3.5 w-3.5 shrink-0 text-easy" />}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 type-caption leading-relaxed">
+            Look back, catch what&apos;s slipping, plan three problems. About ten minutes.
+          </p>
+        )}
+      </div>
+      <div className="mt-4 flex items-center justify-between border-t border-border pt-3 type-caption">
+        <span>
+          {plan.reviewedThisWeek ? (
+            <>
+              Done · next <Countdown to={plan.nextReviewAt} showDate={false} />
+            </>
+          ) : (
+            "Due this week"
+          )}
+        </span>
+        <Link href="/review/weekly" className="link-arrow font-medium text-orange-600 hover:text-orange-700">
+          {plan.reviewedThisWeek ? "Open review" : "Start review"} <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 const COLLAPSE_MS = 300;
@@ -132,7 +234,7 @@ export function TodayClient({ data }: { data: TodayData }) {
         </div>
 
         {activeQueue.length === 0 ? (
-          <div className="idea-preview border border-border bg-dither-25 px-4 py-10 text-center">
+          <div className="idea-preview border border-border bg-muted/40 px-4 py-10 text-center">
             <p className="text-sm font-medium text-foreground">
               {queue.length > 0 ? "All done for today." : "Nothing due today."}
             </p>
@@ -166,41 +268,9 @@ export function TodayClient({ data }: { data: TodayData }) {
 
       <SheetSection innerClassName="py-6" band="none" last>
         <div className="grid grid-cols-1 divide-y divide-border border border-border md:grid-cols-2 md:divide-x md:divide-y-0">
-          <div className="flex flex-col justify-between bg-background p-4 sm:p-5">
-            <div>
-              <div className="flex items-center justify-between">
-                <h2 className="type-heading text-foreground">Weekly drill</h2>
-                <CalendarRange className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="mt-2 type-caption leading-relaxed">
-                Read a cue, name the pattern. About two minutes per drill.
-              </p>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-border pt-3 type-caption">
-              <span>Interval: 14 days</span>
-              <Link href="/review/weekly" className="link-arrow font-medium text-orange-600 hover:text-orange-700">
-                Open drill <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-          </div>
+          <WeeklyTile plan={data.weeklyPlan} />
 
-          <div className="flex flex-col justify-between bg-background p-4 sm:p-5">
-            <div>
-              <div className="flex items-center justify-between">
-                <h2 className="type-heading text-foreground">Monthly mock</h2>
-                <Clock3 className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="mt-2 type-caption leading-relaxed">
-                Five blind problems, timed. No labels, no hints.
-              </p>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-border pt-3 type-caption">
-              <span>Interval: 30 days</span>
-              <Link href="/review/monthly" className="link-arrow font-medium text-orange-600 hover:text-orange-700">
-                Start mock <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-          </div>
+          <MonthlyTile status={data.monthlyStatus} lastMock={data.lastMock} />
         </div>
       </SheetSection>
     </div>

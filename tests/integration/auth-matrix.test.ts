@@ -30,7 +30,7 @@ import { GET as getStats } from "@/app/api/stats/route";
 import { GET as getTodayQueue } from "@/app/api/today-queue/route";
 import { GET as getWeeklyReview } from "@/app/api/review/weekly/route";
 import { GET as getMonthlyReview } from "@/app/api/review/monthly/route";
-import { POST as postDrill } from "@/app/api/review/weekly/drill/route";
+import { recordRecallCheck, commitWeeklyPlan } from "@/app/actions/weekly-actions";
 import { POST as searchProblems } from "@/app/api/search/problems/route";
 
 describe("Authorization Matrix (Integration)", () => {
@@ -108,13 +108,6 @@ describe("Authorization Matrix (Integration)", () => {
       expect((await getWeeklyReview()).status).toBe(401);
       expect((await getMonthlyReview()).status).toBe(401);
 
-      const drillReq = new Request("http://localhost:3000/api/review/weekly/drill", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patternId: "p1", correct: true }),
-      });
-      expect((await postDrill(drillReq)).status).toBe(401);
-
       const searchReq = new Request("http://localhost:3000/api/search/problems", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -154,6 +147,12 @@ describe("Authorization Matrix (Integration)", () => {
 
       await expect(toggleScheduleReview(entryB.id, false)).rejects.toThrow();
       expect(await tx.reviewCard.findUnique({ where: { entryId: entryB.id } })).not.toBeNull();
+
+      await expect(recordRecallCheck({ entryId: entryB.id, confidence: "CLEAR", recalled: false })).rejects.toThrow();
+      expect(await tx.weeklyCheck.count({ where: { entryId: entryB.id } })).toBe(0);
+
+      await expect(commitWeeklyPlan({ items: [{ kind: "REDO", problemId: problem.id }] })).rejects.toThrow();
+      expect(await tx.weeklyPlan.count({ where: { userId: userA.id } })).toBe(0);
 
       await expect(
         recordReviewAttempt({

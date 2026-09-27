@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { readCustomFieldDefs } from "@/lib/custom-fields";
 import { isLeech } from "@/lib/scheduler";
 import { parseISO, differenceInCalendarDays, subDays } from "date-fns";
+import { localDay } from "@/lib/dates";
 
 const STOPWORDS = new Set([
   "i", "me", "my", "myself", "we", "our", "ours", "you", "your", "yours", "he", "him",
@@ -98,12 +99,6 @@ function isPresent(v: unknown) {
   return v !== undefined && v !== null && !(typeof v === "string" && v.trim() === "");
 }
 
-/** Formats a Date as YYYY-MM-DD in the given IANA timezone. */
-function dayFormatter(timezone: string) {
-  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" });
-  return (d: Date) => fmt.format(d);
-}
-
 /** Streaks over the distinct active days (sorted YYYY-MM-DD). A streak stays alive until a full day is missed. */
 export function computeStreak(sortedDays: string[], today: string, yesterday: string): StreakStats {
   if (sortedDays.length === 0) return { current: 0, longest: 0, activeDays: 0, todayDone: false };
@@ -142,7 +137,8 @@ export async function computeAllStats(userId: string): Promise<AllStats> {
     prisma.attempt.findMany({ where: { entry: { userId } }, select: { at: true } }),
   ]);
 
-  const toDay = dayFormatter(userSettings?.timezone || "Asia/Kolkata");
+  const timezone = userSettings?.timezone || "Asia/Kolkata";
+  const toDay = (d: Date) => localDay(d, timezone);
   const defs = readCustomFieldDefs(userSettings?.customFields);
 
   // ── Activity + streak ──

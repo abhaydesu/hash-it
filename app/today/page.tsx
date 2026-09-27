@@ -2,6 +2,8 @@ import React, { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { getDailyReviewQueue, getOverdueCount, getHeadlineStats } from "@/lib/dashboard";
 import { TodayClient } from "@/components/today-client";
+import { getActivePlan } from "@/lib/weekly-review";
+import { getMonthlyMockState } from "@/lib/monthly-mock";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
 
@@ -19,11 +21,14 @@ async function TodayData() {
   const user = await getCurrentUser();
   const now = new Date();
 
-  const [queueResult, overdueCount, snapshot] = await Promise.all([
+  const [queueResult, overdueCount, snapshot, weeklyPlan, monthly] = await Promise.all([
     getDailyReviewQueue(user.id, now),
     getOverdueCount(user.id, now),
     getHeadlineStats(user.id),
+    getActivePlan(user.id, now),
+    getMonthlyMockState(user.id, now),
   ]);
+  const lastMock = monthly.history[0];
 
   return (
     <TodayClient
@@ -33,6 +38,9 @@ async function TodayData() {
         recallCount: queueResult.recallCount,
         overdueCount,
         snapshot,
+        weeklyPlan,
+        monthlyStatus: monthly.status,
+        lastMock: lastMock ? { solved: lastMock.solved, total: lastMock.solved + lastMock.hinted + lastMock.failed } : null,
       }}
     />
   );

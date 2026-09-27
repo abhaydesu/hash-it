@@ -8,6 +8,7 @@ import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { CommandBar } from "@/components/command-bar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SessionUserMenu, SessionUserMenuFallback } from "@/components/session-user-menu";
+import { ContestReminderSlot } from "@/components/contest-reminder-slot";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 const ibmPlexMono = IBM_Plex_Mono({
@@ -34,6 +35,11 @@ export default function RootLayout({
       <body className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased selection:bg-muted selection:text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AppShell
+            contestReminder={
+              <Suspense fallback={null}>
+                <ContestReminderSlot />
+              </Suspense>
+            }
             userMenu={
               <Suspense fallback={<SessionUserMenuFallback />}>
                 <SessionUserMenu />

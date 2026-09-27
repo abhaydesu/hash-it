@@ -265,7 +265,7 @@ export function DataTable({ data, patternsList, customFields: rawFields, showSou
               ))
             ) : (
               <tr>
-                <td colSpan={columns.length} className="bg-dither-25 py-10 text-center text-muted-foreground">
+                <td colSpan={columns.length} className="bg-muted/40 py-10 text-center text-muted-foreground">
                   No problems match the current filter.
                 </td>
               </tr>

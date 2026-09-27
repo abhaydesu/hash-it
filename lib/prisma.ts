@@ -6,9 +6,27 @@ const globalForPrisma = globalThis as unknown as {
   __testTxClient: any | undefined;
 };
 
+/**
+ * Neon suspends idle computes; waking one (especially through the "-pooler" host) can
+ * exceed Prisma's 5s connect default and surface as "Can't reach database server".
+ * Explicit values in DATABASE_URL still win.
+ */
+function withConnectionDefaults(raw: string | undefined): string | undefined {
+  if (!raw) return raw;
+  try {
+    const url = new URL(raw);
+    if (!url.searchParams.has("connect_timeout")) url.searchParams.set("connect_timeout", "15");
+    if (!url.searchParams.has("pool_timeout")) url.searchParams.set("pool_timeout", "15");
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
 const rawPrisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasourceUrl: withConnectionDefaults(process.env.DATABASE_URL),
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
 

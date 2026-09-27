@@ -1,8 +1,9 @@
 "use client";
 import React from "react";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Timer, Check, HelpCircle, AlertCircle, Play, Pause, RotateCcw, Award, ExternalLink } from "lucide-react";
 import { recordReviewAttempt, createEntry } from "@/app/actions/entry-actions";
 import { formatDifficulty, safeHref } from "@/lib/utils";
@@ -18,10 +19,96 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAlertDialog } from "@/components/ui/alert-dialog";
 import { SYSTEM_SOURCES } from "@/lib/custom-fields";
+import { completeMonthlyMock } from "@/app/actions/monthly-actions";
+import type { MonthlyMockState } from "@/lib/monthly-mock";
+import { Countdown } from "@/components/ui/countdown";
+import { cn } from "@/lib/utils";
 
-export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: MonthlyMockProblem[] }) {
+/** "2026-09" → "September 2026". Fixed locale + UTC so server and client agree. */
+const monthName = (period: string) =>
+  new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${period}-01T00:00:00Z`));
+const dayName = (day: string) =>
+  new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
+
+/** Where the mock stands this month: due, overdue, or locked with a countdown. */
+function StatusBanner({ status }: { status: MonthlyMockState["status"] }) {
+  const tone =
+    status.state === "open" && status.overdue
+      ? "border-medium/50 bg-medium/10"
+      : status.state === "locked"
+        ? "border-border bg-muted/30"
+        : "border-orange-500/40 bg-orange-50 dark:bg-orange-500/10";
+  return (
+    <div className={cn("border px-4 py-3 text-xs", tone)}>
+      {status.state === "first" && (
+        <>
+          <span className="font-medium text-foreground">Your first mock.</span> It counts for {monthName(status.creditPeriod)}; after
+          that, a mock opens on the last day of each month.
+        </>
+      )}
+      {status.state === "open" && !status.overdue && (
+        <>
+          <span className="font-medium text-foreground">{monthName(status.creditPeriod)}&apos;s mock is due today.</span> End the month
+          with a cold check.
+        </>
+      )}
+      {status.state === "open" && status.overdue && (
+        <>
+          <span className="font-medium text-foreground">
+            {monthName(status.creditPeriod)}&apos;s mock is overdue
+          </span>{" "}
+          (due {dayName(status.dueDay)}). It stays open until you take it.
+        </>
+      )}
+      {status.state === "locked" && (
+        <>
+          <span className="font-medium text-foreground">This month&apos;s mock is done.</span> The next one opens{" "}
+          <span className="font-medium text-foreground">
+            <Countdown to={status.opensAt} />
+          </span>
+          .
+        </>
+      )}
+    </div>
+  );
+}
+
+function MockHistory({ history }: { history: MonthlyMockState["history"] }) {
+  if (history.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <h2 className="type-label text-muted-foreground">Past mocks</h2>
+      <div className="divide-y divide-border border border-border bg-background text-xs">
+        {history.map((m) => {
+          const total = m.solved + m.hinted + m.failed;
+          return (
+            <div key={m.period} className="flex items-center justify-between gap-3 px-3 py-2">
+              <span className="text-foreground">{monthName(m.period)}</span>
+              <span className="flex items-center gap-3 tabular-nums text-muted-foreground">
+                <span>
+                  <span className="font-medium text-easy">{m.solved}</span>/{total} cold
+                </span>
+                <span className="hidden sm:inline">{m.hinted} hint · {m.failed} failed</span>
+                <span>{formatMockClock(m.durationSec)}</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function MonthlyReviewClient({
+  initialCatalog,
+  mockState,
+}: {
+  initialCatalog: MonthlyMockProblem[];
+  mockState: MonthlyMockState;
+}) {
   const {
     phase,
+    sessionId,
     problems,
     currentIndex,
     results,
@@ -41,6 +128,29 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const { showAlert, alertDialog } = useAlertDialog();
+  const router = useRouter();
+  const [takeEarly, setTakeEarly] = useState(false);
+  const [creditedPeriod, setCreditedPeriod] = useState<string | null>(null);
+
+  // Record a finished session once (idempotent on the server by session id).
+  const recordedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (phase !== "finished" || !sessionId || recordedFor.current === sessionId) return;
+    recordedFor.current = sessionId;
+    const all = Object.values(results);
+    completeMonthlyMock({
+      sessionId,
+      solved: all.filter((r) => r.status === "SOLVED_UNAIDED").length,
+      hinted: all.filter((r) => r.status === "SOLVED_WITH_HELP").length,
+      failed: all.filter((r) => r.status === "ATTEMPTED_FAILED").length,
+      durationSec: elapsedSeconds,
+    })
+      .then((r) => setCreditedPeriod(r.period))
+      .catch((err) => {
+        recordedFor.current = null;
+        console.error("Failed to record monthly mock", err);
+      });
+  }, [phase, sessionId, results, elapsedSeconds]);
 
   const refetchCatalog = async () => {
     try {
@@ -117,6 +227,8 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
     );
   }
 
+  const locked = mockState.status.state === "locked";
+
   if (phase === "idle" || (!isActive && phase !== "finished")) {
     return (
       <SheetSection innerClassName="mx-auto space-y-5 py-8">
@@ -127,35 +239,61 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
 
         <h1 className="type-title text-foreground">Timed blind mock set (5 problems)</h1>
 
-        <p className="type-body text-muted-foreground">
-          This mock draws 5 problems from your weakest pattern families. To simulate real interview
-          conditions,{" "}
-          <span className="font-medium text-foreground">
-            pattern names and difficulty ratings are strictly hidden
-          </span>{" "}
-          until you finish.
-        </p>
+        <StatusBanner status={mockState.status} />
 
-        <p className="type-caption">
-          It is the monthly stress test: no labels, no hints, no safe-mode warmup. If you can choose
-          the right strategy under pressure, your review system is doing its job.
-        </p>
+        {locked && !takeEarly ? (
+          <p className="type-caption">
+            Want a mock anyway?{" "}
+            <button
+              type="button"
+              onClick={() => setTakeEarly(true)}
+              className="font-medium text-orange-600 underline-offset-2 hover:text-orange-700 hover:underline"
+            >
+              Continue
+            </button>
+          </p>
+        ) : (
+          <>
+            {locked && (
+              <p className="border-l-2 border-medium pl-3 type-caption">
+                Taking it now counts as <span className="font-medium text-foreground">{monthName(mockState.status.creditPeriod)}</span>
+                &apos;s mock, so the next one won&apos;t open until the end of the month after.
+              </p>
+            )}
 
-        <div className="space-y-2 bg-dither-25 p-4 type-caption">
-          <div className="font-semibold text-foreground">Before you start:</div>
-          <ul className="list-inside list-disc space-y-1">
-            <li>Open each problem on the platform and solve unaided.</li>
-            <li>Record your outcome: Solved cold, Used hint, or Attempted / failed.</li>
-            <li>Attempts are automatically integrated into your FSRS review schedule.</li>
-            <li>You can leave this page — the timer stays in the navbar until you pause or discard it.</li>
-          </ul>
-        </div>
+            <p className="type-body text-muted-foreground">
+              This mock draws 5 problems from your weakest pattern families. To simulate real interview
+              conditions,{" "}
+              <span className="font-medium text-foreground">
+                pattern names and difficulty ratings are strictly hidden
+              </span>{" "}
+              until you finish.
+            </p>
 
-        <div className="pt-2">
-          <Button variant="primary" onClick={() => startSession(catalog)} disabled={catalog.length === 0}>
-            <Play className="mr-2 h-3.5 w-3.5 fill-current" /> Start assessment
-          </Button>
-        </div>
+            <p className="type-caption">
+              It is the monthly stress test: no labels, no hints, no safe-mode warmup. If you can choose
+              the right strategy under pressure, your review system is doing its job.
+            </p>
+
+            <div className="space-y-2 border border-border bg-muted/40 p-4 type-caption">
+              <div className="font-semibold text-foreground">Before you start:</div>
+              <ul className="list-inside list-disc space-y-1">
+                <li>Open each problem on the platform and solve unaided.</li>
+                <li>Record your outcome: Solved cold, Used hint, or Attempted / failed.</li>
+                <li>Attempts are automatically integrated into your FSRS review schedule.</li>
+                <li>You can leave this page — the timer stays in the navbar until you pause or discard it.</li>
+              </ul>
+            </div>
+
+            <div className="pt-2">
+              <Button variant="primary" onClick={() => startSession(catalog)} disabled={catalog.length === 0}>
+                <Play className="mr-2 h-3.5 w-3.5 fill-current" /> Start assessment
+              </Button>
+            </div>
+          </>
+        )}
+
+        <MockHistory history={mockState.history} />
       </SheetSection>
     );
   }
@@ -174,6 +312,7 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
               <span>Assessment complete</span>
             </div>
             <h1 className="mt-1 type-title text-foreground">Assessment summary</h1>
+            {creditedPeriod && <p className="mt-1 type-caption">Counted as {monthName(creditedPeriod)}&apos;s mock.</p>}
           </div>
           <div className="text-right">
             <div className="type-label">Total duration</div>
@@ -252,10 +391,12 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
             variant="secondary"
             onClick={() => {
               resetToIdle();
+              setTakeEarly(false);
               refetchCatalog();
+              router.refresh();
             }}
           >
-            <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Start another mock
+            <Check className="mr-1.5 h-3.5 w-3.5" /> Done
           </Button>
         </div>
       </SheetSection>
@@ -333,7 +474,7 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
           )}
         </div>
 
-        <div className="space-y-1 bg-dither-25 p-3.5 type-caption">
+        <div className="space-y-1 border border-border bg-muted/40 p-3.5 type-caption">
           <p>
             Solve this problem on{" "}
             {currentProblem.platform === "LEETCODE" ? "LeetCode" : currentProblem.platform} without

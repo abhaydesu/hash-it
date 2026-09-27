@@ -15,6 +15,7 @@ export function AppShell({
   children,
   user,
   userMenu,
+  contestReminder,
 }: {
   children: ReactNode;
   user?: {
@@ -23,6 +24,7 @@ export function AppShell({
     image?: string | null;
   } | null;
   userMenu?: ReactNode;
+  contestReminder?: ReactNode;
 }) {
   const pathname = usePathname();
   const wide = pathname.startsWith("/problems");
@@ -36,7 +38,7 @@ export function AppShell({
             wide ? "max-w-[1360px]" : "max-w-[1040px]"
           )}
         >
-          <Navbar user={user} userMenu={userMenu} />
+          <Navbar user={user} userMenu={userMenu} contestReminder={contestReminder} />
           <SidebarNav />
           <main className="w-full flex-1">{children}</main>
           {pathname === "/" && <Footer />}

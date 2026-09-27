@@ -75,7 +75,6 @@ describe("middleware auth gate", () => {
       "/api/patterns",
       "/api/review/weekly",
       "/api/review/monthly",
-      "/api/review/weekly/drill",
       "/api/search/problems",
     ]) {
       const res = authorizeRequest({

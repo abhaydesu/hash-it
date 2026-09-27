@@ -73,7 +73,7 @@
   100% { transform: scaleX(1); opacity: 0; }
 }
 
-/* Weekly drill: the frame weighs each pattern, then settles on the answer. */
+/* Weekly review: the frame weighs each confidence level, then settles on one. */
 @keyframes illo-scan {
   0%, 16% { transform: translateX(0); opacity: 0; }
   20% { transform: translateX(0); opacity: 1; }

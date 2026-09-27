@@ -31,6 +31,8 @@ export interface MonthlyMockAttempt {
 export type MonthlyMockPhase = "idle" | "running" | "paused" | "finished";
 
 interface PersistedSession {
+  /** Identifies the run, so its completion is recorded exactly once. */
+  id: string;
   problems: MonthlyMockProblem[];
   currentIndex: number;
   phase: MonthlyMockPhase;
@@ -42,6 +44,7 @@ interface PersistedSession {
 
 interface MonthlyMockContextValue {
   phase: MonthlyMockPhase;
+  sessionId: string | null;
   problems: MonthlyMockProblem[];
   currentIndex: number;
   results: Record<string, MonthlyMockAttempt>;
@@ -69,7 +72,8 @@ function readStored(): PersistedSession | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedSession;
     if (!parsed?.problems?.length) return null;
-    return parsed;
+    // Sessions stored before ids existed get one now.
+    return parsed.id ? parsed : { ...parsed, id: crypto.randomUUID() };
   } catch {
     return null;
   }
@@ -132,6 +136,7 @@ export function MonthlyMockProvider({ children }: { children: ReactNode }) {
     const startedAt = Date.now();
     setNow(startedAt);
     setSession({
+      id: crypto.randomUUID(),
       problems,
       currentIndex: 0,
       phase: "running",
@@ -227,6 +232,7 @@ export function MonthlyMockProvider({ children }: { children: ReactNode }) {
   const value = useMemo<MonthlyMockContextValue>(
     () => ({
       phase,
+      sessionId: session?.id ?? null,
       problems: session?.problems ?? [],
       currentIndex: session?.currentIndex ?? 0,
       results: session?.results ?? {},

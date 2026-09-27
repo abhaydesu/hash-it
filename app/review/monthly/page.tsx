@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { calculateRetrievability, type ReviewCardData } from "@/lib/scheduler";
 import { MonthlyReviewClient } from "@/components/monthly-review-client";
+import { getMonthlyMockState } from "@/lib/monthly-mock";
 import type { MonthlyMockProblem } from "@/components/monthly-mock-provider";
 import { SheetSection } from "@/components/ui/sheet-section";
 
@@ -118,7 +119,7 @@ async function MonthlyMockData() {
     }
   }
 
-  return <MonthlyReviewClient initialCatalog={selectedProblems} />;
+  return <MonthlyReviewClient initialCatalog={selectedProblems} mockState={await getMonthlyMockState(user.id, now)} />;
 }
 
 function MonthlySkeleton() {
@@ -140,7 +141,7 @@ function MonthlySkeleton() {
 
           <div className="h-4 w-4/5 bg-muted/70 rounded"></div>
 
-          <div className="space-y-2.5 border border-border bg-dither-25 p-4">
+          <div className="space-y-2.5 border border-border bg-muted/40 p-4">
             <div className="h-4 w-32 bg-muted rounded"></div>
             <div className="space-y-2 pt-1">
               <div className="h-3 w-3/4 bg-muted/60 rounded"></div>

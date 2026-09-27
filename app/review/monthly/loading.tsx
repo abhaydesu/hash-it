@@ -19,7 +19,7 @@ export default function Loading() {
 
           <div className="h-4 w-4/5 bg-muted/70 rounded"></div>
 
-          <div className="space-y-2.5 border border-border bg-dither-25 p-4">
+          <div className="space-y-2.5 border border-border bg-muted/40 p-4">
             <div className="h-4 w-32 bg-muted rounded"></div>
             <div className="space-y-2 pt-1">
               <div className="h-3 w-3/4 bg-muted/60 rounded"></div>
