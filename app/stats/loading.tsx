@@ -10,10 +10,11 @@ export default function Loading() {
       </SheetSection>
 
       <SheetSection innerClassName="py-6" band="neutral">
-        <SpecGrid columns={4}>
-          {Array.from({ length: 4 }).map((_, i) => (
+        <SpecGrid columns={5}>
+          {Array.from({ length: 5 }).map((_, i) => (
             <SpecCell
               key={i}
+              className={i === 0 ? "col-span-2 lg:col-span-1" : undefined}
               label={<div className="h-3 w-28 bg-muted/60 rounded" />}
               value={<div className="h-6 w-16 bg-muted rounded mt-1" />}
               subvalue={<div className="h-3 w-36 bg-muted/40 rounded mt-1" />}

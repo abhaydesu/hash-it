@@ -10,6 +10,7 @@ import {
   readCustomFieldDefs,
   type CustomFieldDef,
 } from "@/lib/custom-fields";
+import { StatsPreferencesSchema, type StatsPreferences } from "@/lib/stats-preferences";
 
 const SettingsSchema = z.object({
   dailyResolveCap: z.number().int().min(1).max(50),
@@ -127,4 +128,18 @@ export async function saveCustomFields(input: CustomFieldDef[]): Promise<CustomF
   revalidatePath("/settings");
   revalidatePath("/problems");
   return next;
+}
+
+export async function saveStatsPreferences(input: StatsPreferences): Promise<StatsPreferences> {
+  const user = await getCurrentUser();
+  const data = StatsPreferencesSchema.parse(input);
+
+  await prisma.userSettings.upsert({
+    where: { userId: user.id },
+    update: { statsPreferences: data },
+    create: { userId: user.id, statsPreferences: data },
+  });
+
+  revalidatePath("/stats");
+  return data;
 }

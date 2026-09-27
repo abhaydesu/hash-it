@@ -294,12 +294,11 @@ export function calculateRetrievability(card: ReviewCardData, now: Date = new Da
   return Math.min(1.0, Math.max(0.0, retrievability));
 }
 
-/**
- * Check if a card is a leech per spec §7:
- * lapses >= 3
- */
+/** Lapses at which a card becomes a leech (spec §7). */
+export const LEECH_LAPSES = 3;
+
 export function isLeech(card: { lapses: number }): boolean {
-  return card.lapses >= 3;
+  return card.lapses >= LEECH_LAPSES;
 }
 
 export function interleaveLane<T extends QueueItem>(items: T[], cap: number): T[] {

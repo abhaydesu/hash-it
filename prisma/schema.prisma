@@ -168,6 +168,8 @@ model UserSettings {
   hardBaseline     Int     @default(60)
   /// User-defined columns: CustomFieldDef[] (see lib/custom-fields.ts).
   customFields     Json?
+  /// Per-user stats page layout: which sections are visible + display order.
+  statsPreferences Json?
 
   user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
