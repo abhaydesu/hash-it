@@ -7,6 +7,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logs, Search } from "lucide-react";
+import { openLogProblem } from "@/lib/log-problem";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -107,7 +108,7 @@ export function Navbar({ user, userMenu }: NavbarProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    window.dispatchEvent(new CustomEvent("open-command-bar"));
+                    openLogProblem();
                   }}
                   className="pressable flex h-8 w-8 items-center justify-center border border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground sm:hidden"
                   aria-label="Log problem"
@@ -117,7 +118,7 @@ export function Navbar({ user, userMenu }: NavbarProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    window.dispatchEvent(new CustomEvent("open-command-bar"));
+                    openLogProblem();
                   }}
                   onPointerDown={(e) => {
                     if (e.button === 0) setLogPressed(true);

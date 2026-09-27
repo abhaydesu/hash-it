@@ -31,7 +31,7 @@ export const CANONICAL_PATTERNS = [
   "Intervals",
 ] as const;
 
-export const CSV_HEADER = "Problem Name,Problem Link,Pattern,Idea,Solved Date,Source";
+export const CSV_HEADER = "Problem Name,Problem Link,Pattern,Idea,Solved Date";
 
 export function buildLeetcodePrompt(): string {
   const patternList = CANONICAL_PATTERNS.map((p) => `  - ${p}`).join("\n");
@@ -60,7 +60,6 @@ COLUMN RULES
 ${patternList}
 4. "Idea": one short sentence (max 200 chars) describing the core algorithmic idea used to solve it — the kind of hint you would give yourself before re-solving. No code. Avoid commas if possible.
 5. "Solved Date": the most recent solved date visible next to the problem on the /progress page, formatted strictly as YYYY-MM-DD. If a date is not shown for that row, leave blank.
-6. "Source": always the literal string "leetcode-progress-import".
 
 CSV FORMAT (RFC 4180, strict)
 - Wrap EVERY field in double quotes, always. Even fields that contain no commas or quotes. This is non-negotiable.

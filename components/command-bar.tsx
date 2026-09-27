@@ -9,8 +9,9 @@ import { createEntry, deleteEntry } from "@/app/actions/entry-actions";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAlertDialog } from "@/components/ui/alert-dialog";
 import { useIsMac } from "@/lib/use-is-mac";
-import { getCustomFields } from "@/app/actions/settings-actions";
-import { CustomFieldInputs, type CustomDraft } from "@/components/custom-field-inputs";
+import { getLogFormConfig } from "@/app/actions/settings-actions";
+import { type CustomDraft } from "@/components/custom-field-inputs";
+import { LogExtraFields } from "@/components/log-extra-fields";
 import { filterNonOverlappingFields, type CustomFieldDef } from "@/lib/custom-fields";
 
 interface SearchResult {
@@ -137,6 +138,9 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   const [urlEnrichmentSource, setUrlEnrichmentSource] = useState<string | null>(null);
   const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
   const [customDraft, setCustomDraft] = useState<CustomDraft>({});
+  const [sources, setSources] = useState<string[]>([]);
+  const [sourceRevealed, setSourceRevealed] = useState(false);
+  const [source, setSource] = useState("");
 
   // Undo Toast state
   const [toast, setToast] = useState<{ id: string; title: string } | null>(null);
@@ -153,12 +157,16 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   const ideaRef = useRef<HTMLTextAreaElement>(null);
   const mistakeRef = useRef<HTMLTextAreaElement>(null);
 
-  // The user's own columns, refreshed each time the bar opens (they can change in Settings/Import).
+  // The user's own columns and sources, refreshed each time the bar opens (they can change in Settings/Import).
   useEffect(() => {
     if (!isOpen && !inline) return;
     let cancelled = false;
-    getCustomFields()
-      .then((defs) => !cancelled && setCustomFields(filterNonOverlappingFields(defs)))
+    getLogFormConfig()
+      .then((cfg) => {
+        if (cancelled) return;
+        setCustomFields(filterNonOverlappingFields(cfg.customFields));
+        setSources(cfg.sources);
+      })
       .catch(() => {});
     return () => {
       cancelled = true;
@@ -342,6 +350,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     setPatternTags([]);
     setUrlEnrichmentSource(null);
     setCustomDraft({});
+    setSource("");
     if (!inline) setIsOpen(false);
     setTimeout(() => searchInputRef.current?.focus(), 50);
   };
@@ -386,6 +395,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
           idea: idea.trim() || null,
           mistake: mistake.trim() || null,
           revisit,
+          sourceList: source.trim() || undefined,
           ...(Object.keys(customDraft).length > 0 ? { customValues: customDraft } : {}),
         });
 
@@ -677,7 +687,17 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                     />
                   </div>
-                  <CustomFieldInputs fields={customFields} values={customDraft} onChange={setCustomDraft} />
+                  <LogExtraFields
+                    fields={customFields}
+                    onFieldsChange={setCustomFields}
+                    values={customDraft}
+                    onValuesChange={setCustomDraft}
+                    sources={sources}
+                    showSource={sourceRevealed || sources.length > 0}
+                    onShowSource={() => setSourceRevealed(true)}
+                    source={source}
+                    onSourceChange={setSource}
+                  />
                 </div>
 
                 {/* Bottom Actions */}
@@ -919,7 +939,17 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                 />
               </div>
-              <CustomFieldInputs fields={customFields} values={customDraft} onChange={setCustomDraft} />
+              <LogExtraFields
+                    fields={customFields}
+                    onFieldsChange={setCustomFields}
+                    values={customDraft}
+                    onValuesChange={setCustomDraft}
+                    sources={sources}
+                    showSource={sourceRevealed || sources.length > 0}
+                    onShowSource={() => setSourceRevealed(true)}
+                    source={source}
+                    onSourceChange={setSource}
+                  />
             </div>
 
             {/* Bottom Actions Bar */}

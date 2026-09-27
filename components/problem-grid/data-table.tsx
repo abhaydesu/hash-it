@@ -10,20 +10,27 @@ import {
   flexRender,
   SortingState,
 } from "@tanstack/react-table";
-import { Download, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { columns, ProblemGridRow } from "./columns";
+import { Download, Search, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { openLogProblem } from "@/lib/log-problem";
+import { buildColumns, ProblemGridRow } from "./columns";
+import { filterNonOverlappingFields, formatCustomValue, type CustomFieldDef } from "@/lib/custom-fields";
 import Papa from "papaparse";
 
 interface DataTableProps {
   data: ProblemGridRow[];
   patternsList: string[];
+  customFields?: CustomFieldDef[];
+  showSource?: boolean;
 }
 
 const filterFieldClass =
   "h-8 w-full border border-border bg-background py-0 text-xs leading-8 text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500";
 const filterSelectClass = `${filterFieldClass} pl-2.5 pr-8`;
 
-export function DataTable({ data, patternsList }: DataTableProps) {
+export function DataTable({ data, patternsList, customFields: rawFields, showSource = false }: DataTableProps) {
+  // Never show a custom field twice or alongside the built-in it duplicates.
+  const customFields = useMemo(() => filterNonOverlappingFields(rawFields ?? []), [rawFields]);
+  const columns = useMemo(() => buildColumns({ customFields, showSource }), [customFields, showSource]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "number", desc: false }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [selectedView, setSelectedView] = useState<"ALL" | "REVISIT" | "LEECH" | "DUE" | "UNTAGGED">("ALL");
@@ -57,14 +64,17 @@ export function DataTable({ data, patternsList }: DataTableProps) {
         const ideaMatch = item.idea?.toLowerCase().includes(q);
         const mistakeMatch = item.mistake?.toLowerCase().includes(q);
         const patternMatch = item.patterns.some((p) => p.toLowerCase().includes(q));
-        if (!titleMatch && !numStr.includes(q) && !ideaMatch && !mistakeMatch && !patternMatch) {
+        const extraMatch =
+          item.sourceList?.toLowerCase().includes(q) ||
+          customFields.some((f) => formatCustomValue(f, item.customValues?.[f.id]).toLowerCase().includes(q));
+        if (!titleMatch && !numStr.includes(q) && !ideaMatch && !mistakeMatch && !patternMatch && !extraMatch) {
           return false;
         }
       }
 
       return true;
     });
-  }, [data, selectedView, difficultyFilter, statusFilter, patternFilter, globalFilter]);
+  }, [data, customFields, selectedView, difficultyFilter, statusFilter, patternFilter, globalFilter]);
 
   const table = useReactTable({
     data: filteredData,
@@ -106,7 +116,8 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           : "Attempted (Failed)"
       ),
       "Revisit?": sanitize(row.revisit ? "Yes" : "No"),
-      Source: sanitize(row.sourceList || "hash-it"),
+      Source: sanitize(row.sourceList || ""),
+      ...Object.fromEntries(customFields.map((f) => [f.label, sanitize(formatCustomValue(f, row.customValues?.[f.id]))])),
     }));
 
     const csv = Papa.unparse(csvRows);
@@ -145,13 +156,23 @@ export function DataTable({ data, patternsList }: DataTableProps) {
           ))}
         </div>
 
-        <button
-          onClick={handleExportCsv}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
           className="flex items-center gap-1.5 border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Download className="h-3 w-3" />
           <span>Export CSV</span>
-        </button>
+          </button>
+          <button
+            type="button"
+            onClick={openLogProblem}
+            className="pressable flex items-center gap-1.5 border border-primary bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="h-3 w-3" />
+            <span>Log problem</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-4 md:grid-cols-5">
@@ -203,7 +224,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
       </div>
 
       <div className="overflow-x-auto border border-border bg-background">
-        <table className="w-full min-w-[1100px] table-fixed border-collapse text-left text-xs">
+        <table style={{ minWidth: table.getTotalSize() }} className="w-full table-fixed border-collapse text-left text-xs">
           <colgroup>
             {table.getAllLeafColumns().map((column) => (
               <col key={column.id} style={{ width: column.getSize() }} />
@@ -216,7 +237,7 @@ export function DataTable({ data, patternsList }: DataTableProps) {
                   <th
                     key={header.id}
                     onClick={header.column.getToggleSortingHandler()}
-                    className="cursor-pointer select-none border-r border-border px-2.5 py-2 font-medium last:border-r-0 hover:text-foreground"
+                    className="group/th cursor-pointer select-none border-r border-border px-2.5 py-2 font-medium last:border-r-0 hover:text-foreground"
                   >
                     <div className="flex items-center gap-1">
                       {flexRender(header.column.columnDef.header, header.getContext())}

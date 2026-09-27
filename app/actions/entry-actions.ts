@@ -15,7 +15,7 @@ import {
 import { Platform, Difficulty, SolveStatus, Rating, CardState } from "@prisma/client";
 import { LIMITS, storedHttpUrl } from "@/lib/safe";
 import { parseSlugFromUrl } from "@/lib/problem-url";
-import { readCustomFieldDefs, sanitizeCustomValues, mergeSelectOptions } from "@/lib/custom-fields";
+import { readCustomFieldDefs, sanitizeCustomValues, mergeSelectOptions, SYSTEM_SOURCES } from "@/lib/custom-fields";
 import type { Prisma } from "@prisma/client";
 
 const CustomValuesInput = z
@@ -189,6 +189,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
           minutes: data.minutes ?? existingEntry.minutes,
           patternOverride: data.patternOverride.length > 0 ? data.patternOverride : existingEntry.patternOverride,
           customValues: mergeCustomValues(existingEntry.customValues, custom),
+          sourceList: data.sourceList ?? existingEntry.sourceList,
           topic:
             data.manualTopicTags[0] ||
             data.patternOverride[0] ||
@@ -749,7 +750,7 @@ export async function toggleRoadmapItemSolve(params: {
           problemId: targetProblemId,
           status: SolveStatus.SOLVED_UNAIDED,
           firstSolvedAt: now,
-          sourceList: "Roadmap Check",
+          sourceList: SYSTEM_SOURCES.roadmap,
         },
       });
 

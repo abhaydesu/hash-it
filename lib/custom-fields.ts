@@ -57,6 +57,17 @@ export function fieldIdFromLabel(label: string, taken: Iterable<string> = []): s
   }
 }
 
+// ── Sources ─────────────────────────────────────────────────────────────────
+
+/** Sources the app stamps itself; they don't mean the user tracks a source. */
+export const SYSTEM_SOURCES = { roadmap: "Roadmap Check", monthlyMock: "monthly-mock" } as const;
+const SYSTEM_SOURCE_SET = new Set<string>(Object.values(SYSTEM_SOURCES));
+export const isUserSource = (s: string | null | undefined): s is string => !!s?.trim() && !SYSTEM_SOURCE_SET.has(s);
+
+/** True when a label means the built-in Source field rather than a new column. */
+export const isSourceLabel = (label: string) =>
+  BUILTIN_FIELDS.find((f) => f.key === "source")!.aliases.includes(label.trim().toLowerCase() as never);
+
 // ── Built-in fields ─────────────────────────────────────────────────────────
 
 export const BUILTIN_FIELDS = [
@@ -246,11 +257,13 @@ export function sanitizeCustomValues(defs: CustomFieldDef[], values: unknown): C
 
 /** Filter out custom fields whose label matches a built-in field alias (e.g. "Difficulty", "Time (min)"). */
 export function filterNonOverlappingFields(fields: CustomFieldDef[]): CustomFieldDef[] {
+  const seen = new Set<string>();
   return fields.filter((f) => {
-    const norm = f.label.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-    return !BUILTIN_FIELDS.some((bf) =>
-      bf.aliases.some((alias) => alias.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === norm)
-    );
+    const norm = normalizeHeader(f.label);
+    // Also drop a second field with the same label, so nothing shows twice.
+    if (seen.has(norm)) return false;
+    seen.add(norm);
+    return !BUILTIN_FIELDS.some((bf) => bf.aliases.some((alias) => normalizeHeader(alias) === norm));
   });
 }
 

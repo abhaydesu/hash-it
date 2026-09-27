@@ -625,7 +625,7 @@ export async function commitImportBatch(params: {
             customPattern: row.rawPattern,
             patternOverride: row.rawPattern ? [row.rawPattern] : [],
             customUrl: safeLink,
-            sourceList: row.rawSource || "csv-import",
+            sourceList: row.rawSource || null,
             ...(row.customRaw && fieldDefs.length > 0 ? { customValues: customValuesFor(row) } : {}),
             minutes: row.parsedMinutes ?? null,
             revisit: row.parsedRevisit,

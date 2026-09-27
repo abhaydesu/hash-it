@@ -17,6 +17,7 @@ import {
 } from "@/components/monthly-mock-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAlertDialog } from "@/components/ui/alert-dialog";
+import { SYSTEM_SOURCES } from "@/lib/custom-fields";
 
 export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: MonthlyMockProblem[] }) {
   const {
@@ -71,7 +72,7 @@ export function MonthlyReviewClient({ initialCatalog }: { initialCatalog: Monthl
           problemId: p.id,
           status,
           minutes: mins,
-          sourceList: "monthly-mock",
+          sourceList: SYSTEM_SOURCES.monthlyMock,
         });
         entryId = newEntry.entryId;
       } else {

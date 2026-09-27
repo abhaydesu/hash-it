@@ -2,12 +2,9 @@
 import React from 'react';
 
 import { Plus } from "lucide-react";
+import { openLogProblem } from "@/lib/log-problem";
 
 export function TodayPageActions({ compact = false }: { compact?: boolean }) {
-  const openLogProblem = () => {
-    window.dispatchEvent(new CustomEvent("open-command-bar"));
-  };
-
   if (compact) {
     return (
       <button

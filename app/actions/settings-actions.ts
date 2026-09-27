@@ -8,7 +8,11 @@ import {
   CustomFieldDefSchema,
   MAX_CUSTOM_FIELDS,
   readCustomFieldDefs,
+  fieldIdFromLabel,
+  isUserSource,
+  filterNonOverlappingFields,
   type CustomFieldDef,
+  type CustomFieldType,
 } from "@/lib/custom-fields";
 import { StatsPreferencesSchema, type StatsPreferences } from "@/lib/stats-preferences";
 
@@ -142,4 +146,73 @@ export async function saveStatsPreferences(input: StatsPreferences): Promise<Sta
 
   revalidatePath("/stats");
   return data;
+}
+
+/** Everything the log-problem form needs beyond the built-ins: the user's columns and sources they've used. */
+export async function getLogFormConfig(): Promise<{ customFields: CustomFieldDef[]; sources: string[] }> {
+  const user = await getCurrentUser();
+  const [customFields, rows] = await Promise.all([
+    getCustomFields(),
+    prisma.entry.findMany({
+      where: { userId: user.id, sourceList: { not: null } },
+      select: { sourceList: true },
+      distinct: ["sourceList"],
+      take: 200,
+    }),
+  ]);
+  const sources = rows
+    .map((r) => r.sourceList)
+    .filter(isUserSource)
+    .sort((a, b) => a.localeCompare(b));
+  return { customFields, sources };
+}
+
+/** Append one column (quick-add from the log form). Returns the full, saved list. */
+export async function addCustomField(input: { label: string; type: CustomFieldType }): Promise<CustomFieldDef[]> {
+  const current = await getCustomFields();
+  const label = input.label.trim();
+  if (current.some((f) => f.label.toLowerCase() === label.toLowerCase())) {
+    throw new Error(`A field named "${label}" already exists.`);
+  }
+  if (filterNonOverlappingFields([{ id: "_", label, type: input.type }]).length === 0) {
+    throw new Error(`"${label}" is a built-in column.`);
+  }
+  const def: CustomFieldDef = {
+    id: fieldIdFromLabel(label, current.map((f) => f.id)),
+    label,
+    type: input.type,
+    ...(input.type === "select" ? { options: [] } : {}),
+  };
+  return saveCustomFields([...current, def]);
+}
+
+/** Rename a column (and, for pick-lists, replace its options). Stored values are keyed by id, so they carry over. */
+export async function updateCustomField(
+  id: string,
+  patch: { label: string; options?: string[] },
+): Promise<CustomFieldDef[]> {
+  const current = await getCustomFields();
+  const field = current.find((f) => f.id === id);
+  if (!field) throw new Error("That column no longer exists.");
+  const label = patch.label.trim();
+  if (current.some((f) => f.id !== id && f.label.toLowerCase() === label.toLowerCase())) {
+    throw new Error(`A field named "${label}" already exists.`);
+  }
+  if (filterNonOverlappingFields([{ ...field, label }]).length === 0) {
+    throw new Error(`"${label}" is a built-in column.`);
+  }
+  const next: CustomFieldDef = {
+    ...field,
+    label,
+    ...(field.type === "select" && patch.options
+      ? { options: [...new Set(patch.options.map((o) => o.trim()).filter(Boolean))] }
+      : {}),
+  };
+  return saveCustomFields(current.map((f) => (f.id === id ? next : f)));
+}
+
+/** Remove a column. Its stored values stay on entries, so re-adding the same name restores them. */
+export async function deleteCustomField(id: string): Promise<CustomFieldDef[]> {
+  const current = await getCustomFields();
+  return saveCustomFields(current.filter((f) => f.id !== id));
 }

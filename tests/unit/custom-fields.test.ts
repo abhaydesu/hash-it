@@ -146,3 +146,19 @@ describe("column mapper choices", () => {
     expect(clash.errors[0]).toMatch(/already exists/);
   });
 });
+
+describe("source helpers", () => {
+  it("treats app-stamped sources as not user sources", async () => {
+    const { isUserSource, SYSTEM_SOURCES } = await import("@/lib/custom-fields");
+    expect(isUserSource(SYSTEM_SOURCES.roadmap)).toBe(false);
+    expect(isUserSource("  ")).toBe(false);
+    expect(isUserSource(null)).toBe(false);
+    expect(isUserSource("Blind 75")).toBe(true);
+  });
+
+  it("recognises labels that mean the built-in Source column", async () => {
+    const { isSourceLabel } = await import("@/lib/custom-fields");
+    expect(isSourceLabel(" Source ")).toBe(true);
+    expect(isSourceLabel("Company")).toBe(false);
+  });
+});

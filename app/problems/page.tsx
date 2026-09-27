@@ -6,6 +6,7 @@ import { ProblemGridRow } from "@/components/problem-grid/columns";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { PageSkeleton } from "@/components/ui/loader";
 import { normalizePatternList } from "@/lib/utils";
+import { isUserSource, readCustomFieldDefs, type CustomValues } from "@/lib/custom-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default function ProblemsPage() {
 async function ProblemsTable() {
   const user = await getCurrentUser();
 
-  const [entries, allPatterns] = await Promise.all([
+  const [entries, allPatterns, settings] = await Promise.all([
     prisma.entry.findMany({
       where: { userId: user.id },
       select: {
@@ -70,6 +71,7 @@ async function ProblemsTable() {
         topic: true,
         firstSolvedAt: true,
         sourceList: true,
+        customValues: true,
         problem: {
           select: {
             id: true,
@@ -97,7 +99,10 @@ async function ProblemsTable() {
       orderBy: [{ sortOrder: "asc" }],
       select: { name: true },
     }),
+    prisma.userSettings.findUnique({ where: { userId: user.id }, select: { customFields: true } }),
   ]);
+
+  const customFields = readCustomFieldDefs(settings?.customFields);
 
   const rows: ProblemGridRow[] = entries.map((entry) => {
     const p = entry.problem;
@@ -133,12 +138,18 @@ async function ProblemsTable() {
       lapses: card?.lapses ?? 0,
       reps: card?.reps ?? 0,
       sourceList: entry.sourceList,
+      customValues: (entry.customValues as CustomValues | null) ?? {},
     };
   });
 
   return (
     <SheetSection innerClassName="pb-10 pt-2" band="none" last>
-      <DataTable data={rows} patternsList={allPatterns.map((p) => p.name)} />
+      <DataTable
+        data={rows}
+        patternsList={allPatterns.map((p) => p.name)}
+        customFields={customFields}
+        showSource={rows.some((r) => isUserSource(r.sourceList))}
+      />
     </SheetSection>
   );
 }

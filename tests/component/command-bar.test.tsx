@@ -6,7 +6,8 @@ import { CommandBar } from "@/components/command-bar";
 
 // Mock server actions
 vi.mock("@/app/actions/settings-actions", () => ({
-  getCustomFields: vi.fn().mockResolvedValue([]),
+  getLogFormConfig: vi.fn().mockResolvedValue({ customFields: [], sources: [] }),
+  addCustomField: vi.fn(),
 }));
 
 vi.mock("@/app/actions/entry-actions", () => ({

@@ -554,7 +554,7 @@ export default function ImportPage() {
               <textarea
                 value={pastedText}
                 onChange={(e) => handlePastedChange(e.target.value)}
-                placeholder={`Paste the CSV text here.\n\nFirst line must be the header row, e.g.:\nProblem Name,Problem Link,Pattern,Idea,Solved Date,Source`}
+                placeholder={`Paste the CSV text here.\n\nFirst line must be the header row, e.g.:\nProblem Name,Problem Link,Pattern,Idea,Solved Date`}
                 rows={12}
                 className="w-full resize-y border border-border bg-background p-3 font-mono text-[11px] leading-relaxed text-foreground outline-none focus:border-orange-500"
                 spellCheck={false}

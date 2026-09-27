@@ -3,7 +3,11 @@ import React from 'react';
 
 import { ColumnDef } from "@tanstack/react-table";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ExternalLink, Check, HelpCircle, XCircle, Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, Check, HelpCircle, XCircle, Pencil, Trash2, Plus, MoreHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AddFieldForm } from "@/components/add-field-form";
+import { EditFieldForm } from "@/components/edit-field-form";
+import { formatCustomValue, type CustomFieldDef, type CustomValues } from "@/lib/custom-fields";
 import {
   cn,
   formatDifficulty,
@@ -54,6 +58,7 @@ export interface ProblemGridRow {
   lapses: number;
   reps: number;
   sourceList?: string | null;
+  customValues?: CustomValues;
 }
 
 function InlineEditCell({
@@ -442,7 +447,7 @@ function GridDeleteButton({ entryId }: { entryId: string }) {
   );
 }
 
-export const columns: ColumnDef<ProblemGridRow>[] = [
+const baseColumns: ColumnDef<ProblemGridRow>[] = [
   {
     accessorKey: "number",
     header: "#",
@@ -612,10 +617,184 @@ export const columns: ColumnDef<ProblemGridRow>[] = [
   },
   {
     id: "actions",
-    header: "",
+    header: () => <AddColumnButton />,
+    enableSorting: false,
     size: 36,
     cell: ({ row }) => (
       <GridDeleteButton entryId={row.original.id} />
     ),
   },
 ];
+
+const POPOVER_WIDTH = 320;
+
+/**
+ * A header button that opens a floating panel. Fixed-positioned because the table's
+ * scroll container would clip an absolute one; clicks inside never reach the header's sort.
+ */
+function HeaderPopover({
+  label,
+  icon,
+  className,
+  children,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  className?: string;
+  children: (close: () => void) => React.ReactNode;
+}) {
+  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const open = anchor !== null;
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setAnchor(null);
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) close();
+    };
+    document.addEventListener("pointerdown", onDown);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={(e) => {
+          if (open) return setAnchor(null);
+          const r = e.currentTarget.getBoundingClientRect();
+          const width = Math.min(POPOVER_WIDTH, window.innerWidth - 16);
+          // Right-align to the button, but never off either edge of the screen.
+          const left = Math.min(Math.max(8, r.right - width), window.innerWidth - width - 8);
+          setAnchor({ top: r.bottom + 4, left });
+        }}
+        className={cn(
+          "pressable flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground",
+          className,
+        )}
+        aria-label={label}
+        aria-expanded={open}
+        title={label}
+      >
+        {icon}
+      </button>
+      {open && (
+        <div
+          style={{ ...anchor, width: `min(${POPOVER_WIDTH}px, calc(100vw - 16px))` }}
+          className="fixed z-50 cursor-default text-left font-normal"
+        >
+          {children(() => setAnchor(null))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Header "+" → add a custom column in place; the page re-renders with it. */
+function AddColumnButton() {
+  const router = useRouter();
+  return (
+    <HeaderPopover label="Add column" icon={<Plus className="h-3.5 w-3.5" />}>
+      {(close) => (
+        <AddFieldForm
+          variant="popover"
+          onAdded={() => {
+            close();
+            router.refresh();
+          }}
+          onCancel={close}
+        />
+      )}
+    </HeaderPopover>
+  );
+}
+
+/** Custom column header: label plus a menu to rename / edit options / delete. */
+function CustomColumnHeader({ def }: { def: CustomFieldDef }) {
+  const router = useRouter();
+  return (
+    <div className="flex min-w-0 flex-1 items-center justify-between gap-1">
+      <span className="truncate">{def.label}</span>
+      <HeaderPopover
+        label={`Edit ${def.label} column`}
+        icon={<MoreHorizontal className="h-3.5 w-3.5" />}
+        // Always visible on touch; on hover-capable screens only when the header is hovered.
+        className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/th:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+      >
+        {(close) => (
+          <EditFieldForm
+            field={def}
+            onDone={() => {
+              close();
+              router.refresh();
+            }}
+            onCancel={close}
+          />
+        )}
+      </HeaderPopover>
+    </div>
+  );
+}
+
+function CustomValueCell({ def, value }: { def: CustomFieldDef; value: CustomValues[string] | undefined }) {
+  const text = formatCustomValue(def, value);
+  if (!text) return <span className="text-muted-foreground/50">—</span>;
+  return (
+    <span className="block truncate text-xs text-foreground" title={text}>
+      {text}
+    </span>
+  );
+}
+
+const COLUMN_SIZE: Record<CustomFieldDef["type"], number> = {
+  text: 180,
+  select: 120,
+  number: 80,
+  boolean: 64,
+  date: 96,
+};
+
+/**
+ * Base columns plus the user's own: Source (when they track one) and each custom
+ * field, placed after the mistake log. Expects fields already run through
+ * filterNonOverlappingFields (DataTable does this).
+ */
+export function buildColumns({
+  customFields,
+  showSource,
+}: {
+  customFields: CustomFieldDef[];
+  showSource: boolean;
+}): ColumnDef<ProblemGridRow>[] {
+  const extra: ColumnDef<ProblemGridRow>[] = [
+    ...(showSource
+      ? [
+          {
+            accessorKey: "sourceList",
+            header: "Source",
+            size: 120,
+            cell: ({ row }) => (
+              <CustomValueCell def={{ id: "source", label: "Source", type: "text" }} value={row.original.sourceList ?? undefined} />
+            ),
+          } satisfies ColumnDef<ProblemGridRow>,
+        ]
+      : []),
+    ...customFields.map(
+      (def): ColumnDef<ProblemGridRow> => ({
+        id: `custom_${def.id}`,
+        header: () => <CustomColumnHeader def={def} />,
+        size: COLUMN_SIZE[def.type],
+        accessorFn: (row) => row.customValues?.[def.id] ?? null,
+        sortUndefined: "last",
+        cell: ({ row }) => <CustomValueCell def={def} value={row.original.customValues?.[def.id]} />,
+      })
+    ),
+  ];
+  const at = baseColumns.findIndex((c) => "accessorKey" in c && c.accessorKey === "mistake") + 1;
+  return [...baseColumns.slice(0, at), ...extra, ...baseColumns.slice(at)];
+}

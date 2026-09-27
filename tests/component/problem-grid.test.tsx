@@ -1,8 +1,9 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { DataTable } from "@/components/problem-grid/data-table";
 import { ProblemGridRow } from "@/components/problem-grid/columns";
+import { deleteCustomField, updateCustomField } from "@/app/actions/settings-actions";
 
 // Mock server actions to prevent loading next-auth/next/server
 vi.mock("@/app/actions/entry-actions", () => ({
@@ -10,6 +11,12 @@ vi.mock("@/app/actions/entry-actions", () => ({
   deleteEntry: vi.fn(),
   updateEntryInline: vi.fn(),
 }));
+vi.mock("@/app/actions/settings-actions", () => ({
+  addCustomField: vi.fn(),
+  updateCustomField: vi.fn().mockResolvedValue([]),
+  deleteCustomField: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 describe("DataTable", () => {
   const mockData: ProblemGridRow[] = [
@@ -80,5 +87,54 @@ describe("DataTable", () => {
 
     expect(screen.queryByText("Two Sum")).not.toBeInTheDocument();
     expect(screen.getByText("Add Two Numbers")).toBeInTheDocument();
+  });
+
+  it("shows the user's columns and Source, without duplicating built-ins", () => {
+    const rows: ProblemGridRow[] = mockData.map((r, i) => ({
+      ...r,
+      sourceList: i === 0 ? "Blind 75" : null,
+      customValues: i === 0 ? { company: "Google" } : ({} as Record<string, string>),
+    }));
+    render(
+      <DataTable
+        data={rows}
+        patternsList={[]}
+        showSource
+        customFields={[
+          { id: "company", label: "Company", type: "text" },
+          { id: "company_2", label: "company", type: "text" },
+          { id: "difficulty_x", label: "Difficulty", type: "select" },
+        ]}
+      />
+    );
+    expect(screen.getAllByRole("columnheader", { name: /^company$/i })).toHaveLength(1);
+    expect(screen.getByRole("columnheader", { name: "Source" })).toBeInTheDocument();
+    expect(screen.getByText("Google")).toBeInTheDocument();
+    expect(screen.getByText("Blind 75")).toBeInTheDocument();
+  });
+
+  it("header + opens the add-column form, not the log dialog", () => {
+    const onLog = vi.fn();
+    window.addEventListener("open-command-bar", onLog);
+    render(<DataTable data={mockData} patternsList={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Add column" }));
+    expect(screen.getByLabelText("New field name")).toBeInTheDocument();
+    expect(onLog).not.toHaveBeenCalled();
+    window.removeEventListener("open-command-bar", onLog);
+  });
+
+  it("renames and deletes a custom column from its header menu", async () => {
+    const fields = [{ id: "company", label: "Company", type: "text" as const }];
+    render(<DataTable data={mockData} patternsList={[]} customFields={fields} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Company column" }));
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: "Company tag" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateCustomField).toHaveBeenCalledWith("company", { label: "Company tag" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Company column" }));
+    fireEvent.click(screen.getByRole("button", { name: /delete$/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete column" }));
+    await waitFor(() => expect(deleteCustomField).toHaveBeenCalledWith("company"));
   });
 });
