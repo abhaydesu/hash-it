@@ -54,11 +54,8 @@ export function ContestReminder({ contests, className }: { contests: Contest[]; 
       ) : (
         <Trophy className="h-3.5 w-3.5 shrink-0" aria-hidden />
       )}
-      <span className="hidden font-medium text-foreground lg:inline">{current.title.replace(" Contest", "")}</span>
       {countdown && (
         <span className="tabular-nums">
-          {live ? "live · " : ""}
-          <span className="hidden sm:inline">{live ? "ends in " : "in "}</span>
           {countdown}
         </span>
       )}

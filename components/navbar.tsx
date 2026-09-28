@@ -25,6 +25,8 @@ interface NavbarProps {
   userMenu?: ReactNode;
   /** Next LeetCode contest chip; shown only inside the app, not on marketing pages. */
   contestReminder?: ReactNode;
+  /** Current practice streak chip; app pages only. */
+  streak?: ReactNode;
 }
 
 const navItems = [
@@ -85,7 +87,7 @@ export function SidebarNav() {
   );
 }
 
-export function Navbar({ user, userMenu, contestReminder }: NavbarProps) {
+export function Navbar({ user, userMenu, contestReminder, streak }: NavbarProps) {
   const pathname = usePathname();
   const isMarketingPage = pathname === "/" || pathname === "/auth/signin";
   const isMac = useIsMac();
@@ -147,9 +149,11 @@ export function Navbar({ user, userMenu, contestReminder }: NavbarProps) {
               </Link>
             )}
 
-            {!isMarketingPage && contestReminder}
-
             {!isMarketingPage && <MonthlyMockNavControls />}
+
+            {!isMarketingPage && streak}
+
+            {!isMarketingPage && contestReminder}
 
             <ThemeToggle className="h-8 w-8" />
 

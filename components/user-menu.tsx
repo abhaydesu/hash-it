@@ -52,7 +52,7 @@ export function UserMenu({ user }: UserMenuProps) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "pressable flex h-8 items-center gap-1.5 border px-2 text-xs",
+          "pressable flex h-8 items-center gap-1 border px-1.5 text-xs",
           open
             ? "border-border bg-muted text-foreground"
             : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -60,6 +60,7 @@ export function UserMenu({ user }: UserMenuProps) {
         title={user.email ?? "User"}
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label={`Account menu for ${user.name ?? user.email ?? "user"}`}
       >
         {user.image && !avatarFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -76,7 +77,6 @@ export function UserMenu({ user }: UserMenuProps) {
             {initials}
           </span>
         )}
-        <span className="hidden max-w-[96px] truncate sm:inline">{user.name ?? user.email ?? "Account"}</span>
         <ChevronDown className={cn("h-3 w-3 transition-transform duration-popover ease-out", open && "rotate-180")} />
       </button>
 

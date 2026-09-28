@@ -117,6 +117,19 @@ export function computeStreak(sortedDays: string[], today: string, yesterday: st
   return { current, longest, activeDays: sortedDays.length, todayDone: last === today };
 }
 
+/** Just the streak (for the navbar), without the rest of the stats work. */
+export async function computeStreakForUser(userId: string): Promise<StreakStats> {
+  const [userSettings, attempts] = await Promise.all([
+    prisma.userSettings.findUnique({ where: { userId }, select: { timezone: true } }),
+    prisma.attempt.findMany({ where: { entry: { userId } }, select: { at: true } }),
+  ]);
+  const timezone = userSettings?.timezone || "Asia/Kolkata";
+  const toDay = (d: Date) => localDay(d, timezone);
+  const days = [...new Set(attempts.map((a) => toDay(a.at)))].sort();
+  const now = new Date();
+  return computeStreak(days, toDay(now), toDay(subDays(now, 1)));
+}
+
 export async function computeAllStats(userId: string): Promise<AllStats> {
   const [userSettings, totalAttempts, coldSolveAttempts, entries, attempts] = await Promise.all([
     prisma.userSettings.findUnique({ where: { userId }, select: { timezone: true, customFields: true } }),
