@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import Papa from "papaparse";
 import {
   FileText,
   CheckCircle,
@@ -133,12 +134,31 @@ export default function ImportPage() {
     const selected = e.target.files?.[0];
     if (!selected) return;
     if (selected.size > 2_000_000) {
-      setError("CSV file is too large (max 2 MB).");
+      setError("File is too large (max 2 MB).");
       setFile(null);
       setCsvText("");
       return;
     }
     setFile(selected);
+    setError(null);
+    if (/\.xlsx$/i.test(selected.name)) {
+      // Convert the first sheet to CSV client-side so the rest of the pipeline is unchanged.
+      import("read-excel-file/browser")
+        .then(({ readSheet }) => readSheet(selected))
+        .then((sheet) => {
+          const cells = sheet.map((r) =>
+            r.map((c) => (c == null ? "" : c instanceof Date ? c.toISOString().slice(0, 10) : String(c))),
+          );
+          setCsvText(Papa.unparse(cells));
+          invalidateReview();
+        })
+        .catch(() => {
+          setError("Could not read that .xlsx file.");
+          setFile(null);
+          setCsvText("");
+        });
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
@@ -146,7 +166,6 @@ export default function ImportPage() {
       invalidateReview();
     };
     reader.readAsText(selected);
-    setError(null);
   };
 
   const invalidateReview = () => {
@@ -577,8 +596,8 @@ export default function ImportPage() {
           ) : (
             <label className="flex w-full cursor-pointer items-center justify-center gap-2 border border-dashed border-border bg-background px-5 py-8 text-xs text-foreground transition-colors hover:bg-muted/40">
               <FileText className="h-4 w-4 text-muted-foreground" />
-              <span>{file ? file.name : "Choose .csv file…"}</span>
-              <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+              <span>{file ? file.name : "Choose .csv or .xlsx file…"}</span>
+              <input type="file" accept=".csv,.xlsx" onChange={handleFileChange} className="hidden" />
             </label>
           )}
 
