@@ -8,6 +8,10 @@ describe("getCurrentUser and auth providers", () => {
   const authMock = vi.fn();
   const upsertMock = vi.fn();
   const findOrCreateMock = vi.fn();
+  const findUserMock = vi.fn();
+  const redirectMock = vi.fn((url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  });
   let googleFactory: ReturnType<typeof vi.fn>;
   let credentialsFactory: ReturnType<typeof vi.fn>;
 
@@ -16,6 +20,9 @@ describe("getCurrentUser and auth providers", () => {
     authMock.mockReset();
     upsertMock.mockReset();
     findOrCreateMock.mockReset();
+    findUserMock.mockReset();
+    findUserMock.mockResolvedValue({ id: "u1" });
+    redirectMock.mockClear();
     googleFactory = vi.fn((opts: unknown) => ({ id: "google", options: opts }));
     credentialsFactory = vi.fn((cfg: unknown) => ({ id: "credentials", ...(cfg as object) }));
 
@@ -31,8 +38,9 @@ describe("getCurrentUser and auth providers", () => {
     vi.doMock("next-auth/providers/credentials", () => ({ default: credentialsFactory }));
     vi.doMock("@auth/prisma-adapter", () => ({ PrismaAdapter: vi.fn(() => ({})) }));
     vi.doMock("@/lib/prisma", () => ({
-      prisma: { userSettings: { upsert: upsertMock } },
+      prisma: { userSettings: { upsert: upsertMock }, user: { findUnique: findUserMock } },
     }));
+    vi.doMock("next/navigation", () => ({ redirect: redirectMock }));
     vi.doMock("@/lib/local-auth", () => ({ findOrCreateLocalUser: findOrCreateMock }));
     vi.doMock("@/lib/auth.config", () => ({
       authConfig: {
@@ -52,6 +60,7 @@ describe("getCurrentUser and auth providers", () => {
     vi.doUnmock("next-auth/providers/credentials");
     vi.doUnmock("@auth/prisma-adapter");
     vi.doUnmock("@/lib/prisma");
+    vi.doUnmock("next/navigation");
     vi.doUnmock("@/lib/local-auth");
     vi.doUnmock("@/lib/auth.config");
     vi.unstubAllEnvs();
@@ -90,6 +99,16 @@ describe("getCurrentUser and auth providers", () => {
       id: "u1",
       email: "dev@example.com",
     });
+  });
+
+  it("signs out a session whose user no longer exists", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    authMock.mockResolvedValue({ user: { id: "gone" }, expires: new Date().toISOString() });
+    findUserMock.mockResolvedValue(null);
+
+    const { getCurrentUser, STALE_SESSION_PATH } = await import("@/lib/auth");
+    await expect(getCurrentUser()).rejects.toThrow(`NEXT_REDIRECT:${STALE_SESSION_PATH}`);
+    expect(findUserMock).toHaveBeenCalledWith({ where: { id: "gone" }, select: { id: true } });
   });
 
   it("buildAuthProviders: credentials only outside production; Google when configured", async () => {

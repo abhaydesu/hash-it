@@ -125,6 +125,7 @@ describe("ReviewCardItem", () => {
       status: "SOLVED_UNAIDED",
       minutes: 15,
       usedHint: false,
+      fromQueue: true,
     });
 
     await vi.runAllTimersAsync();

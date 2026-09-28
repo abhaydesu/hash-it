@@ -827,3 +827,18 @@
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Streak flame sprite: each frame shows for a quarter of the cycle (delays stagger
+   them), stepping rather than fading so it reads as pixel animation. */
+.streak-flame-frame {
+  opacity: 0;
+  animation: streak-flame-frame 1200ms step-end infinite;
+}
+@keyframes streak-flame-frame {
+  0% { opacity: 1; }
+  25% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .streak-flame-frame { animation: none; }
+  .streak-flame-frame:first-child { opacity: 1; }
+}

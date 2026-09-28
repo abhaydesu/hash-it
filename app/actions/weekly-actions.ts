@@ -4,7 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { startOfTomorrow, weekStart } from "@/lib/dates";
+import { startOfTomorrow } from "@/lib/dates";
+import { weeklyWindow } from "@/lib/review-windows";
 import { checkOutcome, PLAN_KINDS } from "@/lib/weekly-review";
 
 const CheckSchema = z.object({
@@ -16,6 +17,13 @@ const CheckSchema = z.object({
 async function userTimezone(userId: string) {
   const s = await prisma.userSettings.findUnique({ where: { userId }, select: { timezone: true } });
   return s?.timezone || "Asia/Kolkata";
+}
+
+/** The week being reviewed, or an error outside the Sunday/Monday window. */
+function openPlanWeek(now: Date, timezone: string) {
+  const window = weeklyWindow(now, timezone);
+  if (!window.open) throw new Error("The weekly review opens on Sunday.");
+  return window.planWeek;
 }
 
 /**
@@ -34,7 +42,7 @@ export async function recordRecallCheck(input: z.infer<typeof CheckSchema>) {
   });
   if (!card) throw new Error("Problem not found.");
 
-  const week = weekStart(now, timezone);
+  const week = openPlanWeek(now, timezone);
   const outcome = checkOutcome(data.confidence, data.recalled);
   const tomorrow = startOfTomorrow(now, timezone);
 
@@ -60,11 +68,12 @@ const PlanSchema = z.object({
     .refine((items) => new Set(items.map((i) => i.kind)).size === items.length, "One problem per kind."),
 });
 
-/** Save (or replace) this week's plan. */
+/** Save (or replace) the plan for the week under review. */
 export async function commitWeeklyPlan(input: z.infer<typeof PlanSchema>) {
   const user = await getCurrentUser();
   const { items } = PlanSchema.parse(input);
-  const week = weekStart(new Date(), await userTimezone(user.id));
+  const now = new Date();
+  const week = openPlanWeek(now, await userTimezone(user.id));
 
   // REDO / REVISIT must be the user's own problems; FRESH just has to exist.
   const [owned, existing] = await Promise.all([
@@ -87,7 +96,7 @@ export async function commitWeeklyPlan(input: z.infer<typeof PlanSchema>) {
       where: { userId_weekStart: { userId: user.id, weekStart: week } },
       // Keep the original start so items already finished this week stay done after an edit.
       update: {},
-      create: { userId: user.id, weekStart: week },
+      create: { userId: user.id, weekStart: week, createdAt: now },
       select: { id: true },
     });
     await tx.weeklyPlanItem.deleteMany({ where: { planId: plan.id } });

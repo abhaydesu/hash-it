@@ -1,3 +1,5 @@
+import { cache } from "react";
+import { redirect } from "next/navigation";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
@@ -141,11 +143,18 @@ const config: NextAuthConfig = {
 
 export const { handlers, auth, signIn, signOut } = NextAuth(config);
 
+/** Where a session whose user no longer exists goes to have its cookie cleared. */
+export const STALE_SESSION_PATH = "/auth/signin/reset";
+
 /**
  * Gets the current authenticated user from the session.
  * Development mode allows the local credentials bypass; production requires real Google auth.
+ *
+ * Sessions are JWTs, so a cookie can outlive its user (deleted, or issued against a
+ * different database). Such a session is signed out rather than trusted — otherwise
+ * reads come back empty and writes fail on the userId foreign key.
  */
-export async function getCurrentUser(): Promise<{
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<{
   id: string;
   name?: string | null;
   email?: string | null;
@@ -158,10 +167,13 @@ export async function getCurrentUser(): Promise<{
     throw new Error("Unauthorized: no active session");
   }
 
+  const exists = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
+  if (!exists) redirect(STALE_SESSION_PATH);
+
   return session.user as {
     id: string;
     name?: string | null;
     email?: string | null;
     image?: string | null;
   };
-}
+});

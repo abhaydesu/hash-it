@@ -3,7 +3,8 @@
  *
  * Monthly: a mock opens on the last local day of each month. Missing one keeps it
  * open (overdue) until taken, but misses don't stack — only the latest month is owed.
- * Weekly: every calendar week (Monday start) has its own review; a missed week lapses.
+ * Weekly: the review opens on Sunday and plans the Monday–Sunday week ahead. Monday is a
+ * grace day for that same week; Tuesday–Saturday it's closed. A missed window lapses.
  */
 import { addDays, addMonths, lastDayOfMonth, localDay, startOfLocalDay, weekStart } from "@/lib/dates";
 
@@ -36,7 +37,22 @@ export function monthlyStatus(now: Date, timezone: string, creditedPeriods: Iter
   return { state: "locked", creditPeriod: month, opensAt: startOfLocalDay(dueDay, timezone).getTime() };
 }
 
-/** When the next weekly review opens (next local Monday, 00:00). */
-export function nextWeeklyReviewAt(now: Date, timezone: string): number {
-  return startOfLocalDay(addDays(weekStart(now, timezone), 7), timezone).getTime();
+export interface WeeklyWindow {
+  /** Whether the review (recall check + plan) can be done now. */
+  open: boolean;
+  /** Monday (YYYY-MM-DD) of the week the review plans — the upcoming week on Sunday, else this one. */
+  planWeek: string;
+  /** When the next window opens (local Sunday, 00:00). */
+  nextOpensAt: number;
+}
+
+export function weeklyWindow(now: Date, timezone: string): WeeklyWindow {
+  const monday = weekStart(now, timezone);
+  const dow = new Date(`${localDay(now, timezone)}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+  const isSunday = dow === 0;
+  return {
+    open: isSunday || dow === 1,
+    planWeek: isSunday ? addDays(monday, 7) : monday,
+    nextOpensAt: startOfLocalDay(addDays(monday, isSunday ? 13 : 6), timezone).getTime(),
+  };
 }

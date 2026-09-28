@@ -8,7 +8,7 @@ import {
   type CardFacts,
 } from "@/lib/weekly-review";
 import { addDays, addMonths, lastDayOfMonth, startOfLocalDay, startOfTomorrow, weekStart } from "@/lib/dates";
-import { monthlyStatus, nextWeeklyReviewAt } from "@/lib/review-windows";
+import { monthlyStatus, weeklyWindow } from "@/lib/review-windows";
 import { scheduledContests } from "@/lib/contests";
 
 const card = (id: string, r: number, patterns: string[], extra: Partial<CardFacts> = {}): CardFacts => ({
@@ -161,7 +161,38 @@ describe("monthlyStatus", () => {
   it("handles February and year ends", () => {
     expect(lastDayOfMonth("2028-02")).toBe("2028-02-29");
     expect(addMonths("2026-12", 1)).toBe("2027-01");
-    expect(nextWeeklyReviewAt(new Date("2026-12-31T12:00:00Z"), "UTC")).toBe(Date.UTC(2027, 0, 4));
+    expect(weeklyWindow(new Date("2026-12-31T12:00:00Z"), "UTC").nextOpensAt).toBe(Date.UTC(2027, 0, 3));
+  });
+});
+
+describe("weeklyWindow", () => {
+  const tz = "Asia/Kolkata";
+  it("opens on Sunday to plan the week ahead", () => {
+    // Sun 4 Oct, 11:30 IST
+    expect(weeklyWindow(new Date("2026-10-04T06:00:00Z"), tz)).toEqual({
+      open: true,
+      planWeek: "2026-10-05",
+      nextOpensAt: startOfLocalDay("2026-10-11", tz).getTime(),
+    });
+  });
+
+  it("keeps Monday as a grace day for the week that just started", () => {
+    expect(weeklyWindow(new Date("2026-10-05T06:00:00Z"), tz)).toMatchObject({ open: true, planWeek: "2026-10-05" });
+  });
+
+  it("is closed Tuesday to Saturday, counting down to Sunday", () => {
+    for (const iso of ["2026-09-29T06:00:00Z", "2026-10-03T17:00:00Z"]) {
+      expect(weeklyWindow(new Date(iso), tz)).toEqual({
+        open: false,
+        planWeek: "2026-09-28",
+        nextOpensAt: startOfLocalDay("2026-10-04", tz).getTime(),
+      });
+    }
+  });
+
+  it("uses the local day, not UTC", () => {
+    // Sat 3 Oct 20:00 UTC is already Sunday 01:30 in IST.
+    expect(weeklyWindow(new Date("2026-10-03T20:00:00Z"), tz)).toMatchObject({ open: true, planWeek: "2026-10-05" });
   });
 });
 

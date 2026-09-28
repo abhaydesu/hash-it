@@ -9,7 +9,7 @@
 import { prisma } from "@/lib/prisma";
 import { calculateRetrievability, isLeech, type ReviewCardData } from "@/lib/scheduler";
 import { addDays, weekStart as localWeekStart } from "@/lib/dates";
-import { nextWeeklyReviewAt } from "@/lib/review-windows";
+import { weeklyWindow } from "@/lib/review-windows";
 import { normalizePatternList } from "@/lib/utils";
 
 export type Confidence = "BLANK" | "HAZY" | "CLEAR";
@@ -171,7 +171,10 @@ export interface PlanItemView extends ProblemRef {
 }
 
 export interface WeeklyReviewData {
+  /** Monday of the week this review plans. */
   weekStart: string;
+  /** Sunday (and Monday, as grace) only; otherwise the page is read-only. */
+  open: boolean;
   targetRetention: number;
   lookBack: {
     reviewsDone: number;
@@ -185,7 +188,7 @@ export interface WeeklyReviewData {
     /** The user has done reviews before but not last week's. */
     lastWeekSkipped: boolean;
   };
-  /** Epoch ms when next week's review opens. */
+  /** Epoch ms when the next review window opens (local Sunday). */
   nextReviewAt: number;
   checks: RecallCheckItem[];
   plan: {
@@ -228,7 +231,8 @@ export async function getWeeklyReview(userId: string, now: Date = new Date()): P
   });
   const timezone = settings?.timezone || "Asia/Kolkata";
   const target = settings?.desiredRetention ?? 0.8;
-  const week = localWeekStart(now, timezone);
+  const window = weeklyWindow(now, timezone);
+  const week = window.planWeek;
   const since = new Date(now.getTime() - 7 * DAY_MS);
 
   const [entries, reviewsDone, newLogged, overdueNow, checks, plans] = await Promise.all([
@@ -343,6 +347,7 @@ export async function getWeeklyReview(userId: string, now: Date = new Date()): P
 
   return {
     weekStart: week,
+    open: window.open,
     targetRetention: target,
     lookBack: {
       reviewsDone,
@@ -358,7 +363,7 @@ export async function getWeeklyReview(userId: string, now: Date = new Date()): P
       lastPlan: previousItems ? { done: previousItems.filter((i) => i.done).length, total: previousItems.length } : null,
       lastWeekSkipped: previous != null && previous.weekStart < lastWeek,
     },
-    nextReviewAt: nextWeeklyReviewAt(now, timezone),
+    nextReviewAt: window.nextOpensAt,
     checks: checkItems,
     plan: {
       committed: current ? await planWithProgress(userId, current) : null,
@@ -371,22 +376,26 @@ export async function getWeeklyReview(userId: string, now: Date = new Date()): P
   };
 }
 
-/** The most recent plan still running (committed within the last week), for the Today page. */
+/**
+ * The Today tile: the plan for the week the review window targets if it's committed
+ * (on Sunday, that's next week's), else the one running this week.
+ */
 export async function getActivePlan(userId: string, now: Date = new Date()) {
   const settings = await prisma.userSettings.findUnique({ where: { userId }, select: { timezone: true } });
   const timezone = settings?.timezone || "Asia/Kolkata";
-  const week = localWeekStart(now, timezone);
-  const plan = await prisma.weeklyPlan.findFirst({
-    where: { userId, weekStart: { gte: addDays(week, -7) }, createdAt: { gte: new Date(now.getTime() - 8 * DAY_MS) } },
-    orderBy: { createdAt: "desc" },
+  const window = weeklyWindow(now, timezone);
+  const thisWeek = localWeekStart(now, timezone);
+  const plans = await prisma.weeklyPlan.findMany({
+    where: { userId, weekStart: { in: [window.planWeek, thisWeek] } },
     select: { weekStart: true, createdAt: true, items: { select: { kind: true, problem: { select: problemSelect } } } },
   });
-  const nextReviewAt = nextWeeklyReviewAt(now, timezone);
-  if (!plan) return { items: null, reviewedThisWeek: false, nextReviewAt };
+  const plan = plans.find((p) => p.weekStart === window.planWeek) ?? plans.find((p) => p.weekStart === thisWeek);
   return {
-    items: await planWithProgress(userId, plan),
-    reviewedThisWeek: plan.weekStart === week,
-    nextReviewAt,
+    items: plan ? await planWithProgress(userId, plan) : null,
+    /** The plan shown is for next week (committed on Sunday). */
+    upcoming: plan != null && plan.weekStart > thisWeek,
+    reviewDone: plans.some((p) => p.weekStart === window.planWeek),
+    reviewOpen: window.open,
+    nextReviewAt: window.nextOpensAt,
   };
 }
-

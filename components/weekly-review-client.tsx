@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useTransition } from "react";
-import { Check, CircleCheck, ExternalLink, RefreshCw, Trophy, X } from "lucide-react";
+import { CalendarClock, Check, CircleCheck, ExternalLink, RefreshCw, Trophy, X } from "lucide-react";
 import { recordRecallCheck, commitWeeklyPlan } from "@/app/actions/weekly-actions";
 import type { Confidence, PlanKind, ProblemRef, RecallCheckItem, WeeklyReviewData } from "@/lib/weekly-review";
 import type { Contest } from "@/lib/contests";
@@ -317,8 +317,8 @@ function ContestLine({ contest }: { contest: Contest }) {
   );
 }
 
-function Plan({ plan, contest }: { plan: WeeklyReviewData["plan"]; contest: Contest | null }) {
-  const [editing, setEditing] = useState(plan.committed == null);
+function Plan({ plan, contest, open }: { plan: WeeklyReviewData["plan"]; contest: Contest | null; open: boolean }) {
+  const [editing, setEditing] = useState(open && plan.committed == null);
   const [index, setIndex] = useState<Record<PlanKind, number>>(() => {
     // Start editing from what's already committed, when possible.
     const at = (kind: PlanKind) =>
@@ -368,6 +368,9 @@ function Plan({ plan, contest }: { plan: WeeklyReviewData["plan"]; contest: Cont
       </StepHeading>
 
       <div className="divide-y divide-border border border-border bg-background">
+        {!editing && !committed && (
+          <p className="p-3 text-xs text-muted-foreground sm:p-4">No plan for this week.</p>
+        )}
         {!editing && committed
           ? committed.map((item) => (
               <div key={item.kind} className="flex items-center justify-between gap-3 p-3 sm:p-4">
@@ -384,7 +387,7 @@ function Plan({ plan, contest }: { plan: WeeklyReviewData["plan"]; contest: Cont
                 )}
               </div>
             ))
-          : PLAN_ORDER.map((kind) => {
+          : editing && PLAN_ORDER.map((kind) => {
               const options = plan.candidates[kind];
               const current = options[index[kind]];
               const isSkipped = skipped.has(kind);
@@ -437,9 +440,11 @@ function Plan({ plan, contest }: { plan: WeeklyReviewData["plan"]; contest: Cont
             </Button>
           </>
         ) : (
-          <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
-            Change plan
-          </Button>
+          open && (
+            <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+              Change plan
+            </Button>
+          )
         )}
       </div>
     </div>
@@ -467,13 +472,29 @@ export function WeeklyReviewClient({ data, contests }: { data: WeeklyReviewData;
       <SheetSection innerClassName="py-6">
         <h1 className="type-title text-foreground">Weekly review</h1>
         <p className="mt-1 type-caption">
-          Week of {weekLabel}. Look back, catch what&apos;s slipping, plan the week. About ten minutes.
+          {data.open ? (
+            <>Planning the week of {weekLabel}. Look back, catch what&apos;s slipping, plan the week. About ten minutes.</>
+          ) : (
+            <>Week of {weekLabel}.</>
+          )}
         </p>
-        {complete && (
+        {!data.open && (
+          <div className="mt-4 flex items-start gap-2 border border-border bg-muted/40 px-4 py-3 text-xs text-foreground">
+            <CalendarClock className="mt-px h-4 w-4 shrink-0 text-muted-foreground" />
+            <span>
+              The review opens on Sunday to plan the week ahead —{" "}
+              <span className="font-medium">
+                <Countdown to={data.nextReviewAt} />
+              </span>
+              . Monday works too if you miss it.
+            </span>
+          </div>
+        )}
+        {data.open && complete && (
           <div className="mt-4 flex items-start gap-2 border border-easy/40 bg-easy/10 px-4 py-3 text-xs text-foreground">
             <CircleCheck className="mt-px h-4 w-4 shrink-0 text-easy" />
             <span>
-              <span className="font-medium">This week&apos;s review is done.</span> The next one opens{" "}
+              <span className="font-medium">Review done for the week of {weekLabel}.</span> The next one opens{" "}
               <span className="font-medium">
                 <Countdown to={data.nextReviewAt} />
               </span>
@@ -483,16 +504,20 @@ export function WeeklyReviewClient({ data, contests }: { data: WeeklyReviewData;
         )}
       </SheetSection>
 
-      <SheetSection innerClassName="py-6" band="neutral">
-        <LookBack data={data.lookBack} />
-      </SheetSection>
+      {data.open && (
+        <>
+          <SheetSection innerClassName="py-6" band="neutral">
+            <LookBack data={data.lookBack} />
+          </SheetSection>
 
-      <SheetSection innerClassName="py-6">
-        <RecallCheck items={checks} onAnswered={onAnswered} />
-      </SheetSection>
+          <SheetSection innerClassName="py-6">
+            <RecallCheck items={checks} onAnswered={onAnswered} />
+          </SheetSection>
+        </>
+      )}
 
       <SheetSection innerClassName="py-6" last>
-        <Plan plan={data.plan} contest={contests[0] ?? null} />
+        <Plan plan={data.plan} contest={data.open ? (contests[0] ?? null) : null} open={data.open} />
       </SheetSection>
     </div>
   );

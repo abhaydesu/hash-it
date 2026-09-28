@@ -1,39 +1,9 @@
-"use client";
-
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { StreakFlame } from "@/components/ui/streak-flame";
 
-// 5×4 dithered flame. Only the tip flickers between frames; the base stays put.
-const FRAMES = [
-  ["  .  ", " :*: ", ":*#*:", " ### "],
-  [" .   ", " *:. ", ":*#*:", " ### "],
-  ["   . ", " .:* ", ":*#*:", " ### "],
-];
-
-function AsciiFlame({ lit }: { lit: boolean }) {
-  const [frame, setFrame] = useState(0);
-
-  useEffect(() => {
-    if (!lit || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = setInterval(() => setFrame((f) => (f + 1) % FRAMES.length), 420);
-    return () => clearInterval(id);
-  }, [lit]);
-
-  return (
-    <pre
-      aria-hidden
-      className={cn(
-        "m-0 select-none font-mono text-[5px] font-bold leading-[5px] tracking-[-0.5px]",
-        lit ? "text-orange-500" : "text-muted-foreground/60"
-      )}
-    >
-      {FRAMES[lit ? frame : 0].join("\n")}
-    </pre>
-  );
-}
-
-/** Top-bar streak chip: an ASCII flame that flickers once today's review is done. */
+/** Top-bar streak chip: the flame lights (and flickers) once today's review is done. */
 export function StreakChip({ current, todayDone }: { current: number; todayDone: boolean }) {
   const lit = current > 0 && todayDone;
   const label =
@@ -51,7 +21,7 @@ export function StreakChip({ current, todayDone }: { current: number; todayDone:
         lit ? "text-foreground" : "text-muted-foreground"
       )}
     >
-      <AsciiFlame lit={lit} />
+      <StreakFlame lit={lit} className={lit ? undefined : "text-muted-foreground"} />
       <span className="font-medium tabular-nums">{current}</span>
     </Link>
   );

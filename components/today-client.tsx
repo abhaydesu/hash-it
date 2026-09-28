@@ -3,13 +3,13 @@ import React from "react";
 
 import Link from "next/link";
 import { ArrowRight, CalendarRange, Check, Clock3, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RecallCardItem } from "@/components/recall-card-item";
 import { ReviewCardItem } from "@/components/review-card-item";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
-import type { PlanItemView } from "@/lib/weekly-review";
+import type { PlanItemView, getActivePlan } from "@/lib/weekly-review";
 import type { MonthlyStatus } from "@/lib/review-windows";
 import { Countdown } from "@/components/ui/countdown";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ export interface TodayData {
   doneToday: number;
   snapshot: Snapshot;
   overdueCount: number;
-  weeklyPlan: { items: PlanItemView[] | null; reviewedThisWeek: boolean; nextReviewAt: number };
+  weeklyPlan: Awaited<ReturnType<typeof getActivePlan>>;
   monthlyStatus: MonthlyStatus;
   lastMock: { solved: number; total: number } | null;
 }
@@ -102,7 +102,9 @@ function WeeklyTile({ plan }: { plan: TodayData["weeklyPlan"] }) {
     <div className="flex flex-col justify-between bg-background p-4 sm:p-5">
       <div>
         <div className="flex items-center justify-between">
-          <h2 className="type-heading text-foreground">{items ? "This week's plan" : "Weekly review"}</h2>
+          <h2 className="type-heading text-foreground">
+            {items ? (plan.upcoming ? "Next week's plan" : "This week's plan") : "Weekly review"}
+          </h2>
           {items ? (
             <span className="type-caption tabular-nums">
               {done} / {items.length}
@@ -132,16 +134,16 @@ function WeeklyTile({ plan }: { plan: TodayData["weeklyPlan"] }) {
       </div>
       <div className="mt-4 flex items-center justify-between border-t border-border pt-3 type-caption">
         <span>
-          {plan.reviewedThisWeek ? (
-            <>
-              Done · next <Countdown to={plan.nextReviewAt} showDate={false} />
-            </>
+          {plan.reviewOpen && !plan.reviewDone ? (
+            "Open now"
           ) : (
-            "Due this week"
+            <>
+              {plan.reviewDone ? "Done · next" : "Opens"} <Countdown to={plan.nextReviewAt} showDate={false} />
+            </>
           )}
         </span>
         <Link href="/review/weekly" className="link-arrow font-medium text-orange-600 hover:text-orange-700">
-          {plan.reviewedThisWeek ? "Open review" : "Start review"} <ArrowRight className="h-3 w-3" />
+          {plan.reviewOpen && !plan.reviewDone ? "Start review" : "Open review"} <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
     </div>
@@ -166,7 +168,18 @@ export function TodayClient({ data }: { data: TodayData }) {
 
   const { queue, resolveCount, recallCount, doneToday, snapshot, overdueCount } = data;
   const finished = queue.length > 0 || doneToday > 0;
-  const activeQueue = queue.filter((item) => !completedIds.has(item.entryId));
+  // Logging a review revalidates /today, so the server drops that card while it's
+  // still showing its result. Keep cards we've shown until their own onComplete
+  // removes them; only new arrivals come from the server list.
+  const shown = useRef<QueueItem[]>(queue);
+  const shownIds = new Set(shown.current.map((item) => item.entryId));
+  const activeQueue = [
+    ...shown.current.map((item) => queue.find((q) => q.entryId === item.entryId) ?? item),
+    ...queue.filter((item) => !shownIds.has(item.entryId)),
+  ].filter((item) => !completedIds.has(item.entryId));
+  useEffect(() => {
+    shown.current = activeQueue;
+  });
   const estimateMinutes = recallCount * 3 + resolveCount * 25;
 
   return (
