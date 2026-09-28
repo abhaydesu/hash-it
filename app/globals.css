@@ -275,22 +275,9 @@
     width: 100%;
     height: 72px;
     transform: none;
-    mask-image: linear-gradient(
-      to bottom,
-      black 0%,
-      black 18%,
-      rgba(0, 0, 0, 0.55) 42%,
-      rgba(0, 0, 0, 0.18) 72%,
-      transparent 100%
-    );
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      black 0%,
-      black 18%,
-      rgba(0, 0, 0, 0.55) 42%,
-      rgba(0, 0, 0, 0.18) 72%,
-      transparent 100%
-    );
+    /* The fade to the content below is drawn by PixelBlast (fade="down") as thinning
+       dither, not a CSS mask: a smooth alpha mask over 1-bit pixels turns them into
+       translucent smudges on low-DPR screens. */
   }
 
   @media (min-width: 640px) {

@@ -22,6 +22,7 @@ uniform float u_time;
 uniform vec2 u_resolution;
 uniform vec3 u_color;
 uniform float u_pixelSize;
+uniform float u_fade;
 
 const int bayerMatrix[64] = int[64](
     0, 32, 8, 40, 2, 34, 10, 42,
@@ -71,9 +72,19 @@ void main() {
     float n = fbm(uv * 3.0 - vec2(0.0, u_time * 0.05));
     n += fbm(uv * 5.0 + vec2(u_time * 0.02, 0.0)) * 0.5;
     
+    // Optional fade toward the bottom, as fewer lit cells rather than lower alpha, so
+    // every cell stays fully on or off. Measured at the cell centre so cells stay whole.
+    if (u_fade > 0.5) {
+        float fromTop = 1.0 - (pixelCoords.y + 0.5) * u_pixelSize / u_resolution.y;
+        float f = clamp(1.0 - (fromTop - 0.18) / 0.82, 0.0, 1.0);
+        n *= f;
+    }
+
     float alpha = step(dither, n - 0.2);
     
-    outColor = vec4(u_color, alpha * 0.85); 
+    // The canvas composites premultiplied: an unlit cell must be (0,0,0,0), not orange at alpha 0.
+    float a = alpha * 0.85;
+    outColor = vec4(u_color * a, a);
 }
 `;
 
@@ -81,10 +92,13 @@ export function PixelBlast({
   className = "",
   color = "#f97316", // Tailwind orange-500
   pixelSize = 4.0,
+  fade = "none",
 }: {
   className?: string;
   color?: string;
   pixelSize?: number;
+  /** "down": thin the dither out toward the bottom edge. */
+  fade?: "none" | "down";
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -147,6 +161,7 @@ export function PixelBlast({
     const uResLoc = gl.getUniformLocation(program, "u_resolution");
     const uColorLoc = gl.getUniformLocation(program, "u_color");
     const uPixelSizeLoc = gl.getUniformLocation(program, "u_pixelSize");
+    const uFadeLoc = gl.getUniformLocation(program, "u_fade");
 
     const parseColor = (hex: string) => {
       hex = hex.replace("#", "");
@@ -195,7 +210,10 @@ export function PixelBlast({
       gl.uniform1f(uTimeLoc, elapsed);
       gl.uniform2f(uResLoc, canvas.width, canvas.height);
       gl.uniform3fv(uColorLoc, colorVec);
-      gl.uniform1f(uPixelSizeLoc, pixelSize * (window.devicePixelRatio || 1));
+      // Whole device pixels per cell: at fractional DPRs (1.25, 1.5, 2.625…) a
+      // non-integer size makes cells alternate between two widths.
+      gl.uniform1f(uPixelSizeLoc, Math.max(1, Math.round(pixelSize * (window.devicePixelRatio || 1))));
+      gl.uniform1f(uFadeLoc, fade === "down" ? 1 : 0);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       animationFrameId = requestAnimationFrame(render);
@@ -211,7 +229,7 @@ export function PixelBlast({
       gl.deleteShader(fragmentShader);
       gl.deleteBuffer(positionBuffer);
     };
-  }, [color, pixelSize]);
+  }, [color, pixelSize, fade]);
 
   return (
     <canvas

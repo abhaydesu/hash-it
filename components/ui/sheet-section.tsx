@@ -43,7 +43,7 @@ export function SheetSection({
       {bandClass ? (
         <div aria-hidden="true" className={bandClass}>
           {(band === "hero" || band === "accent") && (
-            <PixelBlast color="#f97316" pixelSize={4} />
+            <PixelBlast color="#f97316" pixelSize={4} fade={band === "hero" ? "down" : "none"} />
           )}
         </div>
       ) : null}
