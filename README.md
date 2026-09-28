@@ -41,6 +41,27 @@ See `.env.example`. Required in production:
 - `AUTH_URL` / `NEXTAUTH_URL` — production domain
 - `CRON_SECRET` — for `POST /api/cron/sync-leetcode`
 
+## Features
+
+### Import (`/import`)
+- Upload `.csv` or `.xlsx` files to bulk-log problems at once.
+- Sheet order is preserved: undated rows get timestamps 1ms apart, so sorting by "Solved" date recreates your file's order.
+- Dry-run shows duplicates, conflicts, and unmatched problems before committing.
+
+### Practice (`/practice`)
+- Patterns are classified by LeetCode's primary topic tag: a DP problem tagged "Array" counts as DP, not Array.
+- Each pattern shows 1 unsolved problem per difficulty (easy/medium/hard), or a random one if you've solved them all.
+- Grid fills all rows on 5-column layouts; no empty cells.
+
+### Problems (`/problems`)
+- Table starts at 50 rows/page; pick 25, 50, 100, 250 or all.
+- Sort by any column. Click "Solved" to see problems in import order.
+- Export as CSV for backup or external review.
+
+### Review (`/review/weekly`, `/review/monthly`)
+- Weekly: random unsolved + revisit drills + pattern-specific mocks.
+- Monthly: performance stats and stability trends.
+
 ## App routes
 
 | Path | Purpose |
@@ -49,6 +70,7 @@ See `.env.example`. Required in production:
 | `/auth/signin` | Sign in |
 | `/today` | Daily review queue |
 | `/problems`, `/problems/[id]` | Log + detail |
+| `/practice` | Pattern drills with unsolved problems |
 | `/roadmap` | Study roadmap |
 | `/review/weekly`, `/review/monthly` | Pattern drills / mock |
 | `/stats`, `/patterns`, `/import`, `/settings` | Analytics, import, prefs |
