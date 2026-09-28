@@ -1,97 +1,68 @@
 # Hash-It
 
-Personal spaced-repetition tracker for coding interview problems (LeetCode / GFG).
-Next.js 15 App Router, Prisma + Postgres (Neon), Auth.js v5 (Google OAuth).
+A spaced-repetition tracker for coding interview problems. Log problems from LeetCode or your own sheet, get daily review queues, practice by pattern, and watch your mastery grow.
 
-## Setup
+Built with Next.js, Postgres, and FSRS scheduling. Sign in with Google.
 
-```bash
-cp .env.example .env
-# fill DATABASE_URL (Neon pooled), AUTH_SECRET, Google OAuth, CRON_SECRET
-npm install
-npx prisma migrate deploy
-npm run seed:patterns   # optional catalog patterns
-npm run sync:leetcode   # optional problem catalog sync
-npm run dev
-```
+---
 
-## Scripts
+## Getting Started
 
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Local Next.js server |
-| `npm run build` | `prisma migrate deploy` then production build |
-| `npm start` | Serve production build |
-| `npm test` | Vitest (unit, component, integration) |
-| `npm run lint` | ESLint |
-| `npx playwright test` | E2E (`tests/e2e`) |
-| `npm run seed:patterns` | Upsert pattern taxonomy (idempotent) |
-| `npm run sync:leetcode` | Upsert LeetCode catalog (idempotent) |
-| `npm run import:roadmap` | Roadmap CSV import (**dry-run** unless `--confirm`) |
+1. **Sign in** with your Google account
+2. **Import problems** from an Excel sheet or CSV file, or log them one by one
+3. **Review daily** — solve a few problems each day to keep them fresh
+4. **Practice patterns** — drill specific techniques (DP, graphs, searching, etc.)
+5. **Track progress** — see your improvement over time
 
-Destructive scripts (`import:roadmap`, `scripts/merge-patterns.ts`, `scripts/prune-clean-cards.ts`) are dry-run by default; pass `--confirm` to apply.
+## How It Works
 
-## Environment
+### Import your problems (`/import`)
+Upload a `.csv` or `.xlsx` file with your problems:
+- Columns: Problem Name, Problem Link, Pattern, Idea, Solved Date (optional)
+- The app matches problems to LeetCode/GFG automatically; unmatched ones get flagged for review
+- Sheet order is preserved: if you don't have a "Solved Date", the order you listed them is remembered
+- Dry-run before committing: see duplicates, conflicts, and what gets created
 
-See `.env.example`. Required in production:
+### Daily reviews (`/today`)
+Each day, the app suggests problems to review based on spaced-repetition timing:
+- Easy problems come up less often (you know them)
+- Hard problems come up more often (you need practice)
+- Marked problems ("revisit", "leech" with 3+ wrong attempts) surface first
+- Rate each review as easy, good, or hard to adjust timing
 
-- `DATABASE_URL` — Neon **pooled** connection string
-- `AUTH_SECRET` — ≥16 characters, unique to production
-- `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`
-- `AUTH_URL` / `NEXTAUTH_URL` — production domain
-- `CRON_SECRET` — for `POST /api/cron/sync-leetcode`
+### Practice patterns (`/practice`)
+Pick a technique to drill: DP, graphs, sliding windows, etc.
+- See 3 unsolved problems (one easy, one medium, one hard)
+- Each pattern is smart: a DP problem tagged "Array" on LeetCode stays under DP, not Array
+- Log problems right there; shuffle to get fresh ones
+
+### All problems (`/problems`)
+Full log of everything you've solved:
+- Filter by status (solved, attempted, to-do), difficulty, or pattern
+- Sort by date, problem number, or topic—click column headers
+- See your notes, time spent, mistake notes, and when you solved it
+- Export as CSV for backup
+
+### Weekly & monthly reviews (`/review/weekly`, `/review/monthly`)
+- **Weekly**: random unsolved problems, your "revisit" pile, and pattern-specific drills
+- **Monthly**: stats on what you've done, patterns you're strong in, and trends
+
+---
+
+## Tips
+
+- **Import first**: Bring in all your old problems at once so the app knows what you've done
+- **Review daily**: Just 5–10 minutes a day keeps problems fresh
+- **Add notes**: Write down mistakes and ideas while they're fresh; read them next time you revisit
+- **Sort by "Solved"**: If you didn't import dates, click the "Solved" column to see problems in the order you listed them
+- **Custom fields**: Add your own columns (e.g., "company", "video source") in Settings and they'll show in your log
+
+---
 
 ## Features
 
-### Import (`/import`)
-- Upload `.csv` or `.xlsx` files to bulk-log problems at once.
-- Sheet order is preserved: undated rows get timestamps 1ms apart, so sorting by "Solved" date recreates your file's order.
-- Dry-run shows duplicates, conflicts, and unmatched problems before committing.
-
-### Practice (`/practice`)
-- Patterns are classified by LeetCode's primary topic tag: a DP problem tagged "Array" counts as DP, not Array.
-- Each pattern shows 1 unsolved problem per difficulty (easy/medium/hard), or a random one if you've solved them all.
-- Grid fills all rows on 5-column layouts; no empty cells.
-
-### Problems (`/problems`)
-- Table starts at 50 rows/page; pick 25, 50, 100, 250 or all.
-- Sort by any column. Click "Solved" to see problems in import order.
-- Export as CSV for backup or external review.
-
-### Review (`/review/weekly`, `/review/monthly`)
-- Weekly: random unsolved + revisit drills + pattern-specific mocks.
-- Monthly: performance stats and stability trends.
-
-## App routes
-
-| Path | Purpose |
-|---|---|
-| `/` | Landing |
-| `/auth/signin` | Sign in |
-| `/today` | Daily review queue |
-| `/problems`, `/problems/[id]` | Log + detail |
-| `/practice` | Pattern drills with unsolved problems |
-| `/roadmap` | Study roadmap |
-| `/review/weekly`, `/review/monthly` | Pattern drills / mock |
-| `/stats`, `/patterns`, `/import`, `/settings` | Analytics, import, prefs |
-| `/api/auth/*` | Auth.js |
-| `/api/cron/sync-leetcode` | Catalog sync (cron secret) |
-
-## Layout
-
-```
-app/           # App Router pages + API routes
-components/    # UI
-lib/           # Auth, Prisma, scheduler, import helpers
-prisma/        # Schema + migrations
-scripts/       # Seed / sync / maintenance (tsx)
-data/          # Seed CSVs (committed); unmatched.csv is generated
-tests/         # unit / component / integration / e2e
-```
-
-## Deploy (Vercel)
-
-1. Set production env vars from `.env.example`.
-2. Build command uses `prisma migrate deploy && next build` (do not use `db push` in prod).
-3. Add the production OAuth callback URL in Google Cloud Console.
-4. After deploy: sign in with two accounts to confirm isolation; trigger cron once; export CSV from `/problems` as a backup.
+- **Spaced repetition** — Uses FSRS scheduling to optimize when you review each problem
+- **Pattern mastery** — Track your strength in DP, graphs, arrays, etc.
+- **Flexible import** — CSV, Excel, or manual entry; matches LeetCode/GFG automatically
+- **Stats & insights** — See what you're good at and where you need work
+- **Private** — Your data is yours; sign in with Google, but nothing is shared
