@@ -238,7 +238,7 @@ describe("ImportPage wizard", () => {
     render(<ImportPage />);
     fireEvent.click(screen.getByRole("button", { name: /upload a spreadsheet/i }));
     expect(
-      await screen.findByText(/choose .csv file/i)
+      await screen.findByText(/choose .csv or .xlsx file/i)
     ).toBeInTheDocument();
   });
 });
