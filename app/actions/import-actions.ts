@@ -454,6 +454,8 @@ export async function commitImportBatch(params: {
     throw new Error(`Too many rows to import (max ${LIMITS.importRows}).`);
   }
   const rows = params.rows.map((row) => CommitRowSchema.parse(row));
+  const importedAt = Date.now();
+  const maxRowIndex = Math.max(0, ...rows.map((r) => r.rowIndex));
 
   const claimedIds = [...new Set(rows.map((r) => r.matchedProblemId).filter(Boolean))] as string[];
   const existingProblems =
@@ -612,7 +614,10 @@ export async function commitImportBatch(params: {
           continue;
         }
 
-        const solvedAt = parseSolvedDate(row.rawSolvedDate) ?? new Date();
+        // Undated rows keep the sheet's order: later rows get later timestamps (1ms apart),
+        // so sorting by firstSolvedAt reproduces the original file order.
+        const solvedAt =
+          parseSolvedDate(row.rawSolvedDate) ?? new Date(importedAt - (maxRowIndex - row.rowIndex));
 
         const entry = await tx.entry.create({
           data: {
