@@ -23,6 +23,7 @@ export async function GET() {
     queue: queueResult.queue,
     resolveCount: queueResult.resolveCount,
     recallCount: queueResult.recallCount,
+        doneToday: queueResult.doneToday,
     overdueCount,
     snapshot,
   });

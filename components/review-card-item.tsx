@@ -80,6 +80,7 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
         status,
         minutes: parsedMinutes,
         usedHint: status === "SOLVED_WITH_HELP",
+        fromQueue: true,
       });
       setResult({
         rating: res.rating,

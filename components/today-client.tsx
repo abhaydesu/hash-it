@@ -44,6 +44,8 @@ export interface TodayData {
   queue: QueueItem[];
   resolveCount: number;
   recallCount: number;
+  /** Queue reviews already logged today (local day). */
+  doneToday: number;
   snapshot: Snapshot;
   overdueCount: number;
   weeklyPlan: { items: PlanItemView[] | null; reviewedThisWeek: boolean; nextReviewAt: number };
@@ -162,7 +164,8 @@ export function TodayClient({ data }: { data: TodayData }) {
     }, COLLAPSE_MS);
   };
 
-  const { queue, resolveCount, recallCount, snapshot, overdueCount } = data;
+  const { queue, resolveCount, recallCount, doneToday, snapshot, overdueCount } = data;
+  const finished = queue.length > 0 || doneToday > 0;
   const activeQueue = queue.filter((item) => !completedIds.has(item.entryId));
   const estimateMinutes = recallCount * 3 + resolveCount * 25;
 
@@ -236,10 +239,10 @@ export function TodayClient({ data }: { data: TodayData }) {
         {activeQueue.length === 0 ? (
           <div className="idea-preview border border-border bg-muted/40 px-4 py-10 text-center">
             <p className="text-sm font-medium text-foreground">
-              {queue.length > 0 ? "All done for today." : "Nothing due today."}
+              {finished ? "Done for today." : "Nothing due today."}
             </p>
             <p className="mt-1 type-caption">
-              {queue.length > 0
+              {finished
                 ? <>Log new problems with <ShortcutKeycaps className="align-middle" /> or review the catalogue.</>
                 : <>Log new problems with <ShortcutKeycaps className="align-middle" />, or work through your roadmap.</>}
             </p>

@@ -350,7 +350,7 @@ export function interleaveQueue<T extends QueueItem>(
   maybeRecallCap?: number
 ): T[] {
   const legacyMode = dailyResolveCapOrNow instanceof Date || typeof dailyResolveCapOrNow === "undefined";
-  const resolveCap = legacyMode ? 2 : Number(dailyResolveCapOrNow) || 2;
+  const resolveCap = legacyMode ? 2 : Number.isFinite(Number(dailyResolveCapOrNow)) ? Number(dailyResolveCapOrNow) : 2;
   const now = legacyMode ? (dailyResolveCapOrNow instanceof Date ? dailyResolveCapOrNow : new Date()) : (maybeNow ?? new Date());
   const recallCap = typeof maybeRecallCap === "number" ? maybeRecallCap : 6;
 

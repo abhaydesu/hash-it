@@ -329,6 +329,8 @@ const RecordReviewSchema = z.object({
   usedHint: z.boolean().default(false),
   note: z.string().max(LIMITS.note).optional().nullable(),
   newMistake: z.string().max(LIMITS.note).optional().nullable(),
+  /** Set when logged from the Today queue, so it counts against the daily cap. */
+  fromQueue: z.boolean().default(false),
 });
 
 export async function recordReviewAttempt(input: z.input<typeof RecordReviewSchema>) {
@@ -394,6 +396,7 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
         minutes: data.minutes,
         usedHint: data.usedHint || data.status === "SOLVED_WITH_HELP",
         note: data.note,
+        lane: data.fromQueue ? "RESOLVE" : null,
       },
     }),
     prisma.reviewCard.upsert({
@@ -493,6 +496,7 @@ export async function recordRecallAttempt(input: z.input<typeof RecordRecallSche
         minutes: null,
         usedHint: false,
         note: data.wroteApproach ? `Recall: ${data.wroteApproach.slice(0, 120)}` : "Recall review",
+        lane: "RECALL",
       },
     }),
     prisma.reviewCard.upsert({

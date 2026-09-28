@@ -192,6 +192,16 @@ describe("scheduler - interleaving constraint", () => {
     expect(queue[2].lane).toBe("RECALL");
     expect(queue[3].lane).toBe("RECALL");
   });
+
+  it("returns no cards for a lane whose remaining cap is 0", () => {
+    const cards: QueueItem[] = [
+      { entryId: "res-1", due: new Date("2026-09-01"), lapses: 1, reps: 2, family: "DP", lane: "RESOLVE" },
+      { entryId: "rec-1", due: new Date("2026-09-01"), lapses: 0, reps: 1, family: "DP", lane: "RECALL" },
+    ];
+
+    expect(interleaveQueue(cards, 0, now, 6).map((c) => c.entryId)).toEqual(["rec-1"]);
+    expect(interleaveQueue(cards, 0, now, 0)).toEqual([]);
+  });
 });
 
 describe("scheduler - 21-day import spread", () => {

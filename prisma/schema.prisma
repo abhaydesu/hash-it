@@ -32,6 +32,14 @@ enum Rating {
   EASY
 }
 
+/// Which Today-queue lane an attempt was logged from. Null for attempts made
+/// outside the daily queue (initial logs, monthly mocks) — those never count
+/// against the daily caps.
+enum ReviewLane {
+  RECALL
+  RESOLVE
+}
+
 enum CardState {
   NEW
   LEARNING
@@ -137,10 +145,12 @@ model Attempt {
   minutes  Int?
   usedHint Boolean  @default(false)
   note     String?
+  lane     ReviewLane?
 
   entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([entryId])
+  @@index([at])
 }
 
 model ReviewCard {

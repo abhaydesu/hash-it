@@ -36,6 +36,7 @@ async function TodayData() {
         queue: queueResult.queue,
         resolveCount: queueResult.resolveCount,
         recallCount: queueResult.recallCount,
+        doneToday: queueResult.doneToday,
         overdueCount,
         snapshot,
         weeklyPlan,
