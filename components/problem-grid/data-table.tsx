@@ -27,6 +27,10 @@ const filterFieldClass =
   "h-8 w-full border border-border bg-background py-0 text-xs leading-8 text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500";
 const filterSelectClass = `${filterFieldClass} pl-2.5 pr-8`;
 
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 250] as const;
+/** "All" is just a page size larger than any log. */
+const ALL_ROWS = Number.MAX_SAFE_INTEGER;
+
 export function DataTable({ data, patternsList, customFields: rawFields, showSource = false }: DataTableProps) {
   // Never show a custom field twice or alongside the built-in it duplicates.
   const customFields = useMemo(() => filterNonOverlappingFields(rawFields ?? []), [rawFields]);
@@ -274,11 +278,26 @@ export function DataTable({ data, patternsList, customFields: rawFields, showSou
         </table>
       </div>
 
-      <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-muted-foreground">
         <div className="tabular-numbers">
           Showing {table.getRowModel().rows.length} of {filteredData.length} records
         </div>
         <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5">
+            <span>Per page</span>
+            <select
+              value={table.getState().pagination.pageSize}
+              onChange={(e) => table.setPageSize(Number(e.target.value))}
+              className="h-[26px] border border-border bg-background px-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+              <option value={ALL_ROWS}>All</option>
+            </select>
+          </label>
           <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}

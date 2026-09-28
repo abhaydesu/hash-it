@@ -10,6 +10,7 @@ import { SheetSection } from "@/components/ui/sheet-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { PracticePattern, PracticeProblem } from "@/lib/practice";
+import { lastTileSpan, packPatternGrid } from "@/lib/practice-grid";
 
 interface ProblemSet {
   easy: PracticeProblem | null;
@@ -109,12 +110,11 @@ function ProblemCard({
   );
 }
 
-const FEATURED_PATTERNS = new Set([
-  "Dynamic Programming",
-  "BFS",
-  "DFS",
-  "Backtracking",
-]);
+// Static class maps so Tailwind can see every span it needs.
+const BASE_SPAN = ["", "col-span-1", "col-span-2"];
+const SM_SPAN = ["", "sm:col-span-1", "sm:col-span-2", "sm:col-span-3"];
+const MD_SPAN = ["", "md:col-span-1", "md:col-span-2", "md:col-span-3", "md:col-span-4"];
+const LG_SPAN = ["", "lg:col-span-1", "lg:col-span-2", "lg:col-span-3", "lg:col-span-4", "lg:col-span-5"];
 
 export function PracticeClient({ patterns }: { patterns: PracticePattern[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -122,6 +122,7 @@ export function PracticeClient({ patterns }: { patterns: PracticePattern[] }) {
   const [isPending, startTransition] = useTransition();
 
   const selectedPattern = patterns.find((p) => p.id === selectedId);
+  const tiles = packPatternGrid(patterns);
 
   const loadProblems = (patternId: string) => {
     setSelectedId(patternId);
@@ -161,9 +162,9 @@ export function PracticeClient({ patterns }: { patterns: PracticePattern[] }) {
 
       <SheetSection innerClassName="py-6" band="none">
         <div className="grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {patterns.map((pattern) => {
+          {tiles.map(({ pattern, lgSpan }, i) => {
             const isSelected = selectedId === pattern.id;
-            const isFeatured = FEATURED_PATTERNS.has(pattern.name);
+            const isLast = i === tiles.length - 1;
             return (
               <button
                 key={pattern.id}
@@ -172,7 +173,12 @@ export function PracticeClient({ patterns }: { patterns: PracticePattern[] }) {
                 className={cn(
                   "flex flex-col justify-between bg-background p-3 text-left transition-colors hover:bg-muted/40",
                   isSelected && "ring-1 ring-inset ring-orange-500",
-                  isFeatured && "lg:col-span-2"
+                  isLast && [
+                    BASE_SPAN[lastTileSpan(tiles.length, 2)],
+                    SM_SPAN[lastTileSpan(tiles.length, 3)],
+                    MD_SPAN[lastTileSpan(tiles.length, 4)],
+                  ],
+                  LG_SPAN[lgSpan]
                 )}
               >
                 <div>

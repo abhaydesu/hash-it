@@ -28,7 +28,6 @@ export const CANONICAL_PATTERNS = [
   "Bit Manipulation",
   "Matrix Traversal",
   "Monotonic Stack",
-  "Intervals",
 ] as const;
 
 export const CSV_HEADER = "Problem Name,Problem Link,Pattern,Idea,Solved Date";

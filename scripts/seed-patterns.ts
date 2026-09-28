@@ -47,7 +47,7 @@ const PATTERN_ALIAS_MAP: Record<string, string> = {
   "dynamic programming": "Dynamic Programming",
   "greedy": "Greedy",
   "trie": "Trie",
-  "intervals": "Intervals",
+  "intervals": "Merge Intervals",
 };
 
 function normalizePatternKey(value: string) {
@@ -92,7 +92,6 @@ function familyForPattern(name: string): string {
     "Bit Manipulation": "Search & Math",
     "Matrix Traversal": "Trees & Graphs",
     "Monotonic Stack": "Hashing & Linear",
-    "Intervals": "Intervals",
   };
 
   return defaults[canonical] ?? "General";

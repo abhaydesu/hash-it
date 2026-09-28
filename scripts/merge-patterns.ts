@@ -33,6 +33,7 @@ const PATTERN_MAP: Record<string, string> = {
   "prefix sum": "Prefix Sum",
   "monotonic stacks": "Monotonic Stack",
   "sliding windows": "Sliding Window",
+  "intervals": "Merge Intervals",
 };
 
 async function main() {
