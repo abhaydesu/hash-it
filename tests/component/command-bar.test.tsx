@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CommandBar } from "@/components/command-bar";
 
@@ -17,6 +17,14 @@ vi.mock("@/app/actions/entry-actions", () => ({
 
 // Mock fetch for the API route
 global.fetch = vi.fn();
+
+// The pattern picker fetches /api/patterns on mount, so mock by URL rather than call order.
+function mockFetchByUrl(searchBody: unknown, patterns: string[] = []) {
+  vi.mocked(global.fetch).mockImplementation((async (url: RequestInfo | URL) => ({
+    ok: true,
+    json: async () => (String(url).includes("/api/patterns") ? { patterns } : searchBody),
+  })) as any);
+}
 
 describe("CommandBar", () => {
   beforeEach(() => {
@@ -50,10 +58,7 @@ describe("CommandBar", () => {
         patterns: [{ name: "Hash Table" }],
       },
     ];
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ results: mockResults, enrichment: null }),
-    } as any);
+    mockFetchByUrl({ results: mockResults, enrichment: null });
 
     render(<CommandBar inline={true} />);
     
@@ -76,10 +81,7 @@ describe("CommandBar", () => {
         patterns: [{ name: "Hash Table" }],
       },
     ];
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ results: mockResults, enrichment: null }),
-    } as any);
+    mockFetchByUrl({ results: mockResults, enrichment: null });
 
     const { createEntry } = await import("@/app/actions/entry-actions");
     vi.mocked(createEntry).mockResolvedValue({ success: true, entryId: "entry-123", isNew: true });
@@ -114,11 +116,25 @@ describe("CommandBar", () => {
     expect(await screen.findByText(/Logged/i)).toBeInTheDocument();
   });
 
+  it("suggests existing patterns while typing a pattern tag and selects one on click", async () => {
+    mockFetchByUrl({ results: [], enrichment: null }, ["Sliding Window", "Two Pointers"]);
+
+    render(<CommandBar inline={true} />);
+    await userEvent.type(screen.getByPlaceholderText(/Type problem number/i), "Unknown Problem xyz");
+    await screen.findByText("Manual Problem Entry");
+
+    const tagInput = screen.getByPlaceholderText(/Sliding Window, Strings/i);
+    await userEvent.type(tagInput, "slidng win");
+
+    const option = await screen.findByRole("option", { name: "Sliding Window" });
+    await userEvent.click(within(option).getByRole("button"));
+
+    expect(screen.getByRole("button", { name: "Remove Sliding Window" })).toBeInTheDocument();
+    expect(screen.queryByRole("listbox", { name: "Existing patterns" })).not.toBeInTheDocument();
+  });
+
   it("handles manual entry form if no results found", async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ results: [], enrichment: null }),
-    } as any);
+    mockFetchByUrl({ results: [], enrichment: null });
 
     const { createEntry } = await import("@/app/actions/entry-actions");
     vi.mocked(createEntry).mockResolvedValue({ success: true, entryId: "entry-123", isNew: true });

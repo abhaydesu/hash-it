@@ -31,6 +31,7 @@ jobs:
       AUTH_GOOGLE_ID: mock-google-id
       AUTH_GOOGLE_SECRET: mock-google-secret
       DATABASE_URL: "postgresql://postgres:password@localhost:5432/neondb?schema=test_hash_it"
+      DIRECT_URL: "postgresql://postgres:password@localhost:5432/neondb?schema=test_hash_it"
 
     steps:
       - name: Checkout repository

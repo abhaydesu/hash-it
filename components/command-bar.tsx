@@ -12,6 +12,7 @@ import { useIsMac } from "@/lib/use-is-mac";
 import { getLogFormConfig } from "@/app/actions/settings-actions";
 import { type CustomDraft } from "@/components/custom-field-inputs";
 import { LogExtraFields } from "@/components/log-extra-fields";
+import { suggestPatterns, canonicalPattern } from "@/lib/pattern-match";
 import { filterNonOverlappingFields, type CustomFieldDef } from "@/lib/custom-fields";
 
 interface SearchResult {
@@ -37,13 +38,36 @@ function PatternTagsField({
   optionalHint?: boolean;
 }) {
   const [draft, setDraft] = useState("");
+  const [known, setKnown] = useState<string[]>([]);
+  const [focused, setFocused] = useState(false);
+  const [active, setActive] = useState(-1);
+
+  // Patterns the user (and the catalog) already has, so typing can snap to them instead of forking a near-duplicate.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/patterns")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && Array.isArray(d?.patterns)) setKnown(d.patterns);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const suggestions = focused ? suggestPatterns(draft, known, tags) : [];
+  const showList = suggestions.length > 0;
 
   const commitDraft = (raw: string = draft) => {
-    const next = normalizePatternList([...tags, ...normalizePatternList([raw])]);
+    // A different spelling of a known pattern (case, spacing, hyphens) resolves to the known one.
+    const parts = normalizePatternList([raw]).map((part) => canonicalPattern(part, known));
+    const next = normalizePatternList([...tags, ...parts]);
     if (next.length !== tags.length || next.some((t, i) => t !== tags[i])) {
       onChange(next);
     }
     setDraft("");
+    setActive(-1);
   };
 
   const removeTag = (index: number) => {
@@ -85,26 +109,63 @@ function PatternTagsField({
               return;
             }
             setDraft(value);
+            setActive(-1);
           }}
+          onFocus={() => setFocused(true)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === "Tab") {
+            if (showList && e.key === "ArrowDown") {
+              e.preventDefault();
+              setActive((i) => (i + 1) % suggestions.length);
+            } else if (showList && e.key === "ArrowUp") {
+              e.preventDefault();
+              setActive((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+            } else if (showList && e.key === "Escape") {
+              e.stopPropagation();
+              setFocused(false);
+            } else if (e.key === "Enter" || e.key === "Tab") {
               if (draft.trim()) {
                 e.preventDefault();
-                commitDraft();
+                // Enter takes the highlighted suggestion; Tab takes the top one; otherwise keep what was typed.
+                const pick = active >= 0 ? suggestions[active] : e.key === "Tab" ? suggestions[0] : undefined;
+                commitDraft(pick ?? draft);
               }
             } else if (e.key === "Backspace" && !draft && tags.length > 0) {
               removeTag(tags.length - 1);
             }
           }}
           onBlur={() => {
+            setFocused(false);
             if (draft.trim()) commitDraft();
           }}
           placeholder={tags.length ? "Add another…" : "e.g. Sliding Window, Strings"}
           className="min-w-[8rem] flex-1 bg-transparent py-0.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
         />
       </div>
+      {showList && (
+        <ul role="listbox" aria-label="Existing patterns" className="border border-border bg-background shadow-sm">
+          {suggestions.map((name, i) => (
+            <li key={name} role="option" aria-selected={i === active}>
+              <button
+                type="button"
+                // mousedown (not click) so the input's blur doesn't commit the half-typed draft first.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  commitDraft(name);
+                }}
+                onMouseEnter={() => setActive(i)}
+                className={cn(
+                  "block w-full truncate px-2 py-1 text-left text-xs text-foreground",
+                  i === active ? "bg-muted" : "hover:bg-muted/60"
+                )}
+              >
+                {name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <p className="text-[10px] text-muted-foreground">
-        Comma-separated values become separate patterns.
+        Comma-separated values become separate patterns. Existing patterns are suggested as you type.
       </p>
     </div>
   );
