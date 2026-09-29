@@ -114,10 +114,10 @@ export function DataTable({ data, patternsList, customFields: rawFields, showSou
       "What I did wrong": sanitize(row.mistake || ""),
       Status: sanitize(
         row.status === "SOLVED_UNAIDED"
-          ? "Solved (No help)"
+          ? "Solved cold"
           : row.status === "SOLVED_WITH_HELP"
-          ? "Solved (with help)"
-          : "Attempted (Failed)"
+          ? "Used hint"
+          : "Saw solution"
       ),
       "Revisit?": sanitize(row.revisit ? "Yes" : "No"),
       Source: sanitize(row.sourceList || ""),
@@ -208,9 +208,9 @@ export function DataTable({ data, patternsList, customFields: rawFields, showSou
           className={filterSelectClass}
         >
           <option value="ALL">All statuses</option>
-          <option value="SOLVED_UNAIDED">Unaided</option>
-          <option value="SOLVED_WITH_HELP">With help</option>
-          <option value="ATTEMPTED_FAILED">Failed</option>
+          <option value="SOLVED_UNAIDED">Solved cold</option>
+          <option value="SOLVED_WITH_HELP">Used hint</option>
+          <option value="ATTEMPTED_FAILED">Saw solution</option>
         </select>
 
         <select

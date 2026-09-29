@@ -67,21 +67,21 @@ describe("Formatters, Helpers & Safe Utilities Unit Tests", () => {
       expect(formatStatus("").label).toBe("Unattempted");
     });
 
-    it("formats SOLVED_UNAIDED as Unaided", () => {
+    it("formats SOLVED_UNAIDED as Solved cold", () => {
       const res = formatStatus("SOLVED_UNAIDED");
-      expect(res.label).toBe("Unaided");
+      expect(res.label).toBe("Solved cold");
       expect(res.variant).toBe("status-unaided");
     });
 
-    it("formats SOLVED_WITH_HELP as With help", () => {
+    it("formats SOLVED_WITH_HELP as Used hint", () => {
       const res = formatStatus("SOLVED_WITH_HELP");
-      expect(res.label).toBe("With help");
+      expect(res.label).toBe("Used hint");
       expect(res.variant).toBe("status-help");
     });
 
-    it("formats ATTEMPTED_FAILED as Failed", () => {
+    it("formats ATTEMPTED_FAILED as Saw solution", () => {
       const res = formatStatus("ATTEMPTED_FAILED");
-      expect(res.label).toBe("Failed");
+      expect(res.label).toBe("Saw solution");
       expect(res.variant).toBe("status-failed");
     });
 

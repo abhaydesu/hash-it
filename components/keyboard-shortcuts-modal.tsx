@@ -69,7 +69,7 @@ export function KeyboardShortcutsModal() {
     { key: "g w", desc: "Go to Weekly review" },
     { key: "g m", desc: "Go to Monthly review" },
     { key: "g i", desc: "Go to CSV Import" },
-    { key: "1 / 2 / 3", desc: "Select Solve Status (Unaided / With Help / Failed)" },
+    { key: "1 / 2 / 3", desc: "Select Solve Status (Solved cold / Used hint / Saw solution)" },
     { key: isMac ? "⌘ + Enter" : "Ctrl + Enter", desc: "Submit and save problem log" },
     { key: "Esc", desc: "Dismiss modals or command bar" },
   ];

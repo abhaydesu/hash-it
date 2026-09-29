@@ -225,7 +225,7 @@ export function ReviewCardItem({ item, onComplete }: ReviewCardItemProps) {
             onClick={() => handleOutcome("ATTEMPTED_FAILED")}
             className="w-full justify-center"
           >
-            <AlertCircle className="h-3.5 w-3.5" /> Failed
+            <AlertCircle className="h-3.5 w-3.5" /> Saw solution
           </Button>
         </div>
       </div>

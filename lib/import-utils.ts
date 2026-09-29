@@ -51,13 +51,13 @@ export function parseLeadingNumber(title: string): number | null {
 export function mapRawStatus(raw?: string): SolveStatus {
   if (!raw) return SolveStatus.SOLVED_UNAIDED;
   const lower = raw.trim().toLowerCase();
-  if (lower.includes("no help") || lower.includes("unaided") || lower === "solved") {
+  if (lower.includes("no help") || lower.includes("unaided") || lower.includes("cold") || lower === "solved") {
     return SolveStatus.SOLVED_UNAIDED;
   }
   if (lower.includes("with help") || lower.includes("hint")) {
     return SolveStatus.SOLVED_WITH_HELP;
   }
-  if (lower.includes("fail") || lower.includes("attempt") || lower.includes("wrong")) {
+  if (lower.includes("solution") || lower.includes("fail") || lower.includes("attempt") || lower.includes("wrong")) {
     return SolveStatus.ATTEMPTED_FAILED;
   }
   return SolveStatus.SOLVED_UNAIDED;

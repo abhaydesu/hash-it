@@ -367,13 +367,13 @@ export function MonthlyReviewClient({
 
                   <div className="text-right">
                     {res?.status === "SOLVED_UNAIDED" && (
-                      <span className="text-xs font-semibold text-easy">Solved without help</span>
+                      <span className="text-xs font-semibold text-easy">Solved cold</span>
                     )}
                     {res?.status === "SOLVED_WITH_HELP" && (
-                      <span className="text-xs font-semibold text-medium">Needed a hint</span>
+                      <span className="text-xs font-semibold text-medium">Used hint</span>
                     )}
                     {res?.status === "ATTEMPTED_FAILED" && (
-                      <span className="text-xs font-semibold text-destructive">Could not solve</span>
+                      <span className="text-xs font-semibold text-destructive">Saw solution</span>
                     )}
                     <div className="mt-0.5 tabular-nums type-caption">{res?.minutes}m</div>
                   </div>
@@ -520,7 +520,7 @@ export function MonthlyReviewClient({
               disabled={isSubmitting || paused}
               className="justify-center"
             >
-              <AlertCircle className="h-3.5 w-3.5" /> <span>Failed / saw solution</span>
+              <AlertCircle className="h-3.5 w-3.5" /> <span>Saw solution</span>
             </Button>
           </div>
         </div>

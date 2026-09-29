@@ -86,22 +86,22 @@ export function formatStatus(status?: string | null): {
   switch (status) {
     case "SOLVED_UNAIDED":
       return {
-        label: "Unaided",
-        short: "Unaided",
+        label: "Solved cold",
+        short: "Cold",
         className: "outcome-fill-good",
         variant: "status-unaided",
       };
     case "SOLVED_WITH_HELP":
       return {
-        label: "With help",
-        short: "With help",
+        label: "Used hint",
+        short: "Hint",
         className: "outcome-fill-hint",
         variant: "status-help",
       };
     case "ATTEMPTED_FAILED":
       return {
-        label: "Failed",
-        short: "Failed",
+        label: "Saw solution",
+        short: "Solution",
         className: "outcome-fill-failed",
         variant: "status-failed",
       };

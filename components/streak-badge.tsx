@@ -1,6 +1,5 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import { StreakFlame } from "@/components/ui/streak-flame";
 import { SpecCell } from "@/components/ui/spec-sheet";
 import type { StreakStats } from "@/lib/stats-engine";
 
@@ -25,7 +24,6 @@ export function StreakBadge({ streak, className }: { streak: StreakStats; classN
         <span className={cn("flex items-center gap-1.5", live ? "text-orange-600 dark:text-orange-500" : current > 0 ? "text-foreground" : "text-muted-foreground")}>
           <span className="tabular-nums">{current}</span>
           <span className="text-sm font-normal text-muted-foreground">{current === 1 ? "day" : "days"}</span>
-          {live && <StreakFlame lit className="h-[30px] w-[21px]" />}
         </span>
       }
       subvalue={<span className={cn(current > 0 && !todayDone && "text-warning")}>{subvalue}</span>}

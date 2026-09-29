@@ -68,7 +68,7 @@ function ResolveCard({ problem }: { problem: DemoProblem }) {
     const labels: Record<string, string> = {
       SOLVED_UNAIDED: "Solved cold",
       SOLVED_WITH_HELP: "Used hint",
-      ATTEMPTED_FAILED: "Failed",
+      ATTEMPTED_FAILED: "Saw solution",
     };
     setResult({ label: labels[status], days: INTERVALS[status] });
   };
@@ -138,7 +138,7 @@ function ResolveCard({ problem }: { problem: DemoProblem }) {
             onClick={() => handleOutcome("ATTEMPTED_FAILED")}
             className="pressable inline-flex h-9 items-center justify-center gap-1.5 text-sm font-medium outcome-fill-failed w-full"
           >
-            <AlertCircle className="h-3.5 w-3.5" /> Failed
+            <AlertCircle className="h-3.5 w-3.5" /> Saw solution
           </button>
         </div>
       </div>

@@ -74,6 +74,7 @@ function InlineEditCell({
   const [isOpen, setIsOpen] = useState(false);
   const [value, setValue] = useState(initialValue || "");
   const [isSaving, setIsSaving] = useState(false);
+  const [panelPos, setPanelPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const cellId = useRef(`edit-${entryId}-${field}`);
 
@@ -104,11 +105,22 @@ function InlineEditCell({
         }
       }
     };
+    // The panel is fixed-positioned (an absolute one is clipped by the table's scroll
+    // container), so it would drift from its cell on scroll; close instead.
+    const onDismiss = () => {
+      setIsOpen(false);
+      setIsEditing(false);
+      setValue(initialValue || "");
+    };
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", onDismiss);
+    window.addEventListener("scroll", onDismiss, true);
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", onDismiss);
+      window.removeEventListener("scroll", onDismiss, true);
     };
   }, [isOpen, isEditing, initialValue]);
 
@@ -162,6 +174,14 @@ function InlineEditCell({
             setIsEditing(true);
             return;
           }
+          if (!isOpen && rootRef.current) {
+            const r = rootRef.current.getBoundingClientRect();
+            const width = Math.min(352, window.innerWidth - 16);
+            const left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8);
+            // Open upward when there's little room below (e.g. a lone row at the bottom of the grid).
+            const flip = window.innerHeight - r.bottom < 300 && r.top > 300;
+            setPanelPos(flip ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+          }
           setIsOpen((open) => !open);
         }}
         aria-expanded={isOpen}
@@ -171,8 +191,11 @@ function InlineEditCell({
         {initialValue ? initialValue : <span className="italic text-muted-foreground">—</span>}
       </button>
 
-      {isOpen && (
-        <div className="absolute left-0 top-[calc(100%+4px)] z-50 w-[min(22rem,70vw)] border border-border bg-background shadow-lg">
+      {isOpen && panelPos && (
+        <div
+          style={panelPos}
+          className="fixed z-50 w-[min(22rem,calc(100vw-16px))] border border-border bg-background shadow-lg"
+        >
           {isEditing ? (
             <>
               <textarea

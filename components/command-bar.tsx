@@ -604,7 +604,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         )}
                       >
                         <Check className="h-3 w-3" />
-                        <span>Unaided</span>
+                        <span>Solved cold</span>
                         <kbd className="hidden text-[10px] opacity-70 sm:inline">[1]</kbd>
                       </button>
 
@@ -619,7 +619,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         )}
                       >
                         <HelpCircle className="h-3 w-3" />
-                        <span>With Help</span>
+                        <span>Used hint</span>
                         <kbd className="hidden text-[10px] opacity-70 sm:inline">[2]</kbd>
                       </button>
 
@@ -634,7 +634,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         )}
                       >
                         <AlertCircle className="h-3 w-3" />
-                        <span>Failed</span>
+                        <span>Saw solution</span>
                         <kbd className="hidden text-[10px] opacity-70 sm:inline">[3]</kbd>
                       </button>
                     </div>
@@ -847,7 +847,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     )}
                   >
                     <Check className="h-3 w-3" />
-                    <span>Unaided</span>
+                    <span>Solved cold</span>
                     <kbd className="hidden text-[10px] opacity-70 sm:inline">[1]</kbd>
                   </button>
 
@@ -862,7 +862,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     )}
                   >
                     <HelpCircle className="h-3 w-3" />
-                    <span>With Help</span>
+                    <span>Used hint</span>
                     <kbd className="hidden text-[10px] opacity-70 sm:inline">[2]</kbd>
                   </button>
 
@@ -877,7 +877,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     )}
                   >
                     <AlertCircle className="h-3 w-3" />
-                    <span>Failed</span>
+                    <span>Saw solution</span>
                     <kbd className="hidden text-[10px] opacity-70 sm:inline">[3]</kbd>
                   </button>
                 </div>

@@ -975,9 +975,9 @@ export default function ImportPage() {
               label="Marked as"
               value={
                 overrideMode === "ALL_COLD"
-                  ? "Solved (cold)"
+                  ? "Solved cold"
                   : overrideMode === "ALL_HELP"
-                    ? "Solved with help"
+                    ? "Used hint"
                     : overrideMode === "CSV"
                       ? "From CSV"
                       : "Per row"

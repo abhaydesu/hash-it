@@ -22,21 +22,21 @@ const MODES: Array<{
   },
   {
     id: "ALL_COLD",
-    label: "All Solved (cold)",
+    label: "All Solved cold",
     hint: "Mark every row as unaided.",
     effect: "Starts on the long end of the curve. Rows land later in the 60-day spread.",
   },
   {
     id: "ALL_HELP",
-    label: "All Solved with help",
+    label: "All Used hint",
     hint: "Mark every row as needing a hint.",
     effect: "Starts on the shorter end of the curve. Rows surface sooner in the spread.",
   },
   {
     id: "PER_ROW",
     label: "Classify per row",
-    hint: "Click cold / help / failed on each.",
-    effect: "Each row gets its own starting interval. Failed rows land first, then help, then cold.",
+    hint: "Pick solved cold / used hint / saw solution on each.",
+    effect: "Each row gets its own starting interval. Saw-solution rows land first, then hint, then cold.",
   },
 ];
 
@@ -83,8 +83,8 @@ export function BulkStatusOverride({
           How this shapes your queue
         </span>
         Every import is spread over the next ~60 days so the queue doesn&apos;t flood. Within that
-        spread, <span className="font-mono">failed</span> rows come up first,{" "}
-        <span className="font-mono">with-help</span> next, and <span className="font-mono">cold</span>{" "}
+        spread, <span className="font-mono">saw-solution</span> rows come up first,{" "}
+        <span className="font-mono">used-hint</span> next, and <span className="font-mono">cold</span>{" "}
         rows sit at the back with the longest starting interval. Your choice below is the seed rating
         the scheduler uses for the first review.
       </div>
@@ -124,9 +124,9 @@ export function BulkStatusOverride({
               <span>
                 Classified: <span className="font-semibold text-foreground">{perRowSummary.total}</span>
               </span>
-              <span className="text-easy">Cold {perRowSummary.cold}</span>
-              <span className="text-warning">With help {perRowSummary.help}</span>
-              <span className="text-destructive">Failed {perRowSummary.failed}</span>
+              <span className="text-easy">Solved cold {perRowSummary.cold}</span>
+              <span className="text-warning">Used hint {perRowSummary.help}</span>
+              <span className="text-destructive">Saw solution {perRowSummary.failed}</span>
             </div>
           )}
 
@@ -159,21 +159,21 @@ export function BulkStatusOverride({
                           <StatusButton
                             active={current === SolveStatus.SOLVED_UNAIDED}
                             onClick={() => onPerRowChange(row.rowIndex, SolveStatus.SOLVED_UNAIDED)}
-                            label="Cold"
+                            label="Solved cold"
                             tone="good"
                             icon={<Check className="h-3 w-3" />}
                           />
                           <StatusButton
                             active={current === SolveStatus.SOLVED_WITH_HELP}
                             onClick={() => onPerRowChange(row.rowIndex, SolveStatus.SOLVED_WITH_HELP)}
-                            label="Help"
+                            label="Used hint"
                             tone="warn"
                             icon={<HelpCircle className="h-3 w-3" />}
                           />
                           <StatusButton
                             active={current === SolveStatus.ATTEMPTED_FAILED}
                             onClick={() => onPerRowChange(row.rowIndex, SolveStatus.ATTEMPTED_FAILED)}
-                            label="Failed"
+                            label="Saw solution"
                             tone="bad"
                             icon={<X className="h-3 w-3" />}
                           />
