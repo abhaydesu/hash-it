@@ -695,3 +695,13 @@ export async function commitImportBatch(params: {
     }
   );
 }
+
+/** "Nothing to import" on the /today banner: stop showing it for this user. */
+export async function dismissImportPrompt() {
+  const user = await getCurrentUser();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { importPromptDismissedAt: new Date() },
+  });
+  return { success: true };
+}

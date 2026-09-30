@@ -396,7 +396,7 @@ export default function ImportPage() {
       <SheetSection innerClassName="py-6">
         <h1 className="type-title text-foreground">Import</h1>
         <p className="mt-1 type-caption">
-          Bring your LeetCode history or your own sheet in. Seven quick steps.
+          Add problems you&apos;ve already solved, from a LeetCode screenshot or your own spreadsheet.
         </p>
       </SheetSection>
 

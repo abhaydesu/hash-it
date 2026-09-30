@@ -37,12 +37,12 @@ const navItems = [
   { href: "/review/weekly", label: "Weekly review" },
   { href: "/review/monthly", label: "Monthly mock" },
   { href: "/stats", label: "Stats" },
-  { href: "/import", label: "Import" },
   { href: "/settings", label: "Settings" },
 ];
 
-export function SidebarNav() {
+export function SidebarNav({ showRoadmap = false }: { showRoadmap?: boolean }) {
   const pathname = usePathname();
+  const items = showRoadmap ? navItems : navItems.filter((item) => item.href !== "/roadmap");
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export function SidebarNav() {
     <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-sm">
       <SheetSection band="none">
         <nav className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs">
-          {navItems.map((item) => {
+          {items.map((item) => {
             const isActive =
               pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             const isPending = pendingHref === item.href && !isActive;

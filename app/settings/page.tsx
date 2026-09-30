@@ -2,7 +2,8 @@
 import React from 'react';
 
 import { useEffect, useState } from "react";
-import { Save, Sparkles, CheckCircle2, AlertCircle, Cpu, Columns3 } from "lucide-react";
+import Link from "next/link";
+import { Save, Sparkles, CheckCircle2, AlertCircle, Cpu, Columns3, FileUp } from "lucide-react";
 import { CustomFieldsManager } from "@/components/custom-fields-manager";
 import { getUserSettings, updateUserSettings, optimizeFSRSParams } from "@/app/actions/settings-actions";
 import { SheetSection } from "@/components/ui/sheet-section";
@@ -117,7 +118,7 @@ export default function SettingsPage() {
       <SheetSection innerClassName="py-6">
         <h1 className="type-title text-foreground">Settings</h1>
         <p className="mt-1 type-caption">
-          Retention targets, review caps, and scheduling weights.
+          Choose how many reviews you get each day and how soon problems come back.
         </p>
       </SheetSection>
 
@@ -240,6 +241,24 @@ export default function SettingsPage() {
             </Button>
           </div>
         </form>
+      </SheetSection>
+
+      <SheetSection innerClassName="space-y-4 py-6">
+        <div id="import" className="scroll-mt-28 space-y-1 border-b border-border pb-2">
+          <h2 className="flex items-center gap-2 type-heading text-foreground">
+            <FileUp className="h-4 w-4" /> Import problems
+          </h2>
+          <p className="type-caption">
+            Add problems you&apos;ve already solved, from a LeetCode screenshot or your own spreadsheet.
+            Due dates are spread out so your queue doesn&apos;t flood.
+          </p>
+        </div>
+        <Link
+          href="/import"
+          className="pressable inline-flex h-8 items-center border border-border bg-background px-3 text-xs font-medium text-foreground hover:bg-muted"
+        >
+          Start an import
+        </Link>
       </SheetSection>
 
       <SheetSection innerClassName="space-y-4 py-6">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { canSeeRoadmap } from "@/lib/roadmap-access";
 import { Platform } from "@prisma/client";
 import { LIMITS } from "@/lib/safe";
 import { parseSlugFromUrl, problemUrlLookupKeys } from "@/lib/problem-url";
@@ -158,14 +159,16 @@ export async function POST(request: Request) {
         try {
           const meta = await fetchGfgProblemMetadata(urlSlug, { signal: controller.signal });
           if (meta) {
-            const roadmapHit = await prisma.roadmapItem.findFirst({
-              where: {
-                primaryUrl: { contains: urlSlug, mode: "insensitive" },
-              },
-              select: {
-                roadmapPattern: { select: { name: true } },
-              },
-            });
+            const roadmapHit = canSeeRoadmap(session.user.email)
+              ? await prisma.roadmapItem.findFirst({
+                  where: {
+                    primaryUrl: { contains: urlSlug, mode: "insensitive" },
+                  },
+                  select: {
+                    roadmapPattern: { select: { name: true } },
+                  },
+                })
+              : null;
 
             const topicTags = [...meta.topicTags];
             const patternName = roadmapHit?.roadmapPattern?.name;

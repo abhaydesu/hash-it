@@ -16,7 +16,7 @@ export default function ProblemsPage() {
       <SheetSection innerClassName="py-6">
         <h1 className="type-title text-foreground">Problems</h1>
         <p className="mt-1 type-caption">
-          Dense spreadsheet of logged problems. Click a core idea or mistake to read it; edit from the panel.
+          All the problems you&apos;ve logged so far. Click a core idea or mistake to read it in full and edit it.
         </p>
       </SheetSection>
       <Suspense

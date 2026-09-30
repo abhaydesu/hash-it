@@ -95,6 +95,25 @@ describe("middleware auth gate", () => {
     expect(res.status).toBe(200);
   });
 
+  it("redirects authenticated users from the landing page to /today", () => {
+    const res = authorizeRequest({
+      pathname: "/",
+      hasUser: true,
+      requestUrl: "http://localhost:3000/",
+    });
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/today");
+  });
+
+  it("keeps the landing page open to unauthenticated visitors", () => {
+    const res = authorizeRequest({
+      pathname: "/",
+      hasUser: false,
+      requestUrl: "http://localhost:3000/",
+    });
+    expect(res.status).toBe(200);
+  });
+
   it("allows unauthenticated access only on public paths", () => {
     const res = authorizeRequest({
       pathname: "/auth/signin",

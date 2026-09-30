@@ -340,7 +340,7 @@ export function StatsClient({ allStats, preferences }: { allStats: AllStats; pre
       <SheetSection innerClassName="flex items-start justify-between gap-4 py-6">
         <div>
           <h1 className="type-title text-foreground">Stats</h1>
-          <p className="mt-1 type-caption">What you&apos;ve practised, how you&apos;ve performed, what needs work.</p>
+          <p className="mt-1 type-caption">A summary of the problems you&apos;ve logged and how you&apos;ve done so far.</p>
         </div>
         {!isEmpty && (
           <Button

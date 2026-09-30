@@ -12,6 +12,7 @@ import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
 import type { PlanItemView, getActivePlan } from "@/lib/weekly-review";
 import type { MonthlyStatus } from "@/lib/review-windows";
 import { Countdown } from "@/components/ui/countdown";
+import { ImportPromptBanner } from "@/components/import-prompt-banner";
 import { cn } from "@/lib/utils";
 
 type ReviewLane = "RECALL" | "RESOLVE";
@@ -48,6 +49,12 @@ export interface TodayData {
   doneToday: number;
   snapshot: Snapshot;
   overdueCount: number;
+  /** Owner-only roadmap; other users get a plain empty-state hint. */
+  showRoadmap?: boolean;
+  /** New sign-ups who haven't imported or dismissed the import banner. */
+  showImportPrompt?: boolean;
+  /** Time-of-day greeting, computed on the server in the user's timezone. */
+  greeting: string;
   weeklyPlan: Awaited<ReturnType<typeof getActivePlan>>;
   monthlyStatus: MonthlyStatus;
   lastMock: { solved: number; total: number } | null;
@@ -186,9 +193,9 @@ export function TodayClient({ data }: { data: TodayData }) {
     <div>
       <SheetSection innerClassName="flex flex-col gap-3 py-6 sm:flex-row sm:items-baseline sm:justify-between">
         <div>
-          <h1 className="type-title text-foreground">Today</h1>
+          <h1 className="type-title text-foreground">{data.greeting}</h1>
           <p className="mt-1 type-caption">
-            Problems due for review, sorted by priority.
+            Here&apos;s what to revisit today, most urgent first.
           </p>
         </div>
         <Link
@@ -198,6 +205,8 @@ export function TodayClient({ data }: { data: TodayData }) {
           Review catalogue
         </Link>
       </SheetSection>
+
+      {data.showImportPrompt && <ImportPromptBanner />}
 
       <SheetSection innerClassName="py-6" band="neutral">
         <SpecGrid columns={4}>
@@ -257,7 +266,7 @@ export function TodayClient({ data }: { data: TodayData }) {
             <p className="mt-1 type-caption">
               {finished
                 ? <>Log new problems with <ShortcutKeycaps className="align-middle" /> or review the catalogue.</>
-                : <>Log new problems with <ShortcutKeycaps className="align-middle" />, or work through your roadmap.</>}
+                : <>Log new problems with <ShortcutKeycaps className="align-middle" />{data.showRoadmap ? ", or work through your roadmap." : "."}</>}
             </p>
           </div>
         ) : (

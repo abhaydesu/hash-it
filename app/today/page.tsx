@@ -1,5 +1,8 @@
 import React, { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
+import { canSeeRoadmap } from "@/lib/roadmap-access";
+import { getGreeting } from "@/lib/greeting";
+import { prisma } from "@/lib/prisma";
 import { getDailyReviewQueue, getOverdueCount, getHeadlineStats } from "@/lib/dashboard";
 import { TodayClient } from "@/components/today-client";
 import { getActivePlan } from "@/lib/weekly-review";
@@ -8,6 +11,8 @@ import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
 
 export const dynamic = "force-dynamic";
+
+const NEW_USER_ENTRY_LIMIT = 5;
 
 export default function TodayPage() {
   return (
@@ -21,13 +26,20 @@ async function TodayData() {
   const user = await getCurrentUser();
   const now = new Date();
 
-  const [queueResult, overdueCount, snapshot, weeklyPlan, monthly] = await Promise.all([
+  const [queueResult, overdueCount, snapshot, weeklyPlan, monthly, account, settings, importBatches] = await Promise.all([
     getDailyReviewQueue(user.id, now),
     getOverdueCount(user.id, now),
     getHeadlineStats(user.id),
     getActivePlan(user.id, now),
     getMonthlyMockState(user.id, now),
+    prisma.user.findUnique({ where: { id: user.id }, select: { importPromptDismissedAt: true } }),
+    prisma.userSettings.findUnique({ where: { userId: user.id }, select: { timezone: true } }),
+    prisma.importBatch.count({ where: { userId: user.id } }),
   ]);
+  const timezone = settings?.timezone || "Asia/Kolkata";
+  // Only nudge people who look new: haven't answered the banner, haven't imported, and have a near-empty log.
+  const showImportPrompt =
+    !account?.importPromptDismissedAt && importBatches === 0 && snapshot.totalEntries < NEW_USER_ENTRY_LIMIT;
   const lastMock = monthly.history[0];
 
   return (
@@ -38,6 +50,9 @@ async function TodayData() {
         recallCount: queueResult.recallCount,
         doneToday: queueResult.doneToday,
         overdueCount,
+        showRoadmap: canSeeRoadmap(user.email),
+        showImportPrompt,
+        greeting: getGreeting({ now, timezone, name: user.name }),
         snapshot,
         weeklyPlan,
         monthlyStatus: monthly.status,

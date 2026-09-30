@@ -217,6 +217,8 @@ model User {
   monthlyMocks  MonthlyMock[]
   settings      UserSettings?
   importBatches ImportBatch[]
+  /// Set when the user answers "Nothing to import" on the /today banner; new sign-ups only see it until then.
+  importPromptDismissedAt DateTime?
 }
 
 model Account {

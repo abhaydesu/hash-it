@@ -10,6 +10,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SessionUserMenu, SessionUserMenuFallback } from "@/components/session-user-menu";
 import { ContestReminderSlot } from "@/components/contest-reminder-slot";
 import { StreakSlot } from "@/components/streak-slot";
+import { SidebarNav } from "@/components/navbar";
+import { SidebarNavSlot } from "@/components/sidebar-nav-slot";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 const ibmPlexMono = IBM_Plex_Mono({
@@ -44,6 +46,11 @@ export default function RootLayout({
             streak={
               <Suspense fallback={null}>
                 <StreakSlot />
+              </Suspense>
+            }
+            sidebarNav={
+              <Suspense fallback={<SidebarNav />}>
+                <SidebarNavSlot />
               </Suspense>
             }
             userMenu={

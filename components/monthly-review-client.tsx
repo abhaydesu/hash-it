@@ -237,7 +237,7 @@ export function MonthlyReviewClient({
           <span>Monthly mock assessment</span>
         </div>
 
-        <h1 className="type-title text-foreground">Timed blind mock set (5 problems)</h1>
+        <h1 className="type-title text-foreground">Timed mock set (5 problems)</h1>
 
         <StatusBanner status={mockState.status} />
 
@@ -262,17 +262,12 @@ export function MonthlyReviewClient({
             )}
 
             <p className="type-body text-muted-foreground">
-              This mock draws 5 problems from your weakest pattern families. To simulate real interview
-              conditions,{" "}
-              <span className="font-medium text-foreground">
-                pattern names and difficulty ratings are strictly hidden
-              </span>{" "}
-              until you finish.
+              This mock draws 5 problems from your weakest topics.
             </p>
 
             <p className="type-caption">
-              It is the monthly stress test: no labels, no hints, no safe-mode warmup. If you can choose
-              the right strategy under pressure, your review system is doing its job.
+              It is the monthly stress test: no hints and no warmup. If you can pick the right approach under
+              pressure, your review system is doing its job.
             </p>
 
             <div className="space-y-2 border border-border bg-muted/40 p-4 type-caption">
@@ -480,7 +475,6 @@ export function MonthlyReviewClient({
             {currentProblem.platform === "LEETCODE" ? "LeetCode" : currentProblem.platform} without
             looking at discussion or related tags.
           </p>
-          <p>Pattern cue and difficulty will be revealed upon completion of the 5-problem set.</p>
         </div>
 
         <div className="space-y-3 pt-2">

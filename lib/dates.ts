@@ -82,3 +82,27 @@ export function formatCountdown(ms: number): string {
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
 }
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/**
+ * Human label for the Monday-start week beginning `weekStartDay` (YYYY-MM-DD):
+ * "Week 4 of September, Sep 28 – Oct 4". The week number counts Mondays in the
+ * month of the week's first day.
+ */
+export function weekRangeLabel(weekStartDay: string): string {
+  const start = new Date(`${weekStartDay}T00:00:00Z`);
+  const end = new Date(`${addDays(weekStartDay, 6)}T00:00:00Z`);
+  const short = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" });
+  const startMonth = short.format(start);
+  const endMonth = short.format(end);
+  const week = Math.ceil(start.getUTCDate() / 7);
+  const range =
+    startMonth === endMonth
+      ? `${startMonth} ${start.getUTCDate()} – ${end.getUTCDate()}`
+      : `${startMonth} ${start.getUTCDate()} – ${endMonth} ${end.getUTCDate()}`;
+  return `Week ${week} of ${MONTH_NAMES[start.getUTCMonth()]}, ${range}`;
+}

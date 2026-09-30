@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
+import { weekRangeLabel } from "@/lib/dates";
 
 const CONFIDENCE: Array<{ value: Confidence; label: string; hint: string }> = [
   { value: "BLANK", label: "Blank", hint: "No idea" },
@@ -460,12 +461,8 @@ export function WeeklyReviewClient({ data, contests }: { data: WeeklyReviewData;
   // Done = every recall check answered and a plan committed. The page stays open either way.
   const complete = data.plan.committed != null && checks.every((c) => c.result);
 
-  const weekLabel = useMemo(
-    () =>
-      // Fixed locale + UTC: a calendar date, identical on server and client.
-      new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${data.weekStart}T00:00:00Z`)),
-    [data.weekStart],
-  );
+  // Pure UTC calendar math, identical on server and client.
+  const weekLabel = useMemo(() => weekRangeLabel(data.weekStart), [data.weekStart]);
 
   return (
     <div>
@@ -473,9 +470,9 @@ export function WeeklyReviewClient({ data, contests }: { data: WeeklyReviewData;
         <h1 className="type-title text-foreground">Weekly review</h1>
         <p className="mt-1 type-caption">
           {data.open ? (
-            <>Planning the week of {weekLabel}. Look back, catch what&apos;s slipping, plan the week. About ten minutes.</>
+            <>{weekLabel}. Look back on your week, check what you still remember, and plan the next one. About ten minutes.</>
           ) : (
-            <>Week of {weekLabel}.</>
+            <>{weekLabel}.</>
           )}
         </p>
         {!data.open && (
@@ -494,7 +491,7 @@ export function WeeklyReviewClient({ data, contests }: { data: WeeklyReviewData;
           <div className="mt-4 flex items-start gap-2 border border-easy/40 bg-easy/10 px-4 py-3 text-xs text-foreground">
             <CircleCheck className="mt-px h-4 w-4 shrink-0 text-easy" />
             <span>
-              <span className="font-medium">Review done for the week of {weekLabel}.</span> The next one opens{" "}
+              <span className="font-medium">Review done for {weekLabel}.</span> The next one opens{" "}
               <span className="font-medium">
                 <Countdown to={data.nextReviewAt} />
               </span>

@@ -17,6 +17,7 @@ export function AppShell({
   userMenu,
   contestReminder,
   streak,
+  sidebarNav,
 }: {
   children: ReactNode;
   user?: {
@@ -27,6 +28,8 @@ export function AppShell({
   userMenu?: ReactNode;
   contestReminder?: ReactNode;
   streak?: ReactNode;
+  /** Server-rendered sub-nav; falls back to the plain nav when omitted. */
+  sidebarNav?: ReactNode;
 }) {
   const pathname = usePathname();
   const wide = pathname.startsWith("/problems");
@@ -41,7 +44,7 @@ export function AppShell({
           )}
         >
           <Navbar user={user} userMenu={userMenu} contestReminder={contestReminder} streak={streak} />
-          <SidebarNav />
+          {sidebarNav ?? <SidebarNav />}
           <main className="w-full flex-1">{children}</main>
           {pathname === "/" && <Footer />}
         </div>

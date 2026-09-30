@@ -156,7 +156,7 @@ export function PracticeClient({ patterns }: { patterns: PracticePattern[] }) {
       <SheetSection innerClassName="py-6">
         <h1 className="type-title text-foreground">Practice</h1>
         <p className="mt-1 type-caption">
-          Pick a pattern. Get problems you haven&apos;t solved yet.
+          Pick a pattern to get an easy, a medium and a hard problem you haven&apos;t solved yet.
         </p>
       </SheetSection>
 

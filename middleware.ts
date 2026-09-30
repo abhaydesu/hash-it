@@ -33,6 +33,11 @@ export function authorizeRequest(opts: {
 }): NextResponse {
   const { pathname, hasUser, requestUrl } = opts;
 
+  // Signed-in users skip the marketing landing page.
+  if (pathname === "/" && hasUser) {
+    return NextResponse.redirect(new URL("/today", requestUrl));
+  }
+
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }

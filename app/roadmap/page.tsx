@@ -1,6 +1,8 @@
 import React, { Suspense } from "react";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { canSeeRoadmap } from "@/lib/roadmap-access";
 import { parseSlugFromUrl } from "@/lib/import-utils";
 import { fetchGfgProblemMetadata } from "@/lib/gfg-metadata";
 import { Platform, Difficulty } from "@prisma/client";
@@ -113,6 +115,7 @@ export default function RoadmapPage() {
 
 async function RoadmapData() {
   const user = await getCurrentUser();
+  if (!canSeeRoadmap(user.email)) notFound();
 
   const [patterns, userEntries] = await Promise.all([
     prisma.roadmapPattern.findMany({
