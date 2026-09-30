@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import SettingsPage from "@/app/settings/page";
+import { SettingsClient } from "@/components/settings-client";
 
 // Mock actions
 vi.mock("@/app/actions/settings-actions", () => ({
@@ -12,7 +12,7 @@ vi.mock("@/app/actions/settings-actions", () => ({
   saveCustomFields: vi.fn(),
 }));
 
-describe("SettingsPage", () => {
+describe("SettingsClient", () => {
   const mockSettings = {
     dailyResolveCap: 5,
     desiredRetention: 0.85,
@@ -32,7 +32,7 @@ describe("SettingsPage", () => {
     const { getUserSettings } = await import("@/app/actions/settings-actions");
     vi.mocked(getUserSettings).mockResolvedValue(mockSettings as any);
 
-    render(<SettingsPage />);
+    render(<SettingsClient initial={mockSettings} />);
 
     // Wait for data load
     await waitFor(() => {
@@ -48,7 +48,7 @@ describe("SettingsPage", () => {
     vi.mocked(getUserSettings).mockResolvedValue(mockSettings as any);
     vi.mocked(updateUserSettings).mockResolvedValue(undefined as any);
 
-    render(<SettingsPage />);
+    render(<SettingsClient initial={mockSettings} />);
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("5")).toBeInTheDocument();
@@ -75,7 +75,7 @@ describe("SettingsPage", () => {
     vi.mocked(getUserSettings).mockResolvedValue(mockSettings as any);
     vi.mocked(optimizeFSRSParams).mockResolvedValue({ fsrsParams: [0.4, 0.5, 0.6] } as any);
 
-    render(<SettingsPage />);
+    render(<SettingsClient initial={mockSettings} />);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /optimize fsrs parameters/i })).not.toBeDisabled();

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { UserMenu } from "@/components/user-menu";
 
 export function SessionUserMenuFallback() {
@@ -8,7 +8,7 @@ export function SessionUserMenuFallback() {
 
 /** Session chrome only — kept out of the root layout so page navigations are not blocked on auth(). */
 export async function SessionUserMenu() {
-  const session = await auth();
+  const session = await getSession();
   const user = session?.user ?? null;
 
   if (user) {

@@ -3,6 +3,7 @@ import { readCustomFieldDefs } from "@/lib/custom-fields";
 import { isLeech } from "@/lib/scheduler";
 import { parseISO, differenceInCalendarDays, subDays } from "date-fns";
 import { localDay } from "@/lib/dates";
+import { getUserSettingsRow, DEFAULT_TIMEZONE } from "@/lib/user-settings";
 
 const STOPWORDS = new Set([
   "i", "me", "my", "myself", "we", "our", "ours", "you", "your", "yours", "he", "him",
@@ -120,10 +121,10 @@ export function computeStreak(sortedDays: string[], today: string, yesterday: st
 /** Just the streak (for the navbar), without the rest of the stats work. */
 export async function computeStreakForUser(userId: string): Promise<StreakStats> {
   const [userSettings, attempts] = await Promise.all([
-    prisma.userSettings.findUnique({ where: { userId }, select: { timezone: true } }),
+    getUserSettingsRow(userId),
     prisma.attempt.findMany({ where: { entry: { userId } }, select: { at: true } }),
   ]);
-  const timezone = userSettings?.timezone || "Asia/Kolkata";
+  const timezone = userSettings?.timezone || DEFAULT_TIMEZONE;
   const toDay = (d: Date) => localDay(d, timezone);
   const days = [...new Set(attempts.map((a) => toDay(a.at)))].sort();
   const now = new Date();
@@ -131,10 +132,8 @@ export async function computeStreakForUser(userId: string): Promise<StreakStats>
 }
 
 export async function computeAllStats(userId: string): Promise<AllStats> {
-  const [userSettings, totalAttempts, coldSolveAttempts, entries, attempts] = await Promise.all([
-    prisma.userSettings.findUnique({ where: { userId }, select: { timezone: true, customFields: true } }),
-    prisma.attempt.count({ where: { entry: { userId } } }),
-    prisma.attempt.count({ where: { entry: { userId }, rating: { in: ["GOOD", "EASY"] } } }),
+  const [userSettings, entries, attempts] = await Promise.all([
+    getUserSettingsRow(userId),
     prisma.entry.findMany({
       where: { userId },
       select: {
@@ -147,10 +146,13 @@ export async function computeAllStats(userId: string): Promise<AllStats> {
         reviewCard: { select: { lapses: true } },
       },
     }),
-    prisma.attempt.findMany({ where: { entry: { userId } }, select: { at: true } }),
+    prisma.attempt.findMany({ where: { entry: { userId } }, select: { at: true, rating: true } }),
   ]);
+  // Both headline counts come from the attempt rows already loaded for the activity map.
+  const totalAttempts = attempts.length;
+  const coldSolveAttempts = attempts.filter((a) => a.rating === "GOOD" || a.rating === "EASY").length;
 
-  const timezone = userSettings?.timezone || "Asia/Kolkata";
+  const timezone = userSettings?.timezone || DEFAULT_TIMEZONE;
   const toDay = (d: Date) => localDay(d, timezone);
   const defs = readCustomFieldDefs(userSettings?.customFields);
 

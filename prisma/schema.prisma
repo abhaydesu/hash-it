@@ -5,7 +5,9 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  /// One SQL query per findMany with nested selects (LATERAL joins) instead of one query per relation level.
+  previewFeatures = ["relationJoins"]
 }
 
 enum Platform {
@@ -106,6 +108,7 @@ model ProblemPattern {
   pattern Pattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
 
   @@id([problemId, patternId])
+  @@index([patternId])
 }
 
 model Entry {
@@ -150,7 +153,8 @@ model Attempt {
 
   entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
-  @@index([entryId])
+  /// Also serves lookups by entryId alone; (entryId, at) covers "latest attempt per entry".
+  @@index([entryId, at])
   @@index([at])
 }
 

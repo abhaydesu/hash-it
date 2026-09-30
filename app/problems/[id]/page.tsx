@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getUserSettingsRow } from "@/lib/user-settings";
 import { formatDifficulty, formatMinutes, safeHref } from "@/lib/utils";
 import { ExternalLink, Sparkles, ArrowLeft } from "lucide-react";
 import { calculateRetrievability, isLeech } from "@/lib/scheduler";
@@ -45,10 +46,8 @@ export default async function ProblemDetailPage({
     notFound();
   }
 
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId: user.id },
-    select: { customFields: true },
-  });
+  // Already loaded by getCurrentUser for this request — no extra round trip.
+  const settings = await getUserSettingsRow(user.id);
   const customFields = filterNonOverlappingFields(readCustomFieldDefs(settings?.customFields));
 
   const p = entry.problem;

@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { calculateRetrievability, isLeech, type ReviewCardData } from "@/lib/scheduler";
 import { addDays, weekStart as localWeekStart } from "@/lib/dates";
 import { weeklyWindow } from "@/lib/review-windows";
+import { getUserSettingsRow, DEFAULT_TIMEZONE } from "@/lib/user-settings";
 import { normalizePatternList } from "@/lib/utils";
 
 export type Confidence = "BLANK" | "HAZY" | "CLEAR";
@@ -208,28 +209,51 @@ const toRef = (p: ProblemRow, url?: string | null): ProblemRef => ({
   difficulty: p.difficulty as ProblemRef["difficulty"],
 });
 
-/** A plan item counts as done once the user logs any attempt on that problem after committing. */
-async function planWithProgress(userId: string, plan: { createdAt: Date; items: Array<{ kind: PlanKind; problem: ProblemRow }> }) {
-  const attempted = await prisma.entry.findMany({
-    where: {
-      userId,
-      problemId: { in: plan.items.map((i) => i.problem.id) },
-      attempts: { some: { at: { gte: plan.createdAt } } },
+/**
+ * Plan rows plus, per item, the user's latest attempt on that problem, so progress
+ * comes back in the same query as the plan.
+ */
+function planSelect(userId: string) {
+  return {
+    weekStart: true,
+    createdAt: true,
+    items: {
+      select: {
+        kind: true,
+        problem: {
+          select: {
+            ...problemSelect,
+            entries: {
+              where: { userId },
+              select: { attempts: { orderBy: { at: "desc" as const }, take: 1, select: { at: true } } },
+            },
+          },
+        },
+      },
     },
-    select: { problemId: true },
-  });
-  const done = new Set(attempted.map((e) => e.problemId));
+  };
+}
+
+type PlanRow = {
+  createdAt: Date;
+  items: Array<{ kind: PlanKind; problem: ProblemRow & { entries: Array<{ attempts: Array<{ at: Date }> }> } }>;
+};
+
+/** A plan item counts as done once the user logs any attempt on that problem after committing. */
+function planWithProgress(plan: PlanRow) {
   return plan.items
     .sort((a, b) => PLAN_KINDS.indexOf(a.kind) - PLAN_KINDS.indexOf(b.kind))
-    .map((i) => ({ ...toRef(i.problem), kind: i.kind, done: done.has(i.problem.id) }));
+    .map(({ kind, problem: { entries, ...problem } }) => ({
+      ...toRef(problem),
+      kind,
+      // Latest attempt at/after commit ⇔ some attempt at/after commit.
+      done: entries.some((e) => e.attempts[0] != null && e.attempts[0].at >= plan.createdAt),
+    }));
 }
 
 export async function getWeeklyReview(userId: string, now: Date = new Date()): Promise<WeeklyReviewData> {
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId },
-    select: { timezone: true, desiredRetention: true },
-  });
-  const timezone = settings?.timezone || "Asia/Kolkata";
+  const settings = await getUserSettingsRow(userId);
+  const timezone = settings?.timezone || DEFAULT_TIMEZONE;
   const target = settings?.desiredRetention ?? 0.8;
   const window = weeklyWindow(now, timezone);
   const week = window.planWeek;
@@ -262,7 +286,7 @@ export async function getWeeklyReview(userId: string, now: Date = new Date()): P
       where: { userId, weekStart: { lte: week } },
       orderBy: { weekStart: "desc" },
       take: 2,
-      select: { weekStart: true, createdAt: true, items: { select: { kind: true, problem: { select: problemSelect } } } },
+      select: planSelect(userId),
     }),
   ]);
 
@@ -293,7 +317,7 @@ export async function getWeeklyReview(userId: string, now: Date = new Date()): P
   const current = plans.find((p) => p.weekStart === week) ?? null;
   const previous = plans.find((p) => p.weekStart < week) ?? null;
   const lastWeek = addDays(week, -7);
-  const previousItems = previous?.weekStart === lastWeek ? await planWithProgress(userId, previous) : null;
+  const previousItems = previous?.weekStart === lastWeek ? planWithProgress(previous) : null;
 
   // ── Step 2: recall check ──
   const resultById = new Map(checks.map((c) => [c.entryId, { confidence: c.confidence, recalled: c.recalled }]));
@@ -366,7 +390,7 @@ export async function getWeeklyReview(userId: string, now: Date = new Date()): P
     nextReviewAt: window.nextOpensAt,
     checks: checkItems,
     plan: {
-      committed: current ? await planWithProgress(userId, current) : null,
+      committed: current ? planWithProgress(current) : null,
       candidates: {
         REDO: logged.REDO.map(refFor),
         FRESH: fresh,
@@ -381,17 +405,17 @@ export async function getWeeklyReview(userId: string, now: Date = new Date()): P
  * (on Sunday, that's next week's), else the one running this week.
  */
 export async function getActivePlan(userId: string, now: Date = new Date()) {
-  const settings = await prisma.userSettings.findUnique({ where: { userId }, select: { timezone: true } });
-  const timezone = settings?.timezone || "Asia/Kolkata";
+  const settings = await getUserSettingsRow(userId);
+  const timezone = settings?.timezone || DEFAULT_TIMEZONE;
   const window = weeklyWindow(now, timezone);
   const thisWeek = localWeekStart(now, timezone);
   const plans = await prisma.weeklyPlan.findMany({
     where: { userId, weekStart: { in: [window.planWeek, thisWeek] } },
-    select: { weekStart: true, createdAt: true, items: { select: { kind: true, problem: { select: problemSelect } } } },
+    select: planSelect(userId),
   });
   const plan = plans.find((p) => p.weekStart === window.planWeek) ?? plans.find((p) => p.weekStart === thisWeek);
   return {
-    items: plan ? await planWithProgress(userId, plan) : null,
+    items: plan ? planWithProgress(plan) : null,
     /** The plan shown is for next week (committed on Sunday). */
     upcoming: plan != null && plan.weekStart > thisWeek,
     reviewDone: plans.some((p) => p.weekStart === window.planWeek),

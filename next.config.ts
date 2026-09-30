@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "2mb",
     },
+    // Keep visited pages in the client router cache for 30s so switching back to a tab
+    // is instant. Every mutating server action calls revalidatePath/revalidateTag, which
+    // clears this cache, so a user never sees their own changes stale.
+    staleTimes: {
+      dynamic: 30,
+    },
   },
   headers: async () => [
     {

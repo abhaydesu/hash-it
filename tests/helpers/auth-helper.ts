@@ -23,6 +23,13 @@ vi.mock("@/lib/auth", () => {
         expires: new Date(Date.now() + 86400000).toISOString(),
       };
     }),
+    getSession: vi.fn(async () => {
+      if (!currentTestUser) return null;
+      return {
+        user: currentTestUser,
+        expires: new Date(Date.now() + 86400000).toISOString(),
+      };
+    }),
     getCurrentUser: vi.fn(async () => {
       if (!currentTestUser) {
         throw new Error("Unauthorized: no active session");

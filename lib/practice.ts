@@ -1,5 +1,9 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { primaryPattern } from "@/lib/pattern-classifier";
+
+/** Tag for everything derived from the shared problem catalog; revalidate it after catalog writes. */
+export const CATALOG_CACHE_TAG = "problem-catalog";
 
 /** Patterns created on the fly by imports (e.g. "Basics, Stack") are entry labels, not practice topics. */
 const IMPORTED_FAMILY = "Imported";
@@ -23,12 +27,19 @@ export interface PracticePattern {
 
 type Candidate = Omit<PracticeProblem, "isLogged">;
 
+interface PatternBuckets {
+  patterns: Array<{ id: string; name: string; family: string }>;
+  problems: Candidate[];
+  /** patternId → indexes into `problems`. Plain JSON so it can live in the data cache. */
+  bucketIndexes: Record<string, number[]>;
+}
+
 /**
  * Buckets every free, rated problem into practice patterns. Curated sheet links
  * win; otherwise the problem goes to its single primary pattern by topic tags,
  * so counts don't double-count and a DP problem tagged "Array" stays DP.
  */
-async function loadPatternBuckets() {
+export async function computePatternBuckets(): Promise<PatternBuckets> {
   const [patterns, problems] = await Promise.all([
     prisma.pattern.findMany({
       where: { family: { not: IMPORTED_FAMILY } },
@@ -51,20 +62,36 @@ async function loadPatternBuckets() {
   ]);
 
   const idByName = new Map(patterns.map((p) => [p.name, p.id]));
-  const buckets = new Map<string, Candidate[]>(patterns.map((p) => [p.id, []]));
+  const bucketIndexes: Record<string, number[]> = Object.fromEntries(patterns.map((p) => [p.id, []]));
+  const candidates: Candidate[] = [];
 
   for (const { topicTags, patterns: links, ...problem } of problems) {
     const candidate = problem as Candidate;
-    const curated = links.map((l) => l.patternId).filter((id) => buckets.has(id));
-    if (curated.length > 0) {
-      for (const id of curated) buckets.get(id)!.push(candidate);
-      continue;
-    }
-    const name = primaryPattern(topicTags, problem.title);
-    const id = name ? idByName.get(name) : undefined;
-    if (id) buckets.get(id)!.push(candidate);
+    const curated = links.map((l) => l.patternId).filter((id) => id in bucketIndexes);
+    const name = curated.length > 0 ? null : primaryPattern(topicTags, problem.title);
+    const primary = name ? idByName.get(name) : undefined;
+    const targets = curated.length > 0 ? curated : primary ? [primary] : [];
+    if (targets.length === 0) continue;
+    const index = candidates.push(candidate) - 1;
+    for (const id of targets) bucketIndexes[id].push(index);
   }
 
+  return { patterns, problems: candidates, bucketIndexes };
+}
+
+/**
+ * The catalog is shared by every user and changes only on sync or when a new problem
+ * is logged, so the bucketing (a full catalog scan) is cached instead of redone on
+ * every visit and every shuffle.
+ */
+const cachedPatternBuckets = unstable_cache(computePatternBuckets, ["practice-pattern-buckets-v1"], {
+  revalidate: 3600,
+  tags: [CATALOG_CACHE_TAG],
+});
+
+async function loadPatternBuckets() {
+  const { patterns, problems, bucketIndexes } = await cachedPatternBuckets();
+  const buckets = new Map(patterns.map((p) => [p.id, (bucketIndexes[p.id] ?? []).map((i) => problems[i])]));
   return { patterns, buckets };
 }
 

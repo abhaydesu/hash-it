@@ -1,15 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { deriveLane, interleaveQueue, type AppRating } from "@/lib/scheduler";
 import { localDay, startOfLocalDay } from "@/lib/dates";
+import { getUserSettingsRow, DEFAULT_TIMEZONE } from "@/lib/user-settings";
 
 const RECALL_CAP = 6;
 
 export async function getDailyReviewQueue(userId: string, now: Date = new Date()) {
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId },
-    select: { dailyResolveCap: true, timezone: true },
-  });
-  const timezone = settings?.timezone ?? "Asia/Kolkata";
+  const settings = await getUserSettingsRow(userId);
+  const timezone = settings?.timezone ?? DEFAULT_TIMEZONE;
   const dayStart = startOfLocalDay(localDay(now, timezone), timezone);
 
   const [doneToday, dueCards] = await Promise.all([
@@ -99,7 +97,10 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
   const resolveCount = finalQueue.filter((item) => item.lane === "RESOLVE").length;
   const recallCount = finalQueue.filter((item) => item.lane === "RECALL").length;
 
-  return { queue: finalQueue, resolveCount, recallCount, doneToday: resolveDone + recallDone };
+  // Same set getOverdueCount() counts (due strictly before now), taken from rows already loaded.
+  const overdueCount = dueCards.filter((card) => card.due < now).length;
+
+  return { queue: finalQueue, resolveCount, recallCount, doneToday: resolveDone + recallDone, overdueCount };
 }
 
 export async function getOverdueCount(userId: string, now: Date = new Date()) {
@@ -109,16 +110,23 @@ export async function getOverdueCount(userId: string, now: Date = new Date()) {
 }
 
 export async function getHeadlineStats(userId: string) {
-  const [totalEntries, totalAttempts, coldSolveAttempts, leechCount] = await Promise.all([
+  const [totalEntries, attemptsByRating, leechCount] = await Promise.all([
     prisma.entry.count({ where: { userId } }),
-    prisma.attempt.count({ where: { entry: { userId } } }),
-    prisma.attempt.count({
-      where: { entry: { userId }, rating: { in: ["GOOD", "EASY"] } },
+    prisma.attempt.groupBy({
+      by: ["rating"],
+      where: { entry: { userId } },
+      _count: { _all: true },
     }),
     prisma.reviewCard.count({
       where: { entry: { userId }, lapses: { gte: 3 } },
     }),
   ]);
+  let totalAttempts = 0;
+  let coldSolveAttempts = 0;
+  for (const row of attemptsByRating) {
+    totalAttempts += row._count._all;
+    if (row.rating === "GOOD" || row.rating === "EASY") coldSolveAttempts += row._count._all;
+  }
 
   return {
     totalEntries,

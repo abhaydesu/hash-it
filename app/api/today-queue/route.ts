@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getDailyReviewQueue, getOverdueCount, getHeadlineStats } from "@/lib/dashboard";
+import { getDailyReviewQueue, getHeadlineStats } from "@/lib/dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +13,8 @@ export async function GET() {
   const userId = session.user.id;
   const now = new Date();
 
-  const [queueResult, overdueCount, snapshot] = await Promise.all([
+  const [queueResult, snapshot] = await Promise.all([
     getDailyReviewQueue(userId, now),
-    getOverdueCount(userId, now),
     getHeadlineStats(userId),
   ]);
 
@@ -24,7 +23,7 @@ export async function GET() {
     resolveCount: queueResult.resolveCount,
     recallCount: queueResult.recallCount,
         doneToday: queueResult.doneToday,
-    overdueCount,
+    overdueCount: queueResult.overdueCount,
     snapshot,
   });
 }

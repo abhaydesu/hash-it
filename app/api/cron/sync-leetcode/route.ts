@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+import { CATALOG_CACHE_TAG } from "@/lib/practice";
 import { syncLeetCode } from "@/scripts/sync-leetcode";
 import { secretsEqual } from "@/lib/safe";
 
@@ -15,6 +17,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await syncLeetCode();
+    revalidateTag(CATALOG_CACHE_TAG);
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error("[cron/sync-leetcode]", err);

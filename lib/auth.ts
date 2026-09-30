@@ -6,6 +6,7 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { findOrCreateLocalUser } from "@/lib/local-auth";
+import { primeUserSettings } from "@/lib/user-settings";
 import { authConfig } from "@/lib/auth.config";
 import {
   assertProductionAuthConfigured,
@@ -143,6 +144,9 @@ const config: NextAuthConfig = {
 
 export const { handlers, auth, signIn, signOut } = NextAuth(config);
 
+/** auth() memoized per server render: the layout slots and the page share one session decode. */
+export const getSession = cache(() => auth());
+
 /** Where a session whose user no longer exists goes to have its cookie cleared. */
 export const STALE_SESSION_PATH = "/auth/signin/reset";
 
@@ -162,13 +166,18 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<{
 }> {
   assertProductionAuthConfigured();
 
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized: no active session");
   }
 
-  const exists = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
+  // The existence check also brings the settings row, so pages don't pay a second round trip for it.
+  const exists = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, settings: true },
+  });
   if (!exists) redirect(STALE_SESSION_PATH);
+  primeUserSettings(exists.id, exists.settings ?? null);
 
   return session.user as {
     id: string;

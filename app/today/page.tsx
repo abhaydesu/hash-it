@@ -3,7 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { canSeeRoadmap } from "@/lib/roadmap-access";
 import { getGreeting } from "@/lib/greeting";
 import { prisma } from "@/lib/prisma";
-import { getDailyReviewQueue, getOverdueCount, getHeadlineStats } from "@/lib/dashboard";
+import { getDailyReviewQueue, getHeadlineStats } from "@/lib/dashboard";
+import { getUserTimezone } from "@/lib/user-settings";
 import { TodayClient } from "@/components/today-client";
 import { getActivePlan } from "@/lib/weekly-review";
 import { getMonthlyMockState } from "@/lib/monthly-mock";
@@ -26,20 +27,23 @@ async function TodayData() {
   const user = await getCurrentUser();
   const now = new Date();
 
-  const [queueResult, overdueCount, snapshot, weeklyPlan, monthly, account, settings, importBatches] = await Promise.all([
+  const [queueResult, snapshot, weeklyPlan, monthly, account, timezone] = await Promise.all([
     getDailyReviewQueue(user.id, now),
-    getOverdueCount(user.id, now),
     getHeadlineStats(user.id),
     getActivePlan(user.id, now),
     getMonthlyMockState(user.id, now),
-    prisma.user.findUnique({ where: { id: user.id }, select: { importPromptDismissedAt: true } }),
-    prisma.userSettings.findUnique({ where: { userId: user.id }, select: { timezone: true } }),
-    prisma.importBatch.count({ where: { userId: user.id } }),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { importPromptDismissedAt: true, _count: { select: { importBatches: true } } },
+    }),
+    getUserTimezone(user.id),
   ]);
-  const timezone = settings?.timezone || "Asia/Kolkata";
+  const { overdueCount } = queueResult;
   // Only nudge people who look new: haven't answered the banner, haven't imported, and have a near-empty log.
   const showImportPrompt =
-    !account?.importPromptDismissedAt && importBatches === 0 && snapshot.totalEntries < NEW_USER_ENTRY_LIMIT;
+    !account?.importPromptDismissedAt &&
+    (account?._count.importBatches ?? 0) === 0 &&
+    snapshot.totalEntries < NEW_USER_ENTRY_LIMIT;
   const lastMock = monthly.history[0];
 
   return (

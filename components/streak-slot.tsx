@@ -1,11 +1,11 @@
 import React from "react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { computeStreakForUser } from "@/lib/stats-engine";
 import { StreakChip } from "@/components/streak-chip";
 
 /** Server side of the top-bar streak chip. Renders nothing when signed out or on error. */
 export async function StreakSlot() {
-  const session = await auth();
+  const session = await getSession();
   const userId = session?.user?.id;
   if (!userId) return null;
   try {

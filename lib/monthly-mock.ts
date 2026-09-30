@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { monthlyStatus, type MonthlyStatus } from "@/lib/review-windows";
+import { getUserTimezone } from "@/lib/user-settings";
 
 export interface MockResult {
   period: string;
@@ -15,14 +16,10 @@ export interface MonthlyMockState {
   history: MockResult[];
 }
 
-async function userTimezone(userId: string) {
-  const s = await prisma.userSettings.findUnique({ where: { userId }, select: { timezone: true } });
-  return s?.timezone || "Asia/Kolkata";
-}
 
 export async function getMonthlyMockState(userId: string, now: Date = new Date()): Promise<MonthlyMockState> {
   const [timezone, mocks] = await Promise.all([
-    userTimezone(userId),
+    getUserTimezone(userId),
     prisma.monthlyMock.findMany({
       where: { userId },
       orderBy: { period: "desc" },

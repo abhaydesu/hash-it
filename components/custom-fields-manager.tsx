@@ -18,22 +18,24 @@ const inputClass =
   "h-8 border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring";
 
 /** Settings section: the user's own columns (added via import or here). */
-export function CustomFieldsManager() {
-  const [saved, setSaved] = useState<CustomFieldDef[] | null>(null);
-  const [fields, setFields] = useState<CustomFieldDef[]>([]);
+export function CustomFieldsManager({ initialFields }: { initialFields?: CustomFieldDef[] } = {}) {
+  const [saved, setSaved] = useState<CustomFieldDef[] | null>(initialFields ?? null);
+  const [fields, setFields] = useState<CustomFieldDef[]>(initialFields ?? []);
   const [newLabel, setNewLabel] = useState("");
   const [newType, setNewType] = useState<CustomFieldType>("text");
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Rendered by the settings page with its fields already loaded; only fetch when standalone.
+    if (initialFields) return;
     getCustomFields()
       .then((defs) => {
         setSaved(defs);
         setFields(defs);
       })
       .catch((err) => setError(String(err)));
-  }, []);
+  }, [initialFields]);
 
   const savedIds = new Set(saved?.map((f) => f.id));
   const dirty = saved !== null && JSON.stringify(saved) !== JSON.stringify(fields);

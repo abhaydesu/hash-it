@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { getUserSettingsRow } from "@/lib/user-settings";
 import {
   CustomFieldDefSchema,
   MAX_CUSTOM_FIELDS,
@@ -30,8 +31,18 @@ export type UserSettingsInput = z.infer<typeof SettingsSchema>;
 export async function getUserSettings() {
   const user = await getCurrentUser();
 
-  const [settings, attemptCount] = await Promise.all([
-    prisma.userSettings.upsert({
+  // Read first: the row almost always exists (created at sign-in) and, during a page
+  // render, getCurrentUser has already loaded it. An upsert here is a 5-statement
+  // transaction, so it only runs when the row is actually missing.
+  const [existing, attemptCount] = await Promise.all([
+    getUserSettingsRow(user.id),
+    prisma.attempt.count({
+      where: { entry: { userId: user.id } },
+    }),
+  ]);
+  const settings =
+    existing ??
+    (await prisma.userSettings.upsert({
       where: { userId: user.id },
       update: {},
       create: {
@@ -43,11 +54,7 @@ export async function getUserSettings() {
         mediumBaseline: 40,
         hardBaseline: 60,
       },
-    }),
-    prisma.attempt.count({
-      where: { entry: { userId: user.id } },
-    }),
-  ]);
+    }));
 
   return {
     ...settings,
@@ -59,11 +66,14 @@ export async function updateUserSettings(input: UserSettingsInput) {
   const user = await getCurrentUser();
   const data = SettingsSchema.parse(input);
 
-  return prisma.userSettings.upsert({
+  const saved = await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: data,
     create: { userId: user.id, ...data },
   });
+  // Caps, retention and timezone shape every page's schedule; drop cached pages.
+  revalidatePath("/", "layout");
+  return saved;
 }
 
 export async function optimizeFSRSParams() {
@@ -88,6 +98,7 @@ export async function optimizeFSRSParams() {
     where: { userId: user.id },
     data: { fsrsParams: defaultW },
   });
+  revalidatePath("/", "layout");
 
   return {
     success: true,

@@ -21,28 +21,32 @@ async function MonthlyMockData() {
   const user = await getCurrentUser();
   const now = new Date();
 
-  const patterns = await prisma.pattern.findMany({
-    include: {
-      problems: {
-        select: {
-          problem: {
-            select: {
-              id: true,
-              title: true,
-              number: true,
-              url: true,
-              platform: true,
-              difficulty: true,
-              entries: {
-                where: { userId: user.id },
-                select: { id: true, reviewCard: true },
+  // Mock state doesn't depend on the catalog, so it loads alongside it.
+  const [patterns, mockState] = await Promise.all([
+    prisma.pattern.findMany({
+      include: {
+        problems: {
+          select: {
+            problem: {
+              select: {
+                id: true,
+                title: true,
+                number: true,
+                url: true,
+                platform: true,
+                difficulty: true,
+                entries: {
+                  where: { userId: user.id },
+                  select: { id: true, reviewCard: true },
+                },
               },
             },
           },
         },
       },
-    },
-  });
+    }),
+    getMonthlyMockState(user.id, now),
+  ]);
 
   const patternScores = patterns.map((p) => {
     const cards = p.problems
@@ -119,7 +123,7 @@ async function MonthlyMockData() {
     }
   }
 
-  return <MonthlyReviewClient initialCatalog={selectedProblems} mockState={await getMonthlyMockState(user.id, now)} />;
+  return <MonthlyReviewClient initialCatalog={selectedProblems} mockState={mockState} />;
 }
 
 function MonthlySkeleton() {

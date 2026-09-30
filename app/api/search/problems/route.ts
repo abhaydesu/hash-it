@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+import { CATALOG_CACHE_TAG } from "@/lib/practice";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { canSeeRoadmap } from "@/lib/roadmap-access";
@@ -132,6 +134,7 @@ export async function POST(request: Request) {
                   ...(meta.title && match.title !== meta.title ? { title: meta.title } : {}),
                 },
               });
+              revalidateTag(CATALOG_CACHE_TAG);
             }
 
             return NextResponse.json({

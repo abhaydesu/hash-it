@@ -108,7 +108,7 @@ describe("getCurrentUser and auth providers", () => {
 
     const { getCurrentUser, STALE_SESSION_PATH } = await import("@/lib/auth");
     await expect(getCurrentUser()).rejects.toThrow(`NEXT_REDIRECT:${STALE_SESSION_PATH}`);
-    expect(findUserMock).toHaveBeenCalledWith({ where: { id: "gone" }, select: { id: true } });
+    expect(findUserMock).toHaveBeenCalledWith({ where: { id: "gone" }, select: { id: true, settings: true } });
   });
 
   it("buildAuthProviders: credentials only outside production; Google when configured", async () => {

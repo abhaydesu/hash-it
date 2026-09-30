@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { FigureCaption } from "@/components/ui/spec-sheet";
 import { PixelBlast } from "@/components/ui/pixel-blast";
@@ -32,7 +32,7 @@ const CADENCES = [
 ];
 
 export default async function HomePage() {
-  const session = await auth();
+  const session = await getSession();
 
   return (
     <div className="relative flex min-h-screen w-full justify-center bg-background font-sans text-foreground selection:bg-foreground selection:text-background">

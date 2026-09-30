@@ -1,7 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CATALOG_CACHE_TAG } from "@/lib/practice";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -105,6 +106,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
       },
     });
     targetProblemId = newProblem.id;
+    revalidateTag(CATALOG_CACHE_TAG);
   }
 
   // Look up problem to get difficulty for baselines

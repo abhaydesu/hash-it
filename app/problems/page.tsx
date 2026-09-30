@@ -1,6 +1,7 @@
 import React, { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getUserSettingsRow } from "@/lib/user-settings";
 import { DataTable } from "@/components/problem-grid/data-table";
 import { ProblemGridRow } from "@/components/problem-grid/columns";
 import { SheetSection } from "@/components/ui/sheet-section";
@@ -99,7 +100,7 @@ async function ProblemsTable() {
       orderBy: [{ sortOrder: "asc" }],
       select: { name: true },
     }),
-    prisma.userSettings.findUnique({ where: { userId: user.id }, select: { customFields: true } }),
+    getUserSettingsRow(user.id),
   ]);
 
   const customFields = readCustomFieldDefs(settings?.customFields);

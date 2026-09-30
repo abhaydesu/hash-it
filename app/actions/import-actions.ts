@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { Difficulty, Platform, SolveStatus, type Prisma } from "@prisma/client";
 import Papa from "papaparse";
 import { z } from "zod";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CATALOG_CACHE_TAG } from "@/lib/practice";
 import { seedCard, spreadImportDueDates } from "@/lib/scheduler";
 import { LIMITS, storedHttpUrl } from "@/lib/safe";
 import {
@@ -496,7 +498,7 @@ export async function commitImportBatch(params: {
     }
   }
 
-  return await prisma.$transaction(
+  const result = await prisma.$transaction(
     async (tx) => {
       let fieldDefs: CustomFieldDef[] = [];
       if (incomingDefs.length > 0) {
@@ -694,6 +696,11 @@ export async function commitImportBatch(params: {
       timeout: 120000,
     }
   );
+
+  // New entries change every page; new problems can join the practice catalog.
+  revalidatePath("/", "layout");
+  revalidateTag(CATALOG_CACHE_TAG);
+  return result;
 }
 
 /** "Nothing to import" on the /today banner: stop showing it for this user. */
@@ -703,5 +710,6 @@ export async function dismissImportPrompt() {
     where: { id: user.id },
     data: { importPromptDismissedAt: new Date() },
   });
+  revalidatePath("/today");
   return { success: true };
 }
