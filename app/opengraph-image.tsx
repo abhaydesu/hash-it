@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { SITE_URL } from "@/lib/site";
 
-export const alt = "Hash-It: a LeetCode tracker that schedules re-solves with spaced repetition";
+export const alt = "Hash-It: a LeetCode and DSA tracker that schedules re-solves with spaced repetition";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -42,7 +42,7 @@ export default function OpenGraphImage() {
             Remember every LeetCode problem you solve.
           </div>
           <div style={{ fontSize: 30, color: "#57534e", lineHeight: 1.35 }}>
-            A LeetCode tracker that schedules each re-solve with spaced repetition, right before you forget.
+            A LeetCode &amp; DSA tracker that schedules each re-solve with spaced repetition, right before you forget.
           </div>
         </div>
 

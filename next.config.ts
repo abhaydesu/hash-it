@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { GUIDE_PATH, LEGACY_GUIDE_PATH } from "./lib/site";
 
 const nextConfig: NextConfig = {
   // Put <title>, description, canonical and Open Graph tags in <head> for every client.
@@ -17,6 +18,10 @@ const nextConfig: NextConfig = {
       dynamic: 30,
     },
   },
+  // The guide moved from a LeetCode URL to a DSA one; keep old links and rankings.
+  redirects: async () => [
+    { source: LEGACY_GUIDE_PATH, destination: GUIDE_PATH, permanent: true },
+  ],
   headers: async () => [
     {
       source: "/(.*)",

@@ -1,6 +1,6 @@
 # Hash-It
 
-> Hash-It is a LeetCode tracker built on spaced repetition. You log each coding problem you solve (LeetCode, GeeksforGeeks, or any link), and Hash-It schedules when to re-solve it from scratch, right before you would forget the approach. Scheduling uses FSRS, the same algorithm Anki offers.
+> Hash-It is a LeetCode and DSA (data structures and algorithms) tracker built on spaced repetition. You keep a DSA log of each coding problem you solve (LeetCode, GeeksforGeeks, or any link), and Hash-It schedules when to re-solve it from scratch, right before you would forget the approach. Scheduling uses FSRS, the same algorithm Anki offers.
 
 Website: https://hash-it.abhaydesu.me
 Built by: Abhay (@abhaydesu, https://abhaydesu.me). Hash-It is independent and not affiliated with LeetCode.
@@ -9,7 +9,7 @@ Built by: Abhay (@abhaydesu, https://abhaydesu.me). Hash-It is independent and n
 
 - Log a problem in seconds (⌘K / Ctrl+K): time taken, core idea, mistakes, and whether you solved it cold, with a hint, or failed.
 - Daily review queue: problems come back when they are due, split into quick recall checks (a few minutes) and full re-solves (about 25 minutes). The daily cap is configurable.
-- Import LeetCode history: screenshot your LeetCode progress page, paste it into any AI chatbot with Hash-It's prompt, upload the CSV. CSV and Excel sheets also work. First reviews are spread over 60 days.
+- Import LeetCode history: screenshot your LeetCode progress page, paste it into any AI chatbot with Hash-It's prompt, upload the CSV. Any DSA sheet you track in CSV or Excel can be imported too. First reviews are spread over 60 days.
 - Practice by pattern: pick a pattern (two pointers, sliding window, DP, graphs, and more) and get an easy, a medium and a hard problem you haven't solved yet.
 - Weekly review: a confidence-rated recall check on problems at risk, plus a plan for the next week and the next LeetCode contest.
 - Monthly mock: five timed problems drawn from your weakest topics; scores are kept month over month.
@@ -18,10 +18,11 @@ Built by: Abhay (@abhaydesu, https://abhaydesu.me). Hash-It is independent and n
 ## Good fit for
 
 - People preparing for coding interviews who keep forgetting problems they already solved.
-- Anyone working through NeetCode 150, Blind 75, Grind 75 or another list who wants a review schedule on top of it.
+- Anyone working through NeetCode 150, Blind 75, Grind 75 or any other DSA sheet who wants a revision schedule on top of it.
+- Anyone looking for a DSA tracker or DSA log that covers every platform, not just LeetCode.
 - Replacing a LeetCode tracking spreadsheet with automatic due dates.
 
 ## Pages
 
-- [Home and FAQ](https://hash-it.abhaydesu.me/): what Hash-It is, how it works, frequently asked questions.
-- [How to remember LeetCode problems](https://hash-it.abhaydesu.me/guides/leetcode-spaced-repetition): a guide to spaced repetition for LeetCode, including how often to redo problems and what to write in notes.
+- [Home and FAQ](https://hash-it.abhaydesu.me/): what Hash-It is, how it works, frequently asked questions about tracking DSA.
+- [How to remember DSA problems](https://hash-it.abhaydesu.me/guides/dsa-spaced-repetition): a guide to spaced repetition for DSA revision, including how often to revise problems, what to keep in a DSA log, and how to track DSA progress.

@@ -109,7 +109,7 @@ describe("middleware auth gate", () => {
       "/llms.txt",
       "/manifest.webmanifest",
       "/opengraph-image",
-      "/guides/leetcode-spaced-repetition",
+      "/guides/dsa-spaced-repetition",
     ]) {
       const res = authorizeRequest({ pathname, hasUser: false, requestUrl: `http://localhost:3000${pathname}` });
       expect(res.status).toBe(200);

@@ -10,6 +10,7 @@ import { HeroDemo } from "@/components/hero-demo";
 import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
 import { DailyQueueIllo, WeeklyReviewIllo, MonthlyMockIllo } from "@/components/landing/bento-illos";
 import { JsonLd } from "@/components/json-ld";
+import { FaqList } from "@/components/faq-list";
 import { AUTHOR, GUIDE_PATH, LANDING_FAQ, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -23,7 +24,7 @@ const STRUCTURED_DATA = [
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: SITE_NAME,
-    alternateName: ["HashIt", "Hash It"],
+    alternateName: ["HashIt", "Hash It", "Hash-It DSA tracker"],
     url: `${SITE_URL}/`,
     description: SITE_DESCRIPTION,
   },
@@ -37,10 +38,10 @@ const STRUCTURED_DATA = [
     operatingSystem: "Web",
     browserRequirements: "Requires a modern web browser and a Google account.",
     featureList: [
-      "Log LeetCode and GeeksforGeeks problems with time, core idea and mistakes",
+      "DSA log: record LeetCode, GeeksforGeeks or any data structures and algorithms problem with time, core idea and mistakes",
       "FSRS spaced-repetition review schedule",
       "Daily review queue with quick recall and full re-solve lanes",
-      "Import LeetCode history from a screenshot, CSV or Excel sheet",
+      "Import LeetCode history from a screenshot, or a DSA sheet from CSV or Excel",
       "Practice unsolved problems by pattern",
       "Weekly review and monthly timed mock",
       "Stats, streaks and weakest-pattern tracking",
@@ -89,13 +90,13 @@ export default function HomePage() {
         {/* ── Hero ── */}
         <SheetSection className="relative" band="hero">
           <div className="relative z-10 flex max-w-3xl flex-col items-start px-6 py-24 sm:py-32">
-            <p className="type-label mb-4 text-orange-600">LeetCode tracker · Spaced repetition</p>
+            <p className="type-label mb-4 text-orange-600">LeetCode &amp; DSA tracker · Spaced repetition</p>
             <h1 className="idea-preview mb-4 text-3xl font-medium tracking-tight sm:text-5xl md:text-6xl">
               Remember every problem you solve.
             </h1>
             <p className="mb-8 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Hash-It is a LeetCode tracker that uses spaced repetition to schedule your reviews.
-              You re-solve what&apos;s fading, skip what&apos;s locked in.
+              Hash-It is a LeetCode and DSA tracker that uses spaced repetition to schedule your
+              revision. You re-solve what&apos;s fading, skip what&apos;s locked in.
             </p>
 
             <Link
@@ -324,10 +325,11 @@ export default function HomePage() {
         <SheetSection innerClassName="py-10 px-6 sm:px-12">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-12 md:items-center md:gap-8">
             <div className="space-y-3 md:col-span-5">
-              <h2 className="text-xl font-medium">Bring your LeetCode history</h2>
+              <h2 className="text-xl font-medium">Bring your LeetCode history or DSA sheet</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Already solved a few hundred? Import them from a screenshot. Reviews are spread
-                over 60 days so day one isn&apos;t a wall.
+                Already solved a few hundred? Import them from a LeetCode screenshot, or upload the
+                DSA sheet you track in Excel or CSV. Reviews are spread over 60 days so day one
+                isn&apos;t a wall.
               </p>
               <Link
                 href="/auth/signin?callbackUrl=%2Fimport"
@@ -418,28 +420,19 @@ export default function HomePage() {
         <SheetSection innerClassName="p-6 sm:p-12" band="neutral">
           <div className="mx-auto max-w-3xl space-y-8">
             <div className="space-y-3">
-              <h2 className="text-xl font-medium">Questions about tracking LeetCode with Hash-It</h2>
+              <h2 className="text-xl font-medium">Frequently asked questions about tracking DSA</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                New to spaced repetition for coding problems? Read{" "}
+                New to spaced repetition for DSA? Read{" "}
                 <Link
                   href={GUIDE_PATH}
                   className="border-b border-orange-500 pb-0.5 text-orange-600 transition-colors hover:text-orange-700"
                 >
-                  how to remember LeetCode problems
+                  how to remember DSA problems
                 </Link>
                 .
               </p>
             </div>
-            <dl className="divide-y divide-border border border-border bg-background">
-              {LANDING_FAQ.map(({ q, a }) => (
-                <div key={q} className="space-y-1.5 p-4 sm:p-5">
-                  <dt>
-                    <h3 className="text-sm font-medium text-foreground">{q}</h3>
-                  </dt>
-                  <dd className="text-sm leading-relaxed text-muted-foreground">{a}</dd>
-                </div>
-              ))}
-            </dl>
+            <FaqList items={LANDING_FAQ} />
           </div>
         </SheetSection>
       </main>
