@@ -10,8 +10,11 @@ import { getActivePlan } from "@/lib/weekly-review";
 import { getMonthlyMockState } from "@/lib/monthly-mock";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Today" };
 
 const NEW_USER_ENTRY_LIMIT = 5;
 

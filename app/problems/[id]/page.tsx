@@ -14,8 +14,11 @@ import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { Badge } from "@/components/ui/badge";
 import { EntryCustomFields } from "@/components/entry-custom-fields";
 import { readCustomFieldDefs, filterNonOverlappingFields, type CustomValues } from "@/lib/custom-fields";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Problem" };
 
 export default async function ProblemDetailPage({
   params,

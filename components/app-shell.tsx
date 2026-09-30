@@ -4,6 +4,7 @@ import React from 'react';
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { showsFooter } from "@/lib/site";
 import { Navbar, SidebarNav } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { MonthlyMockProvider } from "@/components/monthly-mock-provider";
@@ -46,7 +47,7 @@ export function AppShell({
           <Navbar user={user} userMenu={userMenu} contestReminder={contestReminder} streak={streak} />
           {sidebarNav ?? <SidebarNav />}
           <main className="w-full flex-1">{children}</main>
-          {pathname === "/" && <Footer />}
+          {showsFooter(pathname) && <Footer />}
         </div>
       </div>
     </MonthlyMockProvider>

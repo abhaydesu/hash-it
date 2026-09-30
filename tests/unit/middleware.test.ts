@@ -40,6 +40,13 @@ describe("middleware auth gate", () => {
       "/icon.svg",
       "/logo-1.svg",
       "/logo-2.svg",
+      "/guides",
+      "/robots.txt",
+      "/sitemap.xml",
+      "/llms.txt",
+      "/manifest.webmanifest",
+      "/opengraph-image",
+      "/twitter-image",
     ]);
 
     expect(isPublicPath("/")).toBe(true);
@@ -93,6 +100,20 @@ describe("middleware auth gate", () => {
       requestUrl: "http://localhost:3000/problems",
     });
     expect(res.status).toBe(200);
+  });
+
+  it("serves crawler files and guides without a session", () => {
+    for (const pathname of [
+      "/robots.txt",
+      "/sitemap.xml",
+      "/llms.txt",
+      "/manifest.webmanifest",
+      "/opengraph-image",
+      "/guides/leetcode-spaced-repetition",
+    ]) {
+      const res = authorizeRequest({ pathname, hasUser: false, requestUrl: `http://localhost:3000${pathname}` });
+      expect(res.status).toBe(200);
+    }
   });
 
   it("redirects authenticated users from the landing page to /today", () => {

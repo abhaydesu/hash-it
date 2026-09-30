@@ -3,8 +3,11 @@ import Link from "next/link";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { SpecCell, SpecGrid, FigureCaption } from "@/components/ui/spec-sheet";
 import { isSafeCallbackPath } from "@/lib/safe";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Sign-in error", robots: { index: false, follow: true } };
 
 type ErrorCopy = { title: string; detail: string; status: string };
 

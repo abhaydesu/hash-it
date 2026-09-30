@@ -13,6 +13,7 @@ import {
 } from "@/components/roadmap/roadmap-client";
 import { PageSkeleton } from "@/components/ui/loader";
 import { SheetSection } from "@/components/ui/sheet-section";
+import type { Metadata } from "next";
 
 function platformFromUrl(url: string): Platform | null {
   try {
@@ -26,6 +27,8 @@ function platformFromUrl(url: string): Platform | null {
 }
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Roadmap" };
 
 export default function RoadmapPage() {
   return (

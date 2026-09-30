@@ -2,8 +2,11 @@ import React, { Suspense } from "react";
 import { getPracticePatterns } from "@/lib/practice";
 import { PracticeClient } from "@/components/practice-client";
 import { SheetSection } from "@/components/ui/sheet-section";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Practice" };
 
 export default function PracticePage() {
   return (

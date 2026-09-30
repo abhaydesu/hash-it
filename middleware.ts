@@ -16,6 +16,15 @@ export const PUBLIC_PATHS = [
   "/icon.svg",
   "/logo-1.svg",
   "/logo-2.svg",
+  // Marketing content and crawler files: search engines and AI crawlers must reach
+  // these without a session (they'd otherwise be redirected to sign-in).
+  "/guides",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/llms.txt",
+  "/manifest.webmanifest",
+  "/opengraph-image",
+  "/twitter-image",
 ] as const;
 
 export function isPublicPath(pathname: string): boolean {

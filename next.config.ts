@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Put <title>, description, canonical and Open Graph tags in <head> for every client.
+  // By default Next streams them into <body> for anyone not on its bot list, which
+  // includes AI crawlers (GPTBot, ClaudeBot, PerplexityBot). All metadata here is static,
+  // so rendering it up front costs nothing.
+  htmlLimitedBots: /.*/,
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",

@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { Logs, Search } from "lucide-react";
 import { openLogProblem } from "@/lib/log-problem";
 import { cn } from "@/lib/utils";
+import { isMarketingPath } from "@/lib/site";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SheetSection } from "@/components/ui/sheet-section";
@@ -49,7 +50,7 @@ export function SidebarNav({ showRoadmap = false }: { showRoadmap?: boolean }) {
     setPendingHref(null);
   }, [pathname]);
 
-  if (pathname === "/" || pathname === "/auth/signin") {
+  if (isMarketingPath(pathname)) {
     return null;
   }
 
@@ -89,7 +90,7 @@ export function SidebarNav({ showRoadmap = false }: { showRoadmap?: boolean }) {
 
 export function Navbar({ user, userMenu, contestReminder, streak }: NavbarProps) {
   const pathname = usePathname();
-  const isMarketingPage = pathname === "/" || pathname === "/auth/signin";
+  const isMarketingPage = isMarketingPath(pathname);
   const isMac = useIsMac();
   const [logPressed, setLogPressed] = useState(false);
 

@@ -3,8 +3,11 @@ import { getUserSettingsRow } from "@/lib/user-settings";
 import { StatsClient } from "@/components/stats-client";
 import { computeAllStats } from "@/lib/stats-engine";
 import { readStatsPreferences } from "@/lib/stats-preferences";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Stats" };
 
 // Loading UI lives in ./loading.tsx.
 export default async function StatsPage() {

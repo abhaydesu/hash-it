@@ -8,8 +8,11 @@ import { SheetSection } from "@/components/ui/sheet-section";
 import { PageSkeleton } from "@/components/ui/loader";
 import { normalizePatternList } from "@/lib/utils";
 import { isUserSource, readCustomFieldDefs, type CustomValues } from "@/lib/custom-fields";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Problems" };
 
 export default function ProblemsPage() {
   return (

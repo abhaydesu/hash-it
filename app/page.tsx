@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import { getSession } from "@/lib/auth";
+import type { Metadata } from "next";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { FigureCaption } from "@/components/ui/spec-sheet";
 import { PixelBlast } from "@/components/ui/pixel-blast";
@@ -9,6 +9,54 @@ import { ForgettingCurveGraph } from "@/components/ui/forgetting-curve";
 import { HeroDemo } from "@/components/hero-demo";
 import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
 import { DailyQueueIllo, WeeklyReviewIllo, MonthlyMockIllo } from "@/components/landing/bento-illos";
+import { JsonLd } from "@/components/json-ld";
+import { AUTHOR, GUIDE_PATH, LANDING_FAQ, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  // A page-level openGraph replaces the root one, so restate the fields it would drop.
+  openGraph: { type: "website", url: "/", siteName: SITE_NAME, title: SITE_TITLE, description: SITE_DESCRIPTION },
+};
+
+const STRUCTURED_DATA = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    alternateName: ["HashIt", "Hash It"],
+    url: `${SITE_URL}/`,
+    description: SITE_DESCRIPTION,
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: SITE_NAME,
+    url: `${SITE_URL}/`,
+    description: SITE_DESCRIPTION,
+    applicationCategory: "EducationalApplication",
+    operatingSystem: "Web",
+    browserRequirements: "Requires a modern web browser and a Google account.",
+    featureList: [
+      "Log LeetCode and GeeksforGeeks problems with time, core idea and mistakes",
+      "FSRS spaced-repetition review schedule",
+      "Daily review queue with quick recall and full re-solve lanes",
+      "Import LeetCode history from a screenshot, CSV or Excel sheet",
+      "Practice unsolved problems by pattern",
+      "Weekly review and monthly timed mock",
+      "Stats, streaks and weakest-pattern tracking",
+    ],
+    author: { "@type": "Person", name: AUTHOR.name, alternateName: AUTHOR.handle, url: AUTHOR.url },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: LANDING_FAQ.map(({ q, a }) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    })),
+  },
+];
 
 const CADENCES = [
   {
@@ -31,39 +79,31 @@ const CADENCES = [
   },
 ];
 
-export default async function HomePage() {
-  const session = await getSession();
-
+// Signed-in visitors are redirected to /today by middleware, so this page is always the logged-out view.
+export default function HomePage() {
   return (
     <div className="relative flex min-h-screen w-full justify-center bg-background font-sans text-foreground selection:bg-foreground selection:text-background">
       <main className="min-h-screen w-full">
+        <JsonLd data={STRUCTURED_DATA} />
 
         {/* ── Hero ── */}
         <SheetSection className="relative" band="hero">
           <div className="relative z-10 flex max-w-3xl flex-col items-start px-6 py-24 sm:py-32">
+            <p className="type-label mb-4 text-orange-600">LeetCode tracker · Spaced repetition</p>
             <h1 className="idea-preview mb-4 text-3xl font-medium tracking-tight sm:text-5xl md:text-6xl">
               Remember every problem you solve.
             </h1>
             <p className="mb-8 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Hash-It uses spaced repetition to schedule your LeetCode reviews. You re-solve
-              what&apos;s fading, skip what&apos;s locked in.
+              Hash-It is a LeetCode tracker that uses spaced repetition to schedule your reviews.
+              You re-solve what&apos;s fading, skip what&apos;s locked in.
             </p>
 
-            {session?.user ? (
-              <Link
-                href="/today"
-                className="pressable inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white hover:bg-orange-600"
-              >
-                Open your queue
-              </Link>
-            ) : (
-              <Link
+            <Link
                 href="/auth/signin"
                 className="pressable inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white hover:bg-orange-600"
               >
                 Get started
               </Link>
-            )}
           </div>
 
           <div className="relative -mx-4 border-t border-border bg-dither-25 pt-6 sm:-mx-8 sm:pt-12">
@@ -290,7 +330,7 @@ export default async function HomePage() {
                 over 60 days so day one isn&apos;t a wall.
               </p>
               <Link
-                href={session?.user ? "/import" : "/auth/signin"}
+                href="/auth/signin?callbackUrl=%2Fimport"
                 className="inline-flex items-center gap-1.5 border-b border-orange-500 pb-0.5 text-xs text-orange-600 transition-colors hover:text-orange-700"
               >
                 Import your problems
@@ -341,21 +381,12 @@ export default async function HomePage() {
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   Start logging problems. The system handles the rest.
                 </p>
-                {session?.user ? (
-                  <Link
-                    href="/today"
-                    className="pressable inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white hover:bg-orange-600"
-                  >
-                    Open your queue
-                  </Link>
-                ) : (
-                  <Link
+                <Link
                     href="/auth/signin"
                     className="pressable inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white hover:bg-orange-600"
                   >
                     Get started
                   </Link>
-                )}
               </div>
             </div>
           </div>
@@ -383,7 +414,34 @@ export default async function HomePage() {
           </div>
         </SheetSection>
 
-        
+        {/* ── FAQ (mirrored in the FAQPage structured data above) ── */}
+        <SheetSection innerClassName="p-6 sm:p-12" band="neutral">
+          <div className="mx-auto max-w-3xl space-y-8">
+            <div className="space-y-3">
+              <h2 className="text-xl font-medium">Questions about tracking LeetCode with Hash-It</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                New to spaced repetition for coding problems? Read{" "}
+                <Link
+                  href={GUIDE_PATH}
+                  className="border-b border-orange-500 pb-0.5 text-orange-600 transition-colors hover:text-orange-700"
+                >
+                  how to remember LeetCode problems
+                </Link>
+                .
+              </p>
+            </div>
+            <dl className="divide-y divide-border border border-border bg-background">
+              {LANDING_FAQ.map(({ q, a }) => (
+                <div key={q} className="space-y-1.5 p-4 sm:p-5">
+                  <dt>
+                    <h3 className="text-sm font-medium text-foreground">{q}</h3>
+                  </dt>
+                  <dd className="text-sm leading-relaxed text-muted-foreground">{a}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </SheetSection>
       </main>
     </div>
   );

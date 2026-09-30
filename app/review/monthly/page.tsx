@@ -6,8 +6,11 @@ import { MonthlyReviewClient } from "@/components/monthly-review-client";
 import { getMonthlyMockState } from "@/lib/monthly-mock";
 import type { MonthlyMockProblem } from "@/components/monthly-mock-provider";
 import { SheetSection } from "@/components/ui/sheet-section";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Monthly mock" };
 
 export default function MonthlyMockPage() {
   return (
