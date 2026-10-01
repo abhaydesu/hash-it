@@ -10,22 +10,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { MockProblem } from "@/lib/monthly-mock-set";
 
-export interface MonthlyMockProblem {
-  id: string;
-  entryId?: string;
-  title: string;
-  number: number | null;
-  url: string;
-  platform: string;
-  patternName: string;
-  difficulty: "EASY" | "MEDIUM" | "HARD" | null;
-}
+/** `kind` is optional so sessions stored before it existed still restore. */
+export type MonthlyMockProblem = Omit<MockProblem, "kind"> & { kind?: MockProblem["kind"] };
 
 export interface MonthlyMockAttempt {
   problemId: string;
   status: "SOLVED_UNAIDED" | "SOLVED_WITH_HELP" | "ATTEMPTED_FAILED";
   minutes: number;
+  /** The entry this attempt landed on (new problems get one when recorded). */
+  entryId?: string;
 }
 
 export type MonthlyMockPhase = "idle" | "running" | "paused" | "finished";

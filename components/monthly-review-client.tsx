@@ -19,7 +19,7 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAlertDialog } from "@/components/ui/alert-dialog";
 import { SYSTEM_SOURCES } from "@/lib/custom-fields";
-import { completeMonthlyMock } from "@/app/actions/monthly-actions";
+import { completeMonthlyMock, saveMonthlyMockNotes } from "@/app/actions/monthly-actions";
 import type { MonthlyMockState } from "@/lib/monthly-mock";
 import { Countdown } from "@/components/ui/countdown";
 import { cn } from "@/lib/utils";
@@ -198,6 +198,7 @@ export function MonthlyReviewClient({
         problemId: p.id,
         status,
         minutes: mins,
+        entryId,
       });
     } catch (err) {
       console.error("Failed to record attempt in mock", err);
@@ -214,11 +215,9 @@ export function MonthlyReviewClient({
         last
         innerClassName="flex flex-col items-center justify-center min-h-[50vh] gap-3 py-12 text-center"
       >
-        <div className="type-caption text-destructive">
-          No problems available to generate mock
-        </div>
+        <div className="type-heading text-foreground">Nothing to review yet</div>
         <p className="max-w-sm type-caption">
-          Ensure you have seeded canonical problems and patterns before starting a monthly mock.
+          The mock only draws from patterns you&apos;ve logged problems in. Log a few problems first, then come back.
         </p>
         <Button variant="secondary" size="sm" onClick={refetchCatalog}>
           Retry
@@ -237,7 +236,7 @@ export function MonthlyReviewClient({
           <span>Monthly mock assessment</span>
         </div>
 
-        <h1 className="type-title text-foreground">Timed mock set (5 problems)</h1>
+        <h1 className="type-title text-foreground">Timed mock set ({catalog.length} problems)</h1>
 
         <StatusBanner status={mockState.status} />
 
@@ -262,7 +261,8 @@ export function MonthlyReviewClient({
             )}
 
             <p className="type-body text-muted-foreground">
-              This mock draws 5 problems from your weakest topics.
+              Shaped like a contest, Easy to Hard: problems you struggled with this month, plus new ones from your
+              weakest patterns.
             </p>
 
             <p className="type-caption">
@@ -274,8 +274,9 @@ export function MonthlyReviewClient({
               <div className="font-semibold text-foreground">Before you start:</div>
               <ul className="list-inside list-disc space-y-1">
                 <li>Open each problem on the platform and solve unaided.</li>
-                <li>Record your outcome: Solved cold, Used hint, or Attempted / failed.</li>
-                <li>Attempts are automatically integrated into your FSRS review schedule.</li>
+                <li>Record your outcome: Solved cold, Used hint, or Saw solution.</li>
+                <li>Attempts are automatically integrated into your FSRS review schedule, and new problems are logged for you.</li>
+                <li>At the end you can jot down the key idea and mistake for each one.</li>
                 <li>You can leave this page — the timer stays in the navbar until you pause or discard it.</li>
               </ul>
             </div>
@@ -318,11 +319,11 @@ export function MonthlyReviewClient({
         </div>
 
         <SpecGrid columns={3}>
-          <SpecCell label="Solved without help" value={`${coldCount}/5`} />
-          <SpecCell label="Needed a hint" value={`${hintCount}/5`} />
+          <SpecCell label="Solved without help" value={`${coldCount}/${problems.length}`} />
+          <SpecCell label="Needed a hint" value={`${hintCount}/${problems.length}`} />
           <SpecCell
             label="Could not solve"
-            value={`${failCount}/5`}
+            value={`${failCount}/${problems.length}`}
             className={failCount > 0 ? "text-destructive" : ""}
           />
         </SpecGrid>
@@ -345,6 +346,9 @@ export function MonthlyReviewClient({
                       )}
                       <Badge variant={diff.variant}>{diff.label}</Badge>
                       <Badge variant="pattern">{p.patternName}</Badge>
+                      {p.kind && (
+                        <span className="type-label">{p.kind === "revisit" ? "Revisit" : "New"}</span>
+                      )}
                     </div>
                     {safeHref(p.url) ? (
                       <a
@@ -377,6 +381,8 @@ export function MonthlyReviewClient({
             })}
           </div>
         </div>
+
+        <WrapUpNotes problems={problems} results={results} />
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <Link href="/problems" className="type-caption text-orange-600 hover:text-orange-700">
@@ -531,5 +537,112 @@ export function MonthlyReviewClient({
       />
       {alertDialog}
     </SheetSection>
+  );
+}
+
+type NoteDraft = { idea: string; mistake: string };
+
+/**
+ * After the mock: note the key idea and the mistake for each problem. New
+ * problems were already logged when recorded; this just fills in what a log
+ * is for. Only changed fields are sent, so existing notes aren't clobbered.
+ */
+function WrapUpNotes({
+  problems,
+  results,
+}: {
+  problems: MonthlyMockProblem[];
+  results: Record<string, { entryId?: string }>;
+}) {
+  const rows = problems
+    .map((p) => ({ p, entryId: results[p.id]?.entryId ?? p.entryId }))
+    .filter((r): r is { p: MonthlyMockProblem; entryId: string } => Boolean(r.entryId));
+  const initial = (p: MonthlyMockProblem): NoteDraft => ({ idea: p.idea ?? "", mistake: p.mistake ?? "" });
+  const [drafts, setDrafts] = useState<Record<string, NoteDraft>>(() =>
+    Object.fromEntries(rows.map(({ p }) => [p.id, initial(p)])),
+  );
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  if (rows.length === 0) return null;
+
+  const changes = rows
+    .map(({ p, entryId }) => {
+      const d = drafts[p.id] ?? initial(p);
+      const base = initial(p);
+      return {
+        entryId,
+        ...(d.idea !== base.idea ? { idea: d.idea } : {}),
+        ...(d.mistake !== base.mistake ? { mistake: d.mistake } : {}),
+      };
+    })
+    .filter((c) => "idea" in c || "mistake" in c);
+
+  const edit = (id: string, field: keyof NoteDraft, value: string) => {
+    setState("idle");
+    setDrafts((prev) => ({ ...prev, [id]: { ...(prev[id] ?? { idea: "", mistake: "" }), [field]: value } }));
+  };
+
+  const save = async () => {
+    setState("saving");
+    try {
+      await saveMonthlyMockNotes(changes);
+      setState("saved");
+    } catch (err) {
+      console.error("Failed to save mock notes", err);
+      setState("error");
+    }
+  };
+
+  const fieldClass =
+    "w-full border border-border bg-background p-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y";
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <h2 className="type-heading text-foreground">Wrap up</h2>
+        <p className="type-caption">
+          Optional. Everything is already logged — a line on the idea and where you got stuck makes the next
+          review much easier.
+        </p>
+      </div>
+      <div className="divide-y divide-border border border-border bg-background">
+        {rows.map(({ p }) => {
+          const d = drafts[p.id] ?? initial(p);
+          return (
+            <div key={p.id} className="space-y-2 p-3.5">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-medium text-foreground">{p.title}</span>
+                {p.kind === "new" && <span className="type-label text-orange-600">New</span>}
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <textarea
+                  aria-label={`Key idea for ${p.title}`}
+                  value={d.idea}
+                  onChange={(e) => edit(p.id, "idea", e.target.value)}
+                  rows={2}
+                  placeholder="Key idea"
+                  className={fieldClass}
+                />
+                <textarea
+                  aria-label={`Mistake for ${p.title}`}
+                  value={d.mistake}
+                  onChange={(e) => edit(p.id, "mistake", e.target.value)}
+                  rows={2}
+                  placeholder="Mistake / where I got stuck"
+                  className={fieldClass}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-3">
+        <Button variant="primary" size="sm" onClick={save} disabled={changes.length === 0 || state === "saving" || state === "saved"}>
+          {state === "saving" ? "Saving…" : "Save notes"}
+        </Button>
+        {state === "saved" && <span className="type-caption text-easy">Saved to your problems.</span>}
+        {state === "error" && <span className="type-caption text-destructive">Couldn&apos;t save. Try again.</span>}
+      </div>
+    </div>
   );
 }

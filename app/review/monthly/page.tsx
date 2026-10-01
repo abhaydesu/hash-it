@@ -1,10 +1,8 @@
 import React, { Suspense } from "react";
-import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { calculateRetrievability, type ReviewCardData } from "@/lib/scheduler";
 import { MonthlyReviewClient } from "@/components/monthly-review-client";
 import { getMonthlyMockState } from "@/lib/monthly-mock";
-import type { MonthlyMockProblem } from "@/components/monthly-mock-provider";
+import { buildMonthlyMockSet } from "@/lib/monthly-mock-set";
 import { SheetSection } from "@/components/ui/sheet-section";
 import type { Metadata } from "next";
 
@@ -23,110 +21,9 @@ export default function MonthlyMockPage() {
 async function MonthlyMockData() {
   const user = await getCurrentUser();
   const now = new Date();
+  const [mockState, catalog] = await Promise.all([getMonthlyMockState(user.id, now), buildMonthlyMockSet(user.id, now)]);
 
-  // Mock state doesn't depend on the catalog, so it loads alongside it.
-  const [patterns, mockState] = await Promise.all([
-    prisma.pattern.findMany({
-      include: {
-        problems: {
-          select: {
-            problem: {
-              select: {
-                id: true,
-                title: true,
-                number: true,
-                url: true,
-                platform: true,
-                difficulty: true,
-                entries: {
-                  where: { userId: user.id },
-                  select: { id: true, reviewCard: true },
-                },
-              },
-            },
-          },
-        },
-      },
-    }),
-    getMonthlyMockState(user.id, now),
-  ]);
-
-  const patternScores = patterns.map((p) => {
-    const cards = p.problems
-      .flatMap((pp) => pp.problem.entries.map((e) => e.reviewCard))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-
-    const avgRetrievability = cards.length
-      ? cards.reduce((sum, c) => sum + calculateRetrievability(c as ReviewCardData, now), 0) / cards.length
-      : 0.5;
-
-    return {
-      id: p.id,
-      name: p.name,
-      family: p.family,
-      avgRetrievability,
-      problems: p.problems.map((pp) => pp.problem),
-    };
-  });
-
-  patternScores.sort((a, b) => a.avgRetrievability - b.avgRetrievability);
-
-  const selectedProblems: MonthlyMockProblem[] = [];
-  const usedProblemIds = new Set<string>();
-  const usedFamilies = new Set<string>();
-
-  for (const pat of patternScores) {
-    if (selectedProblems.length >= 5) break;
-    if (usedFamilies.has(pat.family)) continue;
-
-    const candidate = pat.problems.find((p) => !usedProblemIds.has(p.id));
-    if (candidate) {
-      usedProblemIds.add(candidate.id);
-      usedFamilies.add(pat.family);
-      selectedProblems.push({
-        id: candidate.id,
-        entryId: candidate.entries[0]?.id,
-        title: candidate.title,
-        number: candidate.number,
-        url: candidate.url,
-        platform: candidate.platform,
-        patternName: pat.name,
-        difficulty: candidate.difficulty as MonthlyMockProblem["difficulty"],
-      });
-    }
-  }
-
-  if (selectedProblems.length < 5) {
-    const fillerProblems = await prisma.problem.findMany({
-      where: { id: { notIn: Array.from(usedProblemIds) } },
-      take: 5 - selectedProblems.length,
-      select: {
-        id: true,
-        title: true,
-        number: true,
-        url: true,
-        platform: true,
-        difficulty: true,
-        patterns: { select: { pattern: { select: { name: true } } }, take: 1 },
-        entries: { where: { userId: user.id }, select: { id: true }, take: 1 },
-      },
-    });
-
-    for (const fp of fillerProblems) {
-      selectedProblems.push({
-        id: fp.id,
-        entryId: fp.entries[0]?.id,
-        title: fp.title,
-        number: fp.number,
-        url: fp.url,
-        platform: fp.platform,
-        patternName: fp.patterns[0]?.pattern.name || "General",
-        difficulty: fp.difficulty as MonthlyMockProblem["difficulty"],
-      });
-    }
-  }
-
-  return <MonthlyReviewClient initialCatalog={selectedProblems} mockState={mockState} />;
+  return <MonthlyReviewClient initialCatalog={catalog} mockState={mockState} />;
 }
 
 function MonthlySkeleton() {
