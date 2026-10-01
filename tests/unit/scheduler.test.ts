@@ -27,6 +27,27 @@ describe("lib/scheduler.ts unit tests", () => {
   });
 
   describe("deriveRating", () => {
+    describe("when speed can't earn EASY", () => {
+      const fast = { status: "SOLVED_UNAIDED" as const, minutes: 10, difficulty: "MEDIUM" as const };
+
+      it("caps a fast first log at GOOD — speed there shows skill, not retention", () => {
+        expect(deriveRating(fast)).toBe("EASY");
+        expect(deriveRating({ ...fast, firstSolve: true })).toBe("GOOD");
+      });
+
+      it("caps the first success after a fail or hint at GOOD", () => {
+        expect(deriveRating({ ...fast, previousRating: "AGAIN" })).toBe("GOOD");
+        expect(deriveRating({ ...fast, previousRating: "HARD" })).toBe("GOOD");
+        expect(deriveRating({ ...fast, previousRating: "GOOD" })).toBe("EASY");
+      });
+
+      it("never lowers anything below what it would otherwise be", () => {
+        expect(deriveRating({ ...fast, minutes: 90, firstSolve: true })).toBe("GOOD");
+        expect(deriveRating({ ...fast, status: "SOLVED_WITH_HELP", previousRating: "AGAIN" })).toBe("HARD");
+        expect(deriveRating({ ...fast, status: "ATTEMPTED_FAILED", firstSolve: true })).toBe("AGAIN");
+      });
+    });
+
     describe("status and flag overrides", () => {
       it("always returns AGAIN when status is ATTEMPTED_FAILED regardless of minutes or hints", () => {
         expect(deriveRating({ status: "ATTEMPTED_FAILED", minutes: 5 })).toBe("AGAIN");
@@ -152,6 +173,13 @@ describe("lib/scheduler.ts unit tests", () => {
     it("forces RESOLVE after a struggle, however durable the card looked", () => {
       expect(deriveLane({ lastRating: "AGAIN", stability: durable * 100 })).toBe("RESOLVE");
       expect(deriveLane({ lastRating: "HARD", stability: durable * 100 })).toBe("RESOLVE");
+    });
+
+    it("needs two clean attempts in a row after a struggle before quick checks", () => {
+      // One success right after a fail isn't enough, however durable FSRS thinks it is.
+      expect(deriveLane({ recentRatings: ["EASY", "AGAIN"], stability: durable * 3 })).toBe("RESOLVE");
+      expect(deriveLane({ recentRatings: ["GOOD", "HARD"], stability: durable * 3 })).toBe("RESOLVE");
+      expect(deriveLane({ recentRatings: ["GOOD", "GOOD", "AGAIN"], stability: durable })).toBe("RECALL");
     });
 
     it("defaults to RESOLVE when maturity is unknown or the card is new", () => {

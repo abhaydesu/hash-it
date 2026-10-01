@@ -50,7 +50,7 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
             },
             attempts: {
               orderBy: { at: "desc" },
-              take: 1,
+              take: 2,
               select: { rating: true },
             },
           },
@@ -68,10 +68,10 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
   const queueItems = dueCards.map((card) => {
     const problem = card.entry.problem;
     const family = problem.patterns[0]?.pattern.family ?? null;
-    const lastAttempt = card.entry.attempts[0];
-    const lastRating = (lastAttempt?.rating ?? null) as AppRating | null;
+    const recentRatings = card.entry.attempts.map((a) => a.rating as AppRating);
+    const lastRating = recentRatings[0] ?? null;
     const revisit = card.entry.revisit ?? false;
-    const lane = deriveLane({ lastRating, lapses: card.lapses, stability: card.stability });
+    const lane = deriveLane({ recentRatings, lapses: card.lapses, stability: card.stability });
 
     return {
       entryId: card.entryId,

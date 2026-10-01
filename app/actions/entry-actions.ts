@@ -123,7 +123,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
         problemId: targetProblemId,
       },
     },
-    include: { reviewCard: true },
+    include: { reviewCard: true, attempts: { orderBy: { at: "desc" }, take: 1, select: { rating: true } } },
   });
 
   const now = new Date();
@@ -148,6 +148,8 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
       usedHint: data.status === "SOLVED_WITH_HELP",
       difficulty: problem.difficulty as ProblemDifficulty | null,
       baselines,
+      firstSolve: !existingEntry.reviewCard && existingEntry.attempts.length === 0,
+      previousRating: (existingEntry.attempts[0]?.rating ?? null) as AppRating | null,
     });
 
     let updatedCardData;
@@ -252,6 +254,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
     minutes: data.minutes,
     usedHint: data.status === "SOLVED_WITH_HELP",
     difficulty: problem.difficulty as ProblemDifficulty | null,
+    firstSolve: true,
     baselines: newEntrySettings
       ? {
           easy: newEntrySettings.easyBaseline,
@@ -341,7 +344,11 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
 
   const entry = await prisma.entry.findFirstOrThrow({
     where: { id: data.entryId, userId: user.id },
-    include: { problem: true, reviewCard: true },
+    include: {
+      problem: true,
+      reviewCard: true,
+      attempts: { orderBy: { at: "desc" }, take: 1, select: { rating: true } },
+    },
   });
 
   const userSettings = await prisma.userSettings.findUnique({
@@ -362,32 +369,37 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
     usedHint: data.usedHint || data.status === "SOLVED_WITH_HELP",
     difficulty: entry.problem.difficulty as ProblemDifficulty | null,
     baselines,
+    firstSolve: !entry.reviewCard && entry.attempts.length === 0,
+    previousRating: (entry.attempts[0]?.rating ?? null) as AppRating | null,
   });
 
   const now = new Date();
 
-  const currentCard = entry.reviewCard
-    ? {
-        entryId: entry.id,
-        due: entry.reviewCard.due,
-        stability: entry.reviewCard.stability,
-        difficulty: entry.reviewCard.difficulty,
-        elapsedDays: entry.reviewCard.elapsedDays,
-        scheduledDays: entry.reviewCard.scheduledDays,
-        reps: entry.reviewCard.reps,
-        lapses: entry.reviewCard.lapses,
-        state: entry.reviewCard.state as any,
-        lastReview: entry.reviewCard.lastReview,
-      }
-    : seedCard({ entryId: entry.id, rating, now });
-
-  const updatedCard = advanceCard({
-    currentCard,
-    rating,
-    reviewDate: now,
+  // This attempt advances the existing card; with no card yet it *is* the first
+  // review, so it seeds one — applying the rating once, not twice.
+  const schedule = {
     desiredRetention: userSettings?.desiredRetention ?? 0.80,
     fsrsParams: userSettings?.fsrsParams ?? [],
-  });
+  };
+  const updatedCard = entry.reviewCard
+    ? advanceCard({
+        currentCard: {
+          entryId: entry.id,
+          due: entry.reviewCard.due,
+          stability: entry.reviewCard.stability,
+          difficulty: entry.reviewCard.difficulty,
+          elapsedDays: entry.reviewCard.elapsedDays,
+          scheduledDays: entry.reviewCard.scheduledDays,
+          reps: entry.reviewCard.reps,
+          lapses: entry.reviewCard.lapses,
+          state: entry.reviewCard.state as any,
+          lastReview: entry.reviewCard.lastReview,
+        },
+        rating,
+        reviewDate: now,
+        ...schedule,
+      })
+    : seedCard({ entryId: entry.id, rating, now, ...schedule });
 
   await prisma.$transaction([
     prisma.attempt.create({
@@ -466,28 +478,31 @@ export async function recordRecallAttempt(input: z.input<typeof RecordRecallSche
   const userSettings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
   const now = new Date();
 
-  const currentCard = entry.reviewCard
-    ? {
-        entryId: entry.id,
-        due: entry.reviewCard.due,
-        stability: entry.reviewCard.stability,
-        difficulty: entry.reviewCard.difficulty,
-        elapsedDays: entry.reviewCard.elapsedDays,
-        scheduledDays: entry.reviewCard.scheduledDays,
-        reps: entry.reviewCard.reps,
-        lapses: entry.reviewCard.lapses,
-        state: entry.reviewCard.state as any,
-        lastReview: entry.reviewCard.lastReview,
-      }
-    : seedCard({ entryId: entry.id, rating: data.rating as AppRating, now });
-
-  const updatedCard = advanceCard({
-    currentCard,
-    rating: data.rating as AppRating,
-    reviewDate: now,
+  // This attempt advances the existing card; with no card yet it *is* the first
+  // review, so it seeds one — applying the rating once, not twice.
+  const schedule = {
     desiredRetention: userSettings?.desiredRetention ?? 0.80,
     fsrsParams: userSettings?.fsrsParams ?? [],
-  });
+  };
+  const updatedCard = entry.reviewCard
+    ? advanceCard({
+        currentCard: {
+          entryId: entry.id,
+          due: entry.reviewCard.due,
+          stability: entry.reviewCard.stability,
+          difficulty: entry.reviewCard.difficulty,
+          elapsedDays: entry.reviewCard.elapsedDays,
+          scheduledDays: entry.reviewCard.scheduledDays,
+          reps: entry.reviewCard.reps,
+          lapses: entry.reviewCard.lapses,
+          state: entry.reviewCard.state as any,
+          lastReview: entry.reviewCard.lastReview,
+        },
+        rating: data.rating as AppRating,
+        reviewDate: now,
+        ...schedule,
+      })
+    : seedCard({ entryId: entry.id, rating: data.rating as AppRating, now, ...schedule });
 
   await prisma.$transaction([
     prisma.attempt.create({
@@ -635,6 +650,7 @@ export async function toggleScheduleReview(entryId: string, schedule: boolean) {
         rating: deriveRating({
           status: (entry.status as SolveStatusType) || "SOLVED_UNAIDED",
           minutes: entry.minutes,
+          firstSolve: true,
         }),
         now,
         desiredRetention: userSettings?.desiredRetention ?? 0.80,

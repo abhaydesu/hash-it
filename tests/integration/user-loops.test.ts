@@ -114,6 +114,22 @@ describe("User Loops (Integration)", () => {
       expect(card?.state).toBe(CardState.REVIEW);
       // Scheduled for next review
       expect(card?.scheduledDays).toBeLessThanOrEqual(1);
+
+      // 4. A fast cold solve right after the fail has to earn its way back: GOOD, not EASY
+      const recovery = await recordReviewAttempt({ entryId, status: "SOLVED_UNAIDED", minutes: 5 });
+      expect(recovery.rating).toBe("GOOD");
+    });
+  });
+
+  it("logs a fast first solve as GOOD, not EASY", async () => {
+    await runInTestTransaction(async (tx) => {
+      const user = await createTestUser({}, tx);
+      const problem = await createTestProblem({ difficulty: "MEDIUM" }, tx);
+      setTestUser(user);
+
+      const { entryId } = await createEntry({ problemId: problem.id, status: "SOLVED_UNAIDED", minutes: 10 });
+      const attempt = await tx.attempt.findFirstOrThrow({ where: { entryId } });
+      expect(attempt.rating).toBe(Rating.GOOD);
     });
   });
 

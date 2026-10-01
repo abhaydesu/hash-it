@@ -72,6 +72,7 @@ async function main() {
         usedHint: entry.status === "SOLVED_WITH_HELP",
         difficulty: entry.problem.difficulty as ProblemDifficulty | null,
         baselines,
+        firstSolve: true,
       });
 
       const card = seedCard({

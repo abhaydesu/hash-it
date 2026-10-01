@@ -106,6 +106,7 @@ function trajectory(
     usedHint: outcome.usedHint,
     difficulty,
     minutes,
+    firstSolve: true,
   });
 
   // The log's own rating seeds the card, so solve speed shapes the first interval.
@@ -115,16 +116,22 @@ function trajectory(
     now: NOW,
     desiredRetention: RETENTION,
   });
-  let lastRating = logRating;
+  const recentRatings: AppRating[] = [logRating];
   const path: Step[] = [];
 
   for (let i = 0; i < steps; i++) {
-    const lane = deriveLane({ lastRating, lapses: card.lapses, stability: card.stability });
+    const lane = deriveLane({ recentRatings, lapses: card.lapses, stability: card.stability });
     const dueAt = new Date(card.due);
     // A re-solve is graded on the clock; a quick recall is self-rated.
     const rating: AppRating =
       lane === "RESOLVE"
-        ? deriveRating({ status: outcome.status, usedHint: outcome.usedHint, difficulty, minutes })
+        ? deriveRating({
+            status: outcome.status,
+            usedHint: outcome.usedHint,
+            difficulty,
+            minutes,
+            previousRating: recentRatings[0],
+          })
         : "GOOD";
 
     path.push({
@@ -134,7 +141,7 @@ function trajectory(
     });
 
     card = advanceCard({ currentCard: card, rating, reviewDate: dueAt, desiredRetention: RETENTION });
-    lastRating = rating;
+    recentRatings.unshift(rating);
   }
 
   return { logRating, path };

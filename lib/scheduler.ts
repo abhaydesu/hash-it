@@ -72,6 +72,10 @@ export interface DeriveRatingInput {
   usedHint?: boolean;
   difficulty?: ProblemDifficulty | null;
   baselines?: TimeBaselines;
+  /** The first time this problem is logged: speed shows skill, not retention. */
+  firstSolve?: boolean;
+  /** Rating of the attempt before this one, if any. */
+  previousRating?: AppRating | null;
 }
 
 export interface ReviewCardData {
@@ -105,15 +109,21 @@ export interface QueueItem {
  *
  * Maturity decides. A problem is re-solved while the memory is still fragile —
  * recognising an approach is not the same as being able to produce the code —
- * and switches to cheap recall checks once FSRS considers it durable. Struggling
- * on the last attempt always forces a re-solve, however durable it looked.
+ * and switches to cheap recall checks once FSRS considers it durable.
+ *
+ * Struggling forces a re-solve, and it takes two clean attempts in a row to earn
+ * quick checks back: a single success right after a fail (especially a late one,
+ * which FSRS rewards heavily) is not yet evidence the problem is retained.
  */
 export function deriveLane(item: {
   lastRating?: AppRating | null;
+  /** Most recent first; only the last two matter. Falls back to `lastRating`. */
+  recentRatings?: AppRating[];
   lapses?: number;
   stability?: number;
 }): ReviewLane {
-  if (item.lastRating === "AGAIN" || item.lastRating === "HARD") return "RESOLVE";
+  const recent = item.recentRatings ?? (item.lastRating ? [item.lastRating] : []);
+  if (recent.slice(0, 2).some((r) => r === "AGAIN" || r === "HARD")) return "RESOLVE";
   return (item.stability ?? 0) < DURABLE_STABILITY_DAYS ? "RESOLVE" : "RECALL";
 }
 
@@ -150,11 +160,14 @@ export const FSRS_RATING_TO_APP: Record<number, AppRating> = {
  * - failed -> Again
  * - any outside help (hint or solution) -> Hard, however fast it was
  * - solved cold -> Good, however slow it was
- * - solved cold within 0.75x the difficulty baseline -> Easy
+ * - solved cold within 0.75x the difficulty baseline -> Easy, except:
+ *   - on the first log, where a fast solve shows skill rather than retention, and
+ *   - on the first success after a fail or hint, which must earn its way back
+ *   both of which stay Good.
  * Baselines: Easy 20m, Medium 40m, Hard 60m.
  */
 export function deriveRating(input: DeriveRatingInput): AppRating {
-  const { status, minutes, usedHint, difficulty, baselines = DEFAULT_BASELINES } = input;
+  const { status, minutes, usedHint, difficulty, baselines = DEFAULT_BASELINES, firstSolve, previousRating } = input;
 
   if (status === "ATTEMPTED_FAILED") {
     return "AGAIN";
@@ -177,7 +190,9 @@ export function deriveRating(input: DeriveRatingInput): AppRating {
       ? baselines.hard
       : baselines.medium;
 
-  return minutes <= Math.round(0.75 * baselineMinutes) ? "EASY" : "GOOD";
+  if (minutes > Math.round(0.75 * baselineMinutes)) return "GOOD";
+  if (firstSolve || previousRating === "AGAIN" || previousRating === "HARD") return "GOOD";
+  return "EASY";
 }
 
 /**
