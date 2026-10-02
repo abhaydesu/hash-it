@@ -137,4 +137,62 @@ describe("MonthlyMockProvider and NavControls", () => {
     expect(screen.getByTestId("active")).toHaveTextContent("false");
     expect(screen.getByTestId("phase")).toHaveTextContent("idle");
   });
+
+  it("times each problem on its own, not from the start of the session", async () => {
+    const problems: MonthlyMockProblem[] = [1, 2, 3].map((n) => ({
+      id: `p${n}`,
+      title: `Problem ${n}`,
+      number: n,
+      url: `https://example.com/${n}`,
+      platform: "LEETCODE",
+      patternName: "Arrays",
+      difficulty: "MEDIUM",
+    }));
+    const attempt = (id: string) => ({ problemId: id, status: "SOLVED_UNAIDED" as const, minutes: 10 });
+
+    function Harness() {
+      const { startSession, advanceAfterRecord, elapsedSeconds, problemElapsedSeconds, pause, resume } = useMonthlyMock();
+      return (
+        <div>
+          <div data-testid="total">{elapsedSeconds}</div>
+          <div data-testid="problem">{problemElapsedSeconds}</div>
+          <button onClick={() => startSession(problems)}>Start</button>
+          <button onClick={() => advanceAfterRecord("p1", attempt("p1"))}>Next</button>
+          <button onClick={pause}>Pause</button>
+          <button onClick={resume}>Resume</button>
+        </div>
+      );
+    }
+
+    render(
+      <MonthlyMockProvider>
+        <Harness />
+      </MonthlyMockProvider>
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    act(() => {
+      vi.advanceTimersByTime(600_000); // 10 min on problem 1
+    });
+    expect(screen.getByTestId("problem")).toHaveTextContent("600");
+
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByTestId("problem")).toHaveTextContent("0");
+
+    // 10 more minutes on problem 2, with a pause that must not count
+    act(() => {
+      vi.advanceTimersByTime(300_000);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Pause" }));
+    act(() => {
+      vi.advanceTimersByTime(900_000);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Resume" }));
+    act(() => {
+      vi.advanceTimersByTime(300_000);
+    });
+
+    expect(screen.getByTestId("problem")).toHaveTextContent("600");
+    expect(screen.getByTestId("total")).toHaveTextContent("1200"); // whole session clock is untouched
+  });
 });

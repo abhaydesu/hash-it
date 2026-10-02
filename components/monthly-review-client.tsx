@@ -114,6 +114,7 @@ export function MonthlyReviewClient({
     results,
     problemMinutes,
     elapsedSeconds,
+    problemElapsedSeconds,
     isActive,
     startSession,
     pause,
@@ -171,7 +172,7 @@ export function MonthlyReviewClient({
 
     const mins = problemMinutes
       ? parseInt(problemMinutes, 10)
-      : Math.max(1, Math.round(elapsedSeconds / 60));
+      : Math.max(1, Math.round(problemElapsedSeconds / 60));
     setIsSubmitting(true);
 
     try {

@@ -33,6 +33,8 @@ interface PersistedSession {
   phase: MonthlyMockPhase;
   accumulatedMs: number;
   runningSince: number | null;
+  /** Session clock (ms) when the current problem started, so each problem is timed on its own. */
+  problemStartMs?: number;
   results: Record<string, MonthlyMockAttempt>;
   problemMinutes: string;
 }
@@ -44,7 +46,10 @@ interface MonthlyMockContextValue {
   currentIndex: number;
   results: Record<string, MonthlyMockAttempt>;
   problemMinutes: string;
+  /** Whole-session clock. */
   elapsedSeconds: number;
+  /** Time spent on the current problem only (excludes paused time). */
+  problemElapsedSeconds: number;
   isActive: boolean;
   startSession: (problems: MonthlyMockProblem[]) => void;
   pause: () => void;
@@ -137,6 +142,7 @@ export function MonthlyMockProvider({ children }: { children: ReactNode }) {
       phase: "running",
       accumulatedMs: 0,
       runningSince: startedAt,
+      problemStartMs: 0,
       results: {},
       problemMinutes: "",
     });
@@ -211,16 +217,20 @@ export function MonthlyMockProvider({ children }: { children: ReactNode }) {
           runningSince: null,
         };
       }
+      const stamp = Date.now();
       return {
         ...prev,
         results,
         problemMinutes: "",
         currentIndex: nextIndex,
+        problemStartMs: computeElapsedMs(prev, stamp),
       };
     });
   }, []);
 
-  const elapsedSeconds = Math.floor(computeElapsedMs(session, now) / 1000);
+  const elapsedMs = computeElapsedMs(session, now);
+  const elapsedSeconds = Math.floor(elapsedMs / 1000);
+  const problemElapsedSeconds = Math.max(0, Math.floor((elapsedMs - (session?.problemStartMs ?? 0)) / 1000));
   const phase = session?.phase ?? "idle";
   const isActive = phase === "running" || phase === "paused";
 
@@ -233,6 +243,7 @@ export function MonthlyMockProvider({ children }: { children: ReactNode }) {
       results: session?.results ?? {},
       problemMinutes: session?.problemMinutes ?? "",
       elapsedSeconds,
+      problemElapsedSeconds,
       isActive,
       startSession,
       pause,
@@ -247,6 +258,7 @@ export function MonthlyMockProvider({ children }: { children: ReactNode }) {
       phase,
       session,
       elapsedSeconds,
+      problemElapsedSeconds,
       isActive,
       startSession,
       pause,
