@@ -9,7 +9,7 @@ export function TodayPageActions({ compact = false }: { compact?: boolean }) {
     return (
       <button
         type="button"
-        onClick={openLogProblem}
+        onClick={() => openLogProblem()}
         className="pressable flex w-full items-center justify-between border border-border bg-background px-3 py-2.5 text-left text-xs text-foreground hover:bg-muted sm:text-sm"
       >
         <span>Log a new problem</span>
@@ -21,7 +21,7 @@ export function TodayPageActions({ compact = false }: { compact?: boolean }) {
   return (
     <button
       type="button"
-      onClick={openLogProblem}
+      onClick={() => openLogProblem()}
       className="pressable inline-flex items-center justify-center gap-2 border border-primary bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
     >
       <Plus className="h-3.5 w-3.5" />

@@ -170,7 +170,7 @@ export function DataTable({ data, patternsList, customFields: rawFields, showSou
           </button>
           <button
             type="button"
-            onClick={openLogProblem}
+            onClick={() => openLogProblem()}
             className="pressable flex items-center gap-1.5 border border-primary bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-3 w-3" />

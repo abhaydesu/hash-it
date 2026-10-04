@@ -130,7 +130,7 @@ export function WeeklyPlanItems({
   }, []);
 
   const isDone = (item: PlanItemView) =>
-    item.done || doneIds.has(item.problemId) || (item.entryId != null && extraDoneIds?.has(item.entryId));
+    !!(item.done || doneIds.has(item.problemId) || (item.entryId != null && extraDoneIds?.has(item.entryId)));
 
   return (
     <>
