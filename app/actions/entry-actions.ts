@@ -241,6 +241,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
     revalidatePath("/today");
     revalidatePath("/problems");
     revalidatePath("/stats");
+    revalidatePath("/review/weekly");
     return { success: true, entryId: updatedEntry.id, isNew: false };
   }
 
@@ -324,6 +325,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
   revalidatePath("/today");
   revalidatePath("/problems");
   revalidatePath("/stats");
+  revalidatePath("/review/weekly");
   return { success: true, entryId: result.id, isNew: true };
 }
 
@@ -454,6 +456,7 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
   revalidatePath("/today");
   revalidatePath("/problems");
   revalidatePath("/stats");
+  revalidatePath("/review/weekly");
   return { success: true, rating, nextDue: updatedCard.due };
 }
 
@@ -547,6 +550,7 @@ export async function recordRecallAttempt(input: z.input<typeof RecordRecallSche
   revalidatePath("/today");
   revalidatePath("/problems");
   revalidatePath("/stats");
+  revalidatePath("/review/weekly");
   return { success: true, rating: data.rating, nextDue: updatedCard.due };
 }
 

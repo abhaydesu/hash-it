@@ -2,14 +2,15 @@
 import React from "react";
 
 import Link from "next/link";
-import { ArrowRight, CalendarRange, Check, Clock3, X } from "lucide-react";
+import { ArrowRight, CalendarRange, Clock3, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { RecallCardItem } from "@/components/recall-card-item";
 import { ReviewCardItem } from "@/components/review-card-item";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
 import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
-import type { PlanItemView, getActivePlan } from "@/lib/weekly-review";
+import { WeeklyPlanItems } from "@/components/weekly-plan-items";
+import type { getActivePlan } from "@/lib/weekly-review";
 import type { MonthlyStatus } from "@/lib/review-windows";
 import { Countdown } from "@/components/ui/countdown";
 import { ImportPromptBanner } from "@/components/import-prompt-banner";
@@ -99,12 +100,19 @@ function MonthlyTile({ status, lastMock }: { status: MonthlyStatus; lastMock: To
   );
 }
 
-const PLAN_LABEL: Record<PlanItemView["kind"], string> = { REDO: "Redo", FRESH: "New", REVISIT: "Revisit" };
-
 /** Today's view of the weekly review: the committed plan, or a nudge to do this week's review. */
-function WeeklyTile({ plan }: { plan: TodayData["weeklyPlan"] }) {
+function WeeklyTile({
+  plan,
+  extraDoneIds,
+  onReviewed,
+}: {
+  plan: TodayData["weeklyPlan"];
+  extraDoneIds?: Set<string>;
+  onReviewed?: (entryId: string) => void;
+}) {
   const items = plan.items;
-  const done = items?.filter((i) => i.done).length ?? 0;
+  const done =
+    items?.filter((i) => i.done || (i.entryId != null && extraDoneIds?.has(i.entryId))).length ?? 0;
   return (
     <div className="flex flex-col justify-between bg-background p-4 sm:p-5">
       <div>
@@ -121,18 +129,20 @@ function WeeklyTile({ plan }: { plan: TodayData["weeklyPlan"] }) {
           )}
         </div>
         {items ? (
-          <ul className="mt-2 space-y-1.5">
-            {items.map((i) => (
-              <li key={i.kind} className="flex items-center gap-2 text-xs">
-                <span className="w-14 shrink-0 type-label text-muted-foreground">{PLAN_LABEL[i.kind]}</span>
-                <span className={cn("min-w-0 flex-1 truncate", i.done ? "text-muted-foreground line-through" : "text-foreground")}>
+          <div className="mt-2 space-y-1.5">
+            <WeeklyPlanItems
+              items={items}
+              compact
+              extraDoneIds={extraDoneIds}
+              onReviewed={onReviewed}
+              renderProblem={(i, isDone) => (
+                <span className={cn("min-w-0 flex-1 truncate", isDone ? "text-muted-foreground line-through" : "text-foreground")}>
                   {i.number != null && <span className="tabular-nums text-muted-foreground">{i.number}. </span>}
                   {i.title}
                 </span>
-                {i.done && <Check className="h-3.5 w-3.5 shrink-0 text-easy" />}
-              </li>
-            ))}
-          </ul>
+              )}
+            />
+          </div>
         ) : (
           <p className="mt-2 type-caption leading-relaxed">
             Look back, catch what&apos;s slipping, plan three problems. About ten minutes.
@@ -293,7 +303,7 @@ export function TodayClient({ data }: { data: TodayData }) {
 
       <SheetSection innerClassName="py-6" band="none" last>
         <div className="grid grid-cols-1 divide-y divide-border border border-border md:grid-cols-2 md:divide-x md:divide-y-0">
-          <WeeklyTile plan={data.weeklyPlan} />
+          <WeeklyTile plan={data.weeklyPlan} extraDoneIds={completedIds} onReviewed={handleCardComplete} />
 
           <MonthlyTile status={data.monthlyStatus} lastMock={data.lastMock} />
         </div>

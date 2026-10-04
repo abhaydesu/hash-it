@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useMemo, useState, useTransition } from "react";
+import React, { useEffect, useMemo, useState, useTransition } from "react";
 import { CalendarClock, Check, CircleCheck, ExternalLink, RefreshCw, Trophy, X } from "lucide-react";
 import { recordRecallCheck, commitWeeklyPlan } from "@/app/actions/weekly-actions";
-import type { Confidence, PlanKind, ProblemRef, RecallCheckItem, WeeklyReviewData } from "@/lib/weekly-review";
+import { WeeklyPlanItems } from "@/components/weekly-plan-items";
+import type { Confidence, PlanItemView, PlanKind, ProblemRef, RecallCheckItem, WeeklyReviewData } from "@/lib/weekly-review";
 import type { Contest } from "@/lib/contests";
 import { useMounted } from "@/lib/use-mounted";
 import { Countdown } from "@/components/ui/countdown";
@@ -318,7 +319,27 @@ function ContestLine({ contest }: { contest: Contest }) {
   );
 }
 
-function Plan({ plan, contest, open }: { plan: WeeklyReviewData["plan"]; contest: Contest | null; open: boolean }) {
+function toDraftItems(
+  chosen: Array<{ kind: PlanKind; problem: ProblemRef }>,
+  previous: WeeklyReviewData["plan"]["committed"],
+): PlanItemView[] {
+  return chosen.map(({ kind, problem }) => {
+    const prev = previous?.find((i) => i.kind === kind && i.problemId === problem.problemId);
+    return { ...problem, kind, done: prev?.done ?? false, entryId: prev?.entryId ?? null };
+  });
+}
+
+function Plan({
+  plan,
+  contest,
+  open,
+  onCommitted,
+}: {
+  plan: WeeklyReviewData["plan"];
+  contest: Contest | null;
+  open: boolean;
+  onCommitted?: (hasPlan: boolean) => void;
+}) {
   const [editing, setEditing] = useState(open && plan.committed == null);
   const [index, setIndex] = useState<Record<PlanKind, number>>(() => {
     // Start editing from what's already committed, when possible.
@@ -328,6 +349,7 @@ function Plan({ plan, contest, open }: { plan: WeeklyReviewData["plan"]; contest
   });
   const [skipped, setSkipped] = useState<Set<PlanKind>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [optimistic, setOptimistic] = useState<PlanItemView[] | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const chosen = PLAN_ORDER.flatMap((kind) => {
@@ -337,15 +359,29 @@ function Plan({ plan, contest, open }: { plan: WeeklyReviewData["plan"]; contest
 
   const commit = () => {
     setError(null);
+    const items = toDraftItems(chosen, plan.committed);
+    setOptimistic(items);
+    setEditing(false);
+    onCommitted?.(true);
     startTransition(async () => {
       try {
         await commitWeeklyPlan({ items: chosen.map((c) => ({ kind: c.kind, problemId: c.problem.problemId })) });
-        setEditing(false);
       } catch {
+        setOptimistic(null);
+        setEditing(true);
+        onCommitted?.(plan.committed != null);
         setError("Couldn't save the plan. Try again.");
       }
     });
   };
+
+  useEffect(() => {
+    if (!optimistic || !plan.committed) return;
+    const match =
+      plan.committed.length === optimistic.length &&
+      plan.committed.every((i, n) => i.kind === optimistic[n].kind && i.problemId === optimistic[n].problemId);
+    if (match) setOptimistic(null);
+  }, [plan.committed, optimistic]);
 
   const toggleSkip = (kind: PlanKind) =>
     setSkipped((prev) => {
@@ -355,7 +391,7 @@ function Plan({ plan, contest, open }: { plan: WeeklyReviewData["plan"]; contest
       return next;
     });
 
-  const committed = plan.committed;
+  const committed = optimistic ?? plan.committed;
   const doneCount = committed?.filter((i) => i.done).length ?? 0;
 
   return (
@@ -363,32 +399,32 @@ function Plan({ plan, contest, open }: { plan: WeeklyReviewData["plan"]; contest
       <StepHeading
         step={3}
         title="Plan the week"
-        aside={!editing && committed ? `${doneCount} / ${committed.length} done` : undefined}
+        aside={
+          isPending
+            ? "Saving…"
+            : !editing && committed
+              ? `${doneCount} / ${committed.length} done`
+              : undefined
+        }
       >
         Three problems, mixed on purpose. They show up on Today until they&apos;re done.
       </StepHeading>
 
-      <div className="divide-y divide-border border border-border bg-background">
+      <div
+        className={cn("divide-y divide-border border border-border bg-background", isPending && "pointer-events-none")}
+        aria-busy={isPending || undefined}
+      >
         {!editing && !committed && (
           <p className="p-3 text-xs text-muted-foreground sm:p-4">No plan for this week.</p>
         )}
-        {!editing && committed
-          ? committed.map((item) => (
-              <div key={item.kind} className="flex items-center justify-between gap-3 p-3 sm:p-4">
-                <div className="min-w-0 space-y-0.5">
-                  <div className="type-label text-muted-foreground">{PLAN_COPY[item.kind].title}</div>
-                  <ProblemLink problem={item} className={cn("text-xs", item.done && "text-muted-foreground line-through")} />
-                </div>
-                {item.done ? (
-                  <span className="flex shrink-0 items-center gap-1 text-xs text-easy">
-                    <Check className="h-3.5 w-3.5" /> Done
-                  </span>
-                ) : (
-                  <span className="shrink-0 text-xs text-muted-foreground">To do</span>
-                )}
-              </div>
-            ))
-          : editing && PLAN_ORDER.map((kind) => {
+        {!editing && committed ? (
+          <WeeklyPlanItems
+            items={committed}
+            renderProblem={(item, done) => (
+              <ProblemLink problem={item} className={cn("text-xs", done && "text-muted-foreground line-through")} />
+            )}
+          />
+        ) : editing && PLAN_ORDER.map((kind) => {
               const options = plan.candidates[kind];
               const current = options[index[kind]];
               const isSkipped = skipped.has(kind);
@@ -442,8 +478,8 @@ function Plan({ plan, contest, open }: { plan: WeeklyReviewData["plan"]; contest
           </>
         ) : (
           open && (
-            <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
-              Change plan
+            <Button variant="secondary" size="sm" onClick={() => setEditing(true)} disabled={isPending}>
+              {isPending ? "Saving…" : "Change plan"}
             </Button>
           )
         )}
@@ -456,10 +492,16 @@ function Plan({ plan, contest, open }: { plan: WeeklyReviewData["plan"]; contest
 
 export function WeeklyReviewClient({ data, contests }: { data: WeeklyReviewData; contests: Contest[] }) {
   const [checks, setChecks] = useState(data.checks);
+  const [hasPlan, setHasPlan] = useState(data.plan.committed != null);
   const onAnswered = (entryId: string, result: { confidence: Confidence; recalled: boolean }) =>
     setChecks((prev) => prev.map((i) => (i.entryId === entryId ? { ...i, result } : i)));
+
+  useEffect(() => {
+    if (data.plan.committed != null) setHasPlan(true);
+  }, [data.plan.committed]);
+
   // Done = every recall check answered and a plan committed. The page stays open either way.
-  const complete = data.plan.committed != null && checks.every((c) => c.result);
+  const complete = hasPlan && checks.every((c) => c.result);
 
   // Pure UTC calendar math, identical on server and client.
   const weekLabel = useMemo(() => weekRangeLabel(data.weekStart), [data.weekStart]);
@@ -514,7 +556,12 @@ export function WeeklyReviewClient({ data, contests }: { data: WeeklyReviewData;
       )}
 
       <SheetSection innerClassName="py-6" last>
-        <Plan plan={data.plan} contest={data.open ? (contests[0] ?? null) : null} open={data.open} />
+        <Plan
+          plan={data.plan}
+          contest={data.open ? (contests[0] ?? null) : null}
+          open={data.open}
+          onCommitted={setHasPlan}
+        />
       </SheetSection>
     </div>
   );

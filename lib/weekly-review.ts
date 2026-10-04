@@ -169,6 +169,8 @@ export interface RecallCheckItem extends ProblemRef {
 export interface PlanItemView extends ProblemRef {
   kind: PlanKind;
   done: boolean;
+  /** Present for REDO / REVISIT (and FRESH once logged). */
+  entryId: string | null;
 }
 
 export interface WeeklyReviewData {
@@ -225,7 +227,7 @@ function planSelect(userId: string) {
             ...problemSelect,
             entries: {
               where: { userId },
-              select: { attempts: { orderBy: { at: "desc" as const }, take: 1, select: { at: true } } },
+              select: { id: true, attempts: { orderBy: { at: "desc" as const }, take: 1, select: { at: true } } },
             },
           },
         },
@@ -236,7 +238,10 @@ function planSelect(userId: string) {
 
 type PlanRow = {
   createdAt: Date;
-  items: Array<{ kind: PlanKind; problem: ProblemRow & { entries: Array<{ attempts: Array<{ at: Date }> }> } }>;
+  items: Array<{
+    kind: PlanKind;
+    problem: ProblemRow & { entries: Array<{ id: string; attempts: Array<{ at: Date }> }> };
+  }>;
 };
 
 /** A plan item counts as done once the user logs any attempt on that problem after committing. */
@@ -246,6 +251,7 @@ function planWithProgress(plan: PlanRow) {
     .map(({ kind, problem: { entries, ...problem } }) => ({
       ...toRef(problem),
       kind,
+      entryId: entries[0]?.id ?? null,
       // Latest attempt at/after commit ⇔ some attempt at/after commit.
       done: entries.some((e) => e.attempts[0] != null && e.attempts[0].at >= plan.createdAt),
     }));

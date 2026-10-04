@@ -168,4 +168,25 @@ describe("CommandBar", () => {
       }));
     });
   });
+
+  it("opens prefilled on the chosen catalog problem", async () => {
+    render(<CommandBar inline={false} />);
+    window.dispatchEvent(
+      new CustomEvent("open-command-bar", {
+        detail: {
+          problem: {
+            id: "prob-1",
+            title: "Two Sum",
+            url: "https://leetcode.com/problems/two-sum",
+            difficulty: "EASY",
+            patterns: [],
+            topicTags: [],
+          },
+        },
+      }),
+    );
+
+    expect(await screen.findByText("Two Sum")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("25")).toBeInTheDocument();
+  });
 });

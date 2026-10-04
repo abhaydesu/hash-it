@@ -77,10 +77,19 @@ describe("Weekly review (Integration)", () => {
       });
 
       let plan = await getActivePlan(user.id);
-      expect(plan.items?.map((i) => [i.title, i.done])).toEqual([
-        ["Stuck One", false],
-        ["Fresh One", false],
+      expect(plan.items?.map((i) => [i.title, i.done, Boolean(i.entryId)])).toEqual([
+        ["Stuck One", false, true],
+        ["Fresh One", false, false],
       ]);
+
+      const { recordReviewAttempt } = await import("@/app/actions/entry-actions");
+      await recordReviewAttempt({
+        entryId: plan.items!.find((i) => i.kind === "REDO")!.entryId!,
+        status: "SOLVED_UNAIDED",
+        minutes: 25,
+      });
+      plan = await getActivePlan(user.id);
+      expect(plan.items?.find((i) => i.kind === "REDO")?.done).toBe(true);
 
       // Logging the fresh problem completes it.
       await createEntry({ problemId: fresh.id, status: "SOLVED_UNAIDED", minutes: 30 });

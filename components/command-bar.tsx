@@ -248,9 +248,29 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
 
     const handleCustomOpen = (e: Event) => {
       setIsOpen(true);
-      const customEvent = e as CustomEvent;
+      const customEvent = e as CustomEvent<{ problem?: SearchResult }>;
       if (customEvent.detail?.problem) {
-        setSelectedProblem(customEvent.detail.problem);
+        const p = customEvent.detail.problem;
+        setQuery("");
+        setResults([]);
+        setManualMode(false);
+        setMinutes("");
+        setStatus("SOLVED_UNAIDED");
+        setIdea("");
+        setMistake("");
+        setRevisit(false);
+        setPatternTags([]);
+        setSelectedProblem({
+          id: p.id,
+          platform: p.platform ?? "LEETCODE",
+          number: p.number ?? null,
+          title: p.title,
+          slug: p.slug ?? "",
+          url: p.url ?? "",
+          difficulty: p.difficulty ?? null,
+          topicTags: p.topicTags ?? [],
+          patterns: p.patterns ?? [],
+        });
         setTimeout(() => minutesInputRef.current?.focus(), 50);
       } else {
         setTimeout(() => searchInputRef.current?.focus(), 50);
@@ -461,6 +481,14 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
         });
 
         if (res.success && res.entryId) {
+          window.dispatchEvent(
+            new CustomEvent("problem-logged", {
+              detail: {
+                problemId: selectedProblem && !asManual ? selectedProblem.id : undefined,
+                entryId: res.entryId,
+              },
+            }),
+          );
           setToast({ id: res.entryId, title: probTitle || "Problem" });
           resetForm();
           onSuccess?.();
