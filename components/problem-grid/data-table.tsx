@@ -35,7 +35,7 @@ export function DataTable({ data, patternsList, customFields: rawFields, showSou
   // Never show a custom field twice or alongside the built-in it duplicates.
   const customFields = useMemo(() => filterNonOverlappingFields(rawFields ?? []), [rawFields]);
   const columns = useMemo(() => buildColumns({ customFields, showSource }), [customFields, showSource]);
-  const [sorting, setSorting] = useState<SortingState>([{ id: "number", desc: false }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "firstSolvedAt", desc: true }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [selectedView, setSelectedView] = useState<"ALL" | "REVISIT" | "LEECH" | "DUE" | "UNTAGGED">("ALL");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
