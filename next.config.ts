@@ -24,7 +24,24 @@ const nextConfig: NextConfig = {
   ],
   headers: async () => [
     {
-      source: "/(.*)",
+      source: "/hairline-review-queue.html",
+      headers: [
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        // This self-contained figure is embedded by the landing page on the same origin.
+        { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      ],
+    },
+    {
+      source: "/hairline-practice-patterns.html",
+      headers: [
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      ],
+    },
+    {
+      source: "/((?!hairline-review-queue\\.html|hairline-practice-patterns\\.html).*)",
       headers: [
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

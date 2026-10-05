@@ -40,6 +40,8 @@ describe("middleware auth gate", () => {
       "/icon.svg",
       "/logo-1.svg",
       "/logo-2.svg",
+      "/hairline-review-queue.html",
+      "/hairline-practice-patterns.html",
       "/guides",
       "/robots.txt",
       "/sitemap.xml",

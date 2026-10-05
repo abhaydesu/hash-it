@@ -16,6 +16,8 @@ export const PUBLIC_PATHS = [
   "/icon.svg",
   "/logo-1.svg",
   "/logo-2.svg",
+  "/hairline-review-queue.html",
+  "/hairline-practice-patterns.html",
   // Marketing content and crawler files: search engines and AI crawlers must reach
   // these without a session (they'd otherwise be redirected to sign-in).
   "/guides",

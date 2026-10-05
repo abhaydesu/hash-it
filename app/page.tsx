@@ -8,7 +8,8 @@ import { PixelBlast } from "@/components/ui/pixel-blast";
 import { ForgettingCurveGraph } from "@/components/ui/forgetting-curve";
 import { HeroDemo } from "@/components/hero-demo";
 import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
-import { DailyQueueIllo, WeeklyReviewIllo, MonthlyMockIllo } from "@/components/landing/bento-illos";
+import { ImportSources, ReviewCadences, PracticePatternsGrid } from "@/components/landing/landing-interactions";
+import { HairlineFigure } from "@/components/landing/hairline-figure";
 import { JsonLd } from "@/components/json-ld";
 import { FaqList } from "@/components/faq-list";
 import { AUTHOR, GUIDE_PATH, LANDING_FAQ, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
@@ -56,27 +57,6 @@ const STRUCTURED_DATA = [
       name: q,
       acceptedAnswer: { "@type": "Answer", text: a },
     })),
-  },
-];
-
-const CADENCES = [
-  {
-    when: "Every day",
-    title: "Daily queue",
-    desc: "Re-solve what's due, from scratch. The scheduler fills the queue as memories fade.",
-    Illo: DailyQueueIllo,
-  },
-  {
-    when: "Every week",
-    title: "Weekly review",
-    desc: "See only a title, say how sure you are, then check your notes. Confident misses come back tomorrow. Finish by planning three problems and the next contest.",
-    Illo: WeeklyReviewIllo,
-  },
-  {
-    when: "End of every month",
-    title: "Monthly mock",
-    desc: "Five blind, timed problems from your weak spots, on the month's last day. Your score is kept, month over month.",
-    Illo: MonthlyMockIllo,
   },
 ];
 
@@ -137,51 +117,60 @@ export default function HomePage() {
         </SheetSection>
 
         {/* ── How it works — horizontal timeline ── */}
-        <SheetSection innerClassName="py-10 px-6 sm:px-12">
-          <div className="flex flex-col items-stretch gap-6 md:flex-row md:items-start md:gap-8 stagger-in">
-            {/* Step 1 */}
-            <div className="flex-1 space-y-2">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-orange-500 text-[11px] font-semibold text-orange-600">
-                  1
-                </span>
-                <h3 className="text-sm font-medium">Solve and log</h3>
+        <SheetSection innerClassName="px-6 py-10 sm:p-12">
+          <div className="mx-auto max-w-5xl grid grid-cols-1 md:grid-cols-2 items-center gap-10 md:gap-16">
+            <div className="flex flex-col justify-center gap-8 stagger-in">
+              {/* Step 1 */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-orange-500 text-[11px] font-semibold text-orange-600">
+                    1
+                  </span>
+                  <h3 className="text-sm font-medium">Solve and log</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Solve a problem on LeetCode. Log the time, the core insight, and what tripped you up.
+                </p>
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Solve a problem on LeetCode. Log the time, the core insight, and what tripped you up.
-              </p>
-            </div>
 
-            {/* Step 2 */}
-            <div className="flex-1 space-y-2">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-orange-500 text-[11px] font-semibold text-orange-600">
-                  2
-                </span>
-                <h3 className="text-sm font-medium">System schedules</h3>
+              {/* Step 2 */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-orange-500 text-[11px] font-semibold text-orange-600">
+                    2
+                  </span>
+                  <h3 className="text-sm font-medium">System schedules</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  FSRS picks the exact day you&apos;d forget. It reappears in your queue. No manual scheduling.
+                </p>
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                FSRS picks the exact day you&apos;d forget. It reappears in your queue. No manual scheduling.
-              </p>
-            </div>
 
-            {/* Step 3 */}
-            <div className="flex-1 space-y-2">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-orange-500 text-[11px] font-semibold text-orange-600">
-                  3
-                </span>
-                <h3 className="text-sm font-medium">Re-solve and grow</h3>
+              {/* Step 3 */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-orange-500 text-[11px] font-semibold text-orange-600">
+                    3
+                  </span>
+                  <h3 className="text-sm font-medium">Re-solve and grow</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Each review strengthens the memory. Intervals stretch. You stop forgetting what you&apos;ve learned.
+                </p>
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Each review strengthens the memory. Intervals stretch. You stop forgetting what you&apos;ve learned.
-              </p>
+            </div>
+            
+            <div className="border border-border bg-background p-3 sm:p-4">
+              <HairlineFigure
+                page="hairline-review-queue.html"
+                title="Interactive review queue mechanics"
+              />
             </div>
           </div>
         </SheetSection>
 
         {/* ── Forgetting curve — stacked vertically ── */}
-        <SheetSection innerClassName="p-6 sm:p-12" band="neutral">
+        <SheetSection innerClassName="px-6 py-10 sm:p-12" band="neutral">
           <div className="mx-auto max-w-3xl space-y-8">
             <div className="space-y-4">
               <h2 className="text-2xl font-medium tracking-tight">
@@ -215,24 +204,12 @@ export default function HomePage() {
         </SheetSection>
 
         {/* ── Three cadences ── */}
-        <SheetSection innerClassName="space-y-4 py-8">
-          <div className="text-center text-xl font-medium pb-4">Three review cadences</div>
-          <div className="grid grid-cols-1 divide-y divide-border border border-border bg-background md:grid-cols-3 md:divide-x md:divide-y-0 stagger-in">
-            {CADENCES.map(({ when, title, desc, Illo }) => (
-              <div key={title} className="space-y-3 p-6 sm:p-8">
-                <div className="mb-5 border border-border bg-muted/20 px-4 py-4 md:px-2 lg:px-6 lg:py-5">
-                  <Illo />
-                </div>
-                <div className="type-label text-orange-600">{when}</div>
-                <h3 className="text-sm font-medium">{title}</h3>
-                <p className="text-xs leading-relaxed text-muted-foreground">{desc}</p>
-              </div>
-            ))}
-          </div>
+        <SheetSection>
+          <ReviewCadences />
         </SheetSection>
 
         {/* ── Entry example ── */}
-        <SheetSection innerClassName="bg-dither-25 p-6 sm:p-12">
+        <SheetSection innerClassName="bg-dither-25 px-6 py-10 sm:p-12">
           <div className="mx-auto max-w-3xl">
             <h2 className="mb-8 text-center text-xl font-medium">What an entry looks like</h2>
             <div className="divide-y divide-border border border-border bg-background text-sm">
@@ -275,8 +252,8 @@ export default function HomePage() {
         </SheetSection>
 
         {/* ── Practice preview ── */}
-        <SheetSection innerClassName="p-6 sm:p-12" band="neutral">
-          <div className="mx-auto max-w-3xl space-y-8">
+        <SheetSection innerClassName="px-6 py-10 sm:p-12" band="neutral">
+          <div className="mx-auto max-w-5xl space-y-8">
             <div className="space-y-3">
               <h2 className="text-xl font-medium">Targeted practice by pattern</h2>
               <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
@@ -286,31 +263,13 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-4">
-                {[
-                  { name: "Two Pointers", count: 18 },
-                  { name: "Sliding Window", count: 12 },
-                  { name: "Binary Search", count: 24 },
-                  { name: "Dynamic Prog.", count: 42 },
-                  { name: "BFS / DFS", count: 31 },
-                  { name: "Backtracking", count: 15 },
-                  { name: "Greedy", count: 22 },
-                  { name: "Stack / Queue", count: 19 },
-                ].map((p, i) => (
-                  <div
-                    key={p.name}
-                    className={`flex flex-col justify-between bg-background p-3 text-left${i === 0 ? " ring-1 ring-inset ring-orange-500" : ""}`}
-                  >
-                    <span className="text-[10px] text-muted-foreground">Pattern</span>
-                    <span className="text-[11px] font-medium text-foreground">{p.name}</span>
-                    <span className="mt-2 text-xs tabular-nums text-muted-foreground">
-                      {p.count} problems
-                    </span>
-                  </div>
-                ))}
-              </div>
-
+            <div className="grid grid-cols-1 items-center gap-4 border border-border bg-background p-3 sm:p-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+              <PracticePatternsGrid />
+              <HairlineFigure
+                id="practice-patterns-iframe"
+                page="hairline-practice-patterns.html"
+                title="Interactive pattern practice field"
+              />
             </div>
 
             <FigureCaption
@@ -322,9 +281,9 @@ export default function HomePage() {
         </SheetSection>
 
         {/* ── LeetCode import ── */}
-        <SheetSection innerClassName="py-10 px-6 sm:px-12">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-12 md:items-center md:gap-8">
-            <div className="space-y-3 md:col-span-5">
+        <SheetSection innerClassName="px-6 py-10 sm:p-12">
+          <div className="mx-auto max-w-5xl space-y-8">
+            <div className="max-w-xl space-y-3">
               <h2 className="text-xl font-medium">Bring your LeetCode history or DSA sheet</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Already solved a few hundred? Import them from a LeetCode screenshot, or upload the
@@ -333,28 +292,34 @@ export default function HomePage() {
               </p>
               <Link
                 href="/auth/signin?callbackUrl=%2Fimport"
-                className="inline-flex items-center gap-1.5 border-b border-orange-500 pb-0.5 text-xs text-orange-600 transition-colors hover:text-orange-700"
+                className="inline-flex items-center gap-1.5 border-b border-foreground/40 pb-0.5 text-xs text-foreground transition-colors hover:border-foreground"
               >
                 Import your problems
               </Link>
             </div>
-            <ol className="grid grid-cols-1 divide-y divide-border border border-border bg-background sm:grid-cols-3 sm:divide-x sm:divide-y-0 md:col-span-7 stagger-in">
-              {[
-                { title: "Screenshot", desc: "Your LeetCode progress page" },
-                { title: "Ask any LLM", desc: "Paste our prompt, get a CSV" },
-                { title: "Upload", desc: "Review matches, commit" },
-              ].map((s, i) => (
-                <li key={s.title} className="space-y-1.5 p-4">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center border border-orange-500 text-[10px] font-semibold text-orange-600">
-                      {i + 1}
-                    </span>
-                    <h3 className="text-sm font-medium">{s.title}</h3>
-                  </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{s.desc}</p>
-                </li>
-              ))}
-            </ol>
+            <ImportSources />
+          </div>
+        </SheetSection>
+
+        {/* ── Not Anki ── */}
+        <SheetSection>
+          <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
+            <div className="p-6 sm:p-12">
+              <h2 className="mb-4 text-lg font-medium">Not a flashcard app</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Anki reviews text. Hash-It reviews problems. You re-solve from scratch, on the
+                real platform, under time pressure. The scheduling is the same science — the
+                practice is real.
+              </p>
+            </div>
+            <div className="bg-muted/10 p-6 sm:p-12">
+              <h2 className="mb-4 text-lg font-medium">Not a problem list</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                NeetCode and Grind 75 tell you what to solve first. Hash-It tells you what to
+                solve again. Use any list to seed your log — the review schedule is what
+                keeps it in your head.
+              </p>
+            </div>
           </div>
         </SheetSection>
 
@@ -394,30 +359,8 @@ export default function HomePage() {
           </div>
         </SheetSection>
 
-        {/* ── Not Anki ── */}
-        <SheetSection>
-          <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
-            <div className="p-6 sm:p-12">
-              <h2 className="mb-4 text-lg font-medium">Not a flashcard app</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Anki reviews text. Hash-It reviews problems. You re-solve from scratch, on the
-                real platform, under time pressure. The scheduling is the same science — the
-                practice is real.
-              </p>
-            </div>
-            <div className="bg-muted/10 p-6 sm:p-12">
-              <h2 className="mb-4 text-lg font-medium">Not a problem list</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                NeetCode and Grind 75 tell you what to solve first. Hash-It tells you what to
-                solve again. Use any list to seed your log — the review schedule is what
-                keeps it in your head.
-              </p>
-            </div>
-          </div>
-        </SheetSection>
-
         {/* ── FAQ (mirrored in the FAQPage structured data above) ── */}
-        <SheetSection innerClassName="p-6 sm:p-12" band="neutral">
+        <SheetSection innerClassName="px-6 py-10 sm:p-12" band="neutral">
           <div className="mx-auto max-w-3xl space-y-8">
             <div className="space-y-3">
               <h2 className="text-xl font-medium">Frequently asked questions about tracking DSA</h2>

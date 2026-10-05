@@ -13,6 +13,12 @@
       "skillPath": "skills/find-animation-opportunities/SKILL.md",
       "computedHash": "465d087c41768e4f14ed640dd049036009f613feb55baaa5831b68b33178f9d2"
     },
+    "hairline-create": {
+      "source": "lucasmarkes/hairline",
+      "sourceType": "github",
+      "skillPath": "skills/hairline-create/SKILL.md",
+      "computedHash": "c97618c93ba460903313b187f9f89953d471635f567d6e1646924a8472336384"
+    },
     "improve-animations": {
       "source": "emilkowalski/skills",
       "sourceType": "github",
