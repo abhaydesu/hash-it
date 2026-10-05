@@ -40,7 +40,7 @@ export function AppShell({
       <div className="relative flex min-h-screen w-full flex-col overflow-x-clip bg-background">
         <div
           className={cn(
-            "relative z-20 mx-auto flex w-full flex-1 flex-col border-x border-border bg-background transition-[max-width] duration-modal ease-in-out-strong",
+            "relative z-20 mx-auto flex w-full flex-1 flex-col bg-background after:pointer-events-none after:absolute after:inset-0 after:z-50 after:border-x after:border-border after:content-[''] transition-[max-width] duration-modal ease-in-out-strong",
             wide ? "max-w-[1360px]" : "max-w-[1040px]"
           )}
         >

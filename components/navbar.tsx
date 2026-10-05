@@ -55,7 +55,7 @@ export function SidebarNav({ showRoadmap = false }: { showRoadmap?: boolean }) {
   }
 
   return (
-    <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-sm">
+    <div className="sticky top-14 z-30 bg-background before:absolute before:inset-y-0 before:left-1/2 before:z-0 before:w-screen before:-translate-x-1/2 before:bg-background before:content-['']">
       <SheetSection band="none">
         <nav className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs">
           {items.map((item) => {
@@ -95,7 +95,7 @@ export function Navbar({ user, userMenu, contestReminder, streak }: NavbarProps)
   const [logPressed, setLogPressed] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-40 w-full bg-background before:absolute before:inset-y-0 before:left-1/2 before:z-0 before:w-screen before:-translate-x-1/2 before:bg-background before:content-['']">
       <SheetSection band="none">
         <div className="flex h-14 items-center justify-between gap-4">
           <Link

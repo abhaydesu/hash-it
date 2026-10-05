@@ -107,7 +107,7 @@ export default function HomePage() {
               </Link>
           </div>
 
-          <div className="relative -mx-4 border-t border-border bg-dither-25 pt-6 sm:-mx-8 sm:pt-12">
+          <div className="relative -mx-4 border-t border-border bg-dither-orange pt-6 sm:-mx-8 sm:pt-12">
             <div className="stagger-in">
               <HeroDemo />
             </div>

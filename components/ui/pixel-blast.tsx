@@ -23,6 +23,7 @@ uniform vec2 u_resolution;
 uniform vec3 u_color;
 uniform float u_pixelSize;
 uniform float u_fade;
+uniform float u_revealProgress;
 
 const int bayerMatrix[64] = int[64](
     0, 32, 8, 40, 2, 34, 10, 42,
@@ -72,15 +73,23 @@ void main() {
     float n = fbm(uv * 3.0 - vec2(0.0, u_time * 0.05));
     n += fbm(uv * 5.0 + vec2(u_time * 0.02, 0.0)) * 0.5;
     
+    float fromTop = 1.0 - (pixelCoords.y + 0.5) * u_pixelSize / u_resolution.y;
+
     // Optional fade toward the bottom, as fewer lit cells rather than lower alpha, so
     // every cell stays fully on or off. Measured at the cell centre so cells stay whole.
     if (u_fade > 0.5) {
-        float fromTop = 1.0 - (pixelCoords.y + 0.5) * u_pixelSize / u_resolution.y;
         float f = clamp(1.0 - (fromTop - 0.18) / 0.82, 0.0, 1.0);
         n *= f;
     }
 
     float alpha = step(dither, n - 0.2);
+
+    // Reveal in uneven dither-cell layers, propagating down from the top.
+    if (u_fade > 0.5 && u_revealProgress < 1.0) {
+        float edgeJitter = (hash(pixelCoords) - 0.5) * 0.12;
+        float revealFront = 1.0 - u_revealProgress + edgeJitter;
+        alpha *= step(revealFront, 1.0 - fromTop);
+    }
     
     // The canvas composites premultiplied: an unlit cell must be (0,0,0,0), not orange at alpha 0.
     float a = alpha * 0.85;
@@ -162,6 +171,7 @@ export function PixelBlast({
     const uColorLoc = gl.getUniformLocation(program, "u_color");
     const uPixelSizeLoc = gl.getUniformLocation(program, "u_pixelSize");
     const uFadeLoc = gl.getUniformLocation(program, "u_fade");
+    const uRevealProgressLoc = gl.getUniformLocation(program, "u_revealProgress");
 
     const parseColor = (hex: string) => {
       hex = hex.replace("#", "");
@@ -173,6 +183,7 @@ export function PixelBlast({
     const colorVec = parseColor(color);
 
     let animationFrameId: number;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const startTime = performance.now();
 
     const resize = () => {
@@ -214,6 +225,10 @@ export function PixelBlast({
       // non-integer size makes cells alternate between two widths.
       gl.uniform1f(uPixelSizeLoc, Math.max(1, Math.round(pixelSize * (window.devicePixelRatio || 1))));
       gl.uniform1f(uFadeLoc, fade === "down" ? 1 : 0);
+      const revealProgress = prefersReducedMotion
+        ? 1
+        : Math.min(1, Math.max(0, (elapsed - 0.08) / 0.8));
+      gl.uniform1f(uRevealProgressLoc, revealProgress);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       animationFrameId = requestAnimationFrame(render);
