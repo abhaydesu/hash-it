@@ -2,8 +2,10 @@
 import React from 'react';
 
 import { useState, useEffect, useRef, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { Search, ExternalLink, Check, AlertCircle, HelpCircle, X, Sparkles, Clock } from "lucide-react";
 import { cn, formatDifficulty, safeHref, normalizePatternList } from "@/lib/utils";
+import { isMarketingPath } from "@/lib/site";
 import { titleFromProblemUrl } from "@/lib/problem-url";
 import { createEntry, deleteEntry } from "@/app/actions/entry-actions";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -178,6 +180,7 @@ interface CommandBarProps {
 }
 
 export function CommandBar({ autoFocus = false, inline = false, onSuccess }: CommandBarProps) {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(inline);
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 300);
@@ -238,6 +241,9 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (pathname && (isMarketingPath(pathname) || pathname.startsWith("/auth/"))) {
+          return;
+        }
         e.preventDefault();
         setIsOpen(true);
         setTimeout(() => searchInputRef.current?.focus(), 50);
@@ -283,7 +289,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("open-command-bar", handleCustomOpen as EventListener);
     };
-  }, [isOpen, inline]);
+  }, [isOpen, inline, pathname]);
 
   useEffect(() => {
     if (autoFocus && searchInputRef.current) {

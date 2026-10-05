@@ -171,10 +171,15 @@ export async function getLogFormConfig(): Promise<{ customFields: CustomFieldDef
       take: 200,
     }),
   ]);
-  const sources = rows
-    .map((r) => r.sourceList)
-    .filter(isUserSource)
-    .sort((a, b) => a.localeCompare(b));
+  const sources = Array.from(
+    new Set(
+      rows
+        .map((r) => r.sourceList)
+        .filter((s): s is string => Boolean(s && s.trim()))
+        .flatMap((s) => s.split(",").map((p) => p.trim()))
+        .filter(isUserSource)
+    )
+  ).sort((a, b) => a.localeCompare(b));
   return { customFields, sources };
 }
 

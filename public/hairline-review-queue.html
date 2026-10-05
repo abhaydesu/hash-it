@@ -63,6 +63,13 @@
     if (params.get("embed") !== "1") return;
     const root = document.documentElement;
     root.dataset.embed = "true";
+    try {
+      const isDark = window.parent.document.documentElement.classList.contains("dark");
+      root.dataset.theme = isDark ? "dark" : "light";
+      const parentGround = isDark ? "hsl(30, 6%, 8%)" : "hsl(50, 8%, 97%)";
+      root.style.setProperty("--ground", parentGround);
+      root.style.setProperty("--hairline-plate", parentGround);
+    } catch (_) {}
     const ground = params.get("ground");
     if (ground && CSS.supports("color", ground)) {
       root.style.setProperty("--ground", ground);

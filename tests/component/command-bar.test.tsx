@@ -15,6 +15,11 @@ vi.mock("@/app/actions/entry-actions", () => ({
   deleteEntry: vi.fn(),
 }));
 
+const mockPathname = vi.fn(() => "/today");
+vi.mock("next/navigation", () => ({
+  usePathname: () => mockPathname(),
+}));
+
 // Mock fetch for the API route
 global.fetch = vi.fn();
 
@@ -188,5 +193,25 @@ describe("CommandBar", () => {
 
     expect(await screen.findByText("Two Sum")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("25")).toBeInTheDocument();
+  });
+
+  it("does not open with Cmd+K when on landing page or marketing paths", async () => {
+    mockPathname.mockReturnValue("/");
+    render(<CommandBar inline={false} />);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+
+    expect(screen.queryByPlaceholderText(/Type problem number/i)).not.toBeInTheDocument();
+  });
+
+  it("opens with Cmd+K when on dashboard route", async () => {
+    mockPathname.mockReturnValue("/today");
+    render(<CommandBar inline={false} />);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type problem number/i)).toBeInTheDocument();
+    });
   });
 });

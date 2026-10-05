@@ -109,30 +109,110 @@ function MonthlyPreview() {
 
 export function ReviewCadences() {
   const [selected, setSelected] = useState<Cadence>("Daily");
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const programmaticScrollUntilRef = useRef(0);
 
   useEffect(() => {
-    if (!window.IntersectionObserver) return;
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const cadence = entry.target.getAttribute('data-cadence') as Cadence;
-          if (cadence) setSelected(cadence);
+    let rafId = 0;
+
+    const updateActiveCadence = () => {
+      rafId = 0;
+      if (performance.now() < programmaticScrollUntilRef.current) return;
+
+      const isDesktop = window.innerWidth >= 768;
+
+      if (!isDesktop) {
+        const sectionEl = sectionRef.current;
+        if (!sectionEl) return;
+        const sectionRect = sectionEl.getBoundingClientRect();
+        // 56px matches the sticky top-14 navbar height; 440px is the mobile scroll track height
+        const scrolled = 56 - sectionRect.top;
+        if (scrolled < 146) {
+          setSelected("Daily");
+        } else if (scrolled < 293) {
+          setSelected("Weekly");
+        } else {
+          setSelected("Monthly");
+        }
+        return;
+      }
+
+      const previewEl = previewRef.current;
+      const blocks = blockRefs.current;
+      if (!previewEl || !blocks.length) return;
+
+      const previewRect = previewEl.getBoundingClientRect();
+      const targetY = (previewRect.top + previewRect.bottom) / 2;
+
+      let closestCadence: Cadence | null = null;
+      let minDistance = Infinity;
+
+      blocks.forEach((block, idx) => {
+        if (!block) return;
+        const rect = block.getBoundingClientRect();
+        const blockCenter = (rect.top + rect.bottom) / 2;
+        const distance = Math.abs(blockCenter - targetY);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestCadence = cadences[idx] ?? null;
         }
       });
-    }, { 
-      rootMargin: "-30% 0px -40% 0px",
-      threshold: 0 
-    });
 
-    blockRefs.current.forEach(ref => {
-      if (ref) observer.observe(ref);
-    });
-    return () => observer.disconnect();
+      if (closestCadence) {
+        setSelected(closestCadence);
+      }
+    };
+
+    const onScrollOrResize = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(updateActiveCadence);
+    };
+
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize, { passive: true });
+    updateActiveCadence();
+
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+      if (rafId) window.cancelAnimationFrame(rafId);
+    };
   }, []);
 
   const handleScrollTo = (idx: number) => {
-    blockRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const cadence = cadences[idx];
+    if (cadence) setSelected(cadence);
+    programmaticScrollUntilRef.current = performance.now() + 650;
+
+    const sectionEl = sectionRef.current;
+    if (!sectionEl) return;
+
+    const sectionTop = sectionEl.getBoundingClientRect().top + window.scrollY;
+    const isDesktop = window.innerWidth >= 768;
+
+    if (!isDesktop) {
+      window.scrollTo({
+        top: sectionTop - 56 + idx * 220,
+        behavior: "smooth",
+      });
+      return;
+    }
+
+    const firstBlock = blockRefs.current[0];
+    const targetBlock = blockRefs.current[idx];
+
+    if (firstBlock && targetBlock) {
+      const delta = targetBlock.offsetTop - firstBlock.offsetTop;
+      // 56px matches the sticky top-14 navbar height
+      window.scrollTo({
+        top: sectionTop - 56 + delta,
+        behavior: "smooth",
+      });
+    } else {
+      targetBlock?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   };
 
   const cadenceCopy = {
@@ -154,60 +234,111 @@ export function ReviewCadences() {
   } satisfies Record<Cadence, { interval: string; title: string; description: string }>;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-7 px-6 py-10 sm:p-12">
-      <div className="flex flex-wrap items-end justify-between gap-5 pb-4">
-        <h2 className="text-xl font-medium">Three review cadences</h2>
-        <div className="flex items-center gap-1" role="group" aria-label="Choose a review cadence">
-          {cadences.map((cadence, idx) => (
-            <button
-              key={cadence}
-              type="button"
-              aria-pressed={selected === cadence}
-              onClick={() => handleScrollTo(idx)}
-              className={`rounded-full px-3 py-1.5 text-xs transition-colors motion-reduce:transition-none ${selected === cadence ? "bg-foreground text-background" : "bg-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"}`}
-            >
-              {cadence}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="relative flex flex-col md:flex-row items-start gap-8 py-6 md:gap-16 md:py-8">
-        <div className="w-full md:w-[60%] md:sticky md:top-[calc(50vh-140px)] z-10 bg-background/95 backdrop-blur sm:bg-transparent">
-          <div className="relative overflow-hidden border border-border bg-background min-h-[220px] aspect-[4/3] md:aspect-[16/10]">
-            {cadences.map((cadence) => (
-              <div 
+    <div ref={sectionRef} className="relative">
+      <div className="sticky top-14 z-20 pointer-events-none">
+        <header className="pointer-events-auto flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-6 py-5 sm:gap-6 sm:px-12 sm:py-6">
+          <h2 className="text-base font-medium tracking-tight sm:text-2xl">Three review cadences</h2>
+          <div className="flex items-center gap-1.5" role="group" aria-label="Choose a review cadence">
+            {cadences.map((cadence, idx) => (
+              <button
                 key={cadence}
-                className="absolute inset-0 w-full h-full"
-                style={{ 
-                  opacity: selected === cadence ? 1 : 0, 
-                  transition: 'opacity 600ms var(--ease-morph), transform 600ms var(--ease-morph)',
-                  transform: selected === cadence ? 'scale(1)' : 'scale(1.03)',
-                  pointerEvents: selected === cadence ? 'auto' : 'none'
+                type="button"
+                aria-pressed={selected === cadence}
+                onClick={() => handleScrollTo(idx)}
+                className={`border px-3 py-1.5 text-xs transition-colors motion-reduce:transition-none sm:px-4 ${
+                  selected === cadence
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                }`}
+              >
+                {cadence}
+              </button>
+            ))}
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+          <div className="pointer-events-auto border-b border-border bg-background bg-dither-25 p-6 sm:p-12 md:border-b-0 md:bg-transparent md:bg-none">
+            <div
+              ref={previewRef}
+              className="relative h-[280px] overflow-hidden border border-border bg-background shadow-xs"
+              aria-live="polite"
+            >
+              {cadences.map((cadence) => (
+                <div
+                  key={cadence}
+                  className="absolute inset-0 h-full w-full"
+                  style={{
+                    opacity: selected === cadence ? 1 : 0,
+                    transition: "opacity 500ms var(--ease-morph), transform 500ms var(--ease-morph)",
+                    transform: selected === cadence ? "scale(1)" : "scale(1.02)",
+                    pointerEvents: selected === cadence ? "auto" : "none",
+                  }}
+                >
+                  {cadence === "Daily" && <DailyPreview />}
+                  {cadence === "Weekly" && <WeeklyPreview />}
+                  {cadence === "Monthly" && <MonthlyPreview />}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile-only cadence text panel inside the sticky stage */}
+          <div
+            className="pointer-events-auto relative h-[160px] overflow-hidden bg-background md:hidden"
+            aria-hidden="true"
+          >
+            {cadences.map((cadence) => (
+              <div
+                key={`mobile-text-${cadence}`}
+                className="absolute inset-0 flex flex-col justify-center space-y-2 px-8 py-5 sm:px-12"
+                style={{
+                  opacity: selected === cadence ? 1 : 0,
+                  transform: selected === cadence ? "translateY(0)" : "translateY(6px)",
+                  transition: "opacity 400ms var(--ease-morph), transform 400ms var(--ease-morph)",
+                  pointerEvents: selected === cadence ? "auto" : "none",
                 }}
               >
-                {cadence === "Daily" && <DailyPreview />}
-                {cadence === "Weekly" && <WeeklyPreview />}
-                {cadence === "Monthly" && <MonthlyPreview />}
+                <p className="type-label text-orange-600">{cadenceCopy[cadence].interval}</p>
+                <h3 className="text-base font-medium tracking-tight sm:text-lg">
+                  {cadenceCopy[cadence].title}
+                </h3>
+                <p className="max-w-sm text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                  {cadenceCopy[cadence].description}
+                </p>
               </div>
             ))}
           </div>
+
+          <div className="hidden md:block" aria-hidden="true" />
         </div>
-        <div className="w-full md:w-[40%] flex flex-col pb-12 md:pb-24">
+      </div>
+
+      {/* Mobile scroll track */}
+      <div className="h-[440px] md:hidden" aria-hidden="true" />
+
+      {/* Desktop 2-column scroll track */}
+      <div className="hidden md:-mt-[376px] md:grid md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:divide-x md:divide-border">
+        <div className="bg-dither-25" aria-hidden="true" />
+        <div className="flex flex-col px-8 py-10 sm:px-12 sm:py-12">
           {cadences.map((cadence, idx) => (
             <div
               key={`text-${cadence}`}
               data-cadence={cadence}
-              ref={(el) => { blockRefs.current[idx] = el; }}
-              className="flex flex-col justify-center py-12 md:py-16 space-y-3"
+              ref={(el) => {
+                blockRefs.current[idx] = el;
+              }}
+              className="flex min-h-[280px] flex-col justify-center space-y-3 py-8"
               style={{
-                opacity: selected === cadence ? 1 : 0.4,
-                transition: 'opacity 400ms var(--ease-morph)'
+                opacity: selected === cadence ? 1 : 0.35,
+                transition: "opacity 400ms var(--ease-morph)",
               }}
             >
-              <p className="type-label">{cadenceCopy[cadence].interval}</p>
-              <h3 className="text-lg font-medium tracking-tight">{cadenceCopy[cadence].title}</h3>
-              <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{cadenceCopy[cadence].description}</p>
+              <p className="type-label text-orange-600">{cadenceCopy[cadence].interval}</p>
+              <h3 className="text-xl font-medium tracking-tight">{cadenceCopy[cadence].title}</h3>
+              <p className="max-w-md text-base leading-relaxed text-muted-foreground">
+                {cadenceCopy[cadence].description}
+              </p>
             </div>
           ))}
         </div>
@@ -221,9 +352,9 @@ type ImportSource = (typeof importSources)[number];
 
 function ScreenshotPreview() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] h-full">
-      <div className="border border-border p-3">
-        <div className="flex items-center justify-between border-b border-border pb-2">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] h-full">
+      <div className="border border-border p-4">
+        <div className="flex items-center justify-between border-b border-border pb-2.5">
           <span className="text-[11px] font-medium">LeetCode · Solved</span>
           <span className="type-label">Progress</span>
         </div>
@@ -232,16 +363,16 @@ function ScreenshotPreview() {
             <span key={index} className="flex-1 bg-foreground/15" style={{ height }} />
           ))}
         </div>
-        <p className="mt-2 text-[10px] text-muted-foreground">Accepted problems over time</p>
+        <p className="mt-2.5 text-[10px] text-muted-foreground">Accepted problems over time</p>
       </div>
-      <div className="space-y-2 self-center">
+      <div className="space-y-2.5 self-center">
         <p className="type-label">Matched problems</p>
         {[
           ["146", "LRU Cache"],
           ["3", "Longest Substring…"],
           ["200", "Number of Islands"],
         ].map(([number, title]) => (
-          <div key={number} className="flex items-center gap-2 border-b border-border py-2 text-[11px]">
+          <div key={number} className="flex items-center gap-3 border-b border-border py-2.5 text-[11px]">
             <span className="tabular-nums text-muted-foreground">#{number}</span>
             <span className="truncate">{title}</span>
             <span className="ml-auto text-muted-foreground">Matched</span>
@@ -259,22 +390,22 @@ function SpreadsheetPreview() {
     ["200", "Number of Islands", "Graph"],
   ];
   return (
-    <div className="overflow-x-auto h-full">
+    <div className="overflow-x-auto h-full flex items-center">
       <table className="w-full min-w-[430px] border-collapse text-left text-[11px]">
         <thead>
           <tr className="border-b border-border text-muted-foreground">
             {["Problem", "Title", "Pattern", "Time"].map((heading) => (
-              <th key={heading} className="px-3 py-2.5 font-normal">{heading}</th>
+              <th key={heading} className="px-4 py-3 font-normal">{heading}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map(([number, title, pattern], index) => (
             <tr key={number} className="border-b border-border last:border-0">
-              <td className="px-3 py-3 tabular-nums text-muted-foreground">#{number}</td>
-              <td className="px-3 py-3">{title}</td>
-              <td className="px-3 py-3 text-muted-foreground">{pattern}</td>
-              <td className="px-3 py-3 text-muted-foreground">{["42m", "28m", "35m"][index]}</td>
+              <td className="px-4 py-3.5 tabular-nums text-muted-foreground">#{number}</td>
+              <td className="px-4 py-3.5">{title}</td>
+              <td className="px-4 py-3.5 text-muted-foreground">{pattern}</td>
+              <td className="px-4 py-3.5 text-muted-foreground">{["42m", "28m", "35m"][index]}</td>
             </tr>
           ))}
         </tbody>
@@ -285,9 +416,9 @@ function SpreadsheetPreview() {
 
 function CsvPreview() {
   return (
-    <div className="overflow-x-auto p-4 sm:p-5 h-full">
-      <p className="mb-3 type-label">problems.csv</p>
-      <pre className="min-w-[430px] overflow-hidden text-[11px] leading-7 text-muted-foreground"><span className="text-foreground">number,title,pattern,time</span>{"\n146,LRU Cache,Design,42\n3,Longest Substring,Sliding Window,28\n200,Number of Islands,Graph,35"}</pre>
+    <div className="overflow-x-auto p-6 sm:p-8 h-full flex flex-col justify-center">
+      <p className="mb-3.5 type-label">problems.csv</p>
+      <pre className="min-w-[430px] overflow-hidden text-[11px] leading-8 text-muted-foreground"><span className="text-foreground">number,title,pattern,time</span>{"\n146,LRU Cache,Design,42\n3,Longest Substring,Sliding Window,28\n200,Number of Islands,Graph,35"}</pre>
     </div>
   );
 }
@@ -309,42 +440,44 @@ export function ImportSources() {
 
   return (
     <div 
-      className="space-y-4"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <div className="flex items-center gap-1 border-b border-border" role="group" aria-label="Choose an import source">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-background px-8 py-4 sm:px-12">
+        <span className="type-label py-1">Supported formats</span>
+        <div className="flex items-center gap-2" role="group" aria-label="Choose an import source">
           {importSources.map((source) => (
             <button
               key={source}
               type="button"
               aria-pressed={selected === source}
               onClick={() => setSelected(source)}
-              className={`border-b-2 px-3 py-2 text-xs transition-colors motion-reduce:transition-none ${selected === source ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              className={`border-b-2 px-3.5 py-2 text-xs transition-colors motion-reduce:transition-none ${selected === source ? "border-orange-500 text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground"}`}
             >
               {source}
             </button>
           ))}
         </div>
       </div>
-      <div className="min-h-56 border border-border bg-background relative overflow-hidden" aria-live="polite">
-        {importSources.map((source) => (
-          <div 
-            key={source} 
-            className="absolute inset-0 w-full h-full p-3 sm:p-5"
-            style={{ 
-              opacity: selected === source ? 1 : 0, 
-              transition: 'opacity 600ms var(--ease-morph), transform 600ms var(--ease-morph)',
-              transform: selected === source ? 'scale(1)' : 'scale(1.03)',
-              pointerEvents: selected === source ? 'auto' : 'none'
-            }}
-          >
-            {source === "Screenshot" && <ScreenshotPreview />}
-            {source === "Spreadsheet" && <SpreadsheetPreview />}
-            {source === "CSV" && <CsvPreview />}
-          </div>
-        ))}
+      <div className="bg-dither-25 p-8 sm:p-12 lg:p-16">
+        <div className="relative min-h-64 overflow-hidden border border-border bg-background shadow-xs" aria-live="polite">
+          {importSources.map((source) => (
+            <div 
+              key={source} 
+              className="absolute inset-0 h-full w-full p-6 sm:p-8"
+              style={{ 
+                opacity: selected === source ? 1 : 0, 
+                transition: 'opacity 600ms var(--ease-morph), transform 600ms var(--ease-morph)',
+                transform: selected === source ? 'scale(1)' : 'scale(1.02)',
+                pointerEvents: selected === source ? 'auto' : 'none'
+              }}
+            >
+              {source === "Screenshot" && <ScreenshotPreview />}
+              {source === "Spreadsheet" && <SpreadsheetPreview />}
+              {source === "CSV" && <CsvPreview />}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -370,21 +503,27 @@ export function PracticePatternsGrid() {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-4 w-full">
-      {patterns.map((p, i) => (
-        <div
-          key={p.name}
-          onMouseEnter={() => handleHover(i)}
-          onMouseLeave={() => handleHover(-1)}
-          className={`flex min-h-20 flex-col justify-between bg-background p-3 text-left transition-colors hover:bg-muted/10 ${i === 0 ? " ring-1 ring-inset ring-orange-500" : ""}`}
-        >
-          <span className="text-[10px] text-muted-foreground">Pattern</span>
-          <span className="text-[11px] font-medium text-foreground">{p.name}</span>
-          <span className="mt-2 text-xs tabular-nums text-muted-foreground">
-            {p.count} problems
-          </span>
-        </div>
-      ))}
+    <div className="grid h-full w-full grid-cols-2 gap-px bg-border sm:grid-cols-[1.12fr_1fr_1fr_1fr]">
+      {patterns.map((p, i) => {
+        const isLeftColMobile = i % 2 === 0;
+        const isLeftColSm = i % 4 === 0;
+        return (
+          <div
+            key={p.name}
+            onMouseEnter={() => handleHover(i)}
+            onMouseLeave={() => handleHover(-1)}
+            className={`flex min-h-36 flex-col justify-between bg-background py-6 pr-5 text-left transition-colors hover:bg-muted/15 ${
+              isLeftColMobile ? "pl-8" : "pl-5"
+            } ${isLeftColSm ? "sm:pl-12" : "sm:pl-5"}`}
+          >
+            <span className="type-label">Pattern</span>
+            <span className="text-sm font-medium text-foreground">{p.name}</span>
+            <span className="mt-3 text-xs tabular-nums text-muted-foreground">
+              {p.count} problems
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -63,7 +63,7 @@ export function FigureCaption({
   className?: string;
 }) {
   return (
-    <p className={cn("mt-2.5 type-caption", className)}>
+    <p className={cn("mt-2.5 text-center type-caption", className)}>
       <span className="font-semibold text-orange-600 dark:text-orange-400">Fig. {fig}.</span>{" "}
       <span>{title}</span>
     </p>

@@ -68,45 +68,47 @@ export default function HomePage() {
         <JsonLd data={STRUCTURED_DATA} />
 
         {/* ── Hero ── */}
-        <SheetSection className="relative" band="hero">
-          <div className="relative z-10 flex max-w-3xl flex-col items-start px-6 py-24 sm:py-32">
-            <p className="type-label mb-4 text-orange-600">LeetCode &amp; DSA tracker · Spaced repetition</p>
-            <h1 className="idea-preview mb-4 text-3xl font-medium tracking-tight sm:text-5xl md:text-6xl">
+        <SheetSection className="relative" band="hero" flush>
+          <div className="relative z-10 flex max-w-3xl flex-col items-start px-6 py-20 sm:px-12 sm:py-32">
+            <p className="type-label mb-5 text-orange-600">LeetCode &amp; DSA tracker · Spaced repetition</p>
+            <h1 className="idea-preview mb-6 text-3xl font-medium tracking-tight sm:text-5xl md:text-6xl">
               Remember every problem you solve.
             </h1>
-            <p className="mb-8 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p className="mb-10 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               Hash-It is a LeetCode and DSA tracker that uses spaced repetition to schedule your
               revision. You re-solve what&apos;s fading, skip what&apos;s locked in.
             </p>
 
             <Link
-                href="/auth/signin"
-                className="pressable inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white hover:bg-orange-600"
-              >
-                Get started
-              </Link>
+              href="/auth/signin"
+              className="pressable inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-7 py-3 text-sm font-medium text-white shadow-sm hover:bg-orange-600"
+            >
+              Get started
+            </Link>
           </div>
 
-          <div className="relative -mx-4 border-t border-border bg-dither-orange pt-6 sm:-mx-8 sm:pt-12">
-            <div className="stagger-in">
+          <div className="relative border-t border-border bg-dither-25 px-6 py-10 sm:px-12 sm:py-16">
+            <div className="stagger-in mx-auto max-w-4xl">
               <HeroDemo />
             </div>
           </div>
         </SheetSection>
 
         {/* ── Problem / Solution ── */}
-        <SheetSection band="neutral">
+        <SheetSection band="stripe" flush>
           <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
-            <div className="p-6 sm:p-12">
-              <h2 className="mb-4 text-lg font-medium">Why spreadsheets fail</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+            <div className="p-8 sm:p-12 lg:p-16">
+              <p className="type-label mb-3">The problem</p>
+              <h2 className="mb-4 text-xl font-medium tracking-tight">Why spreadsheets fail</h2>
+              <p className="max-w-md text-base leading-relaxed text-muted-foreground">
                 You mark a problem green, but a month later the core idea is gone. A spreadsheet
                 tracks what you&apos;ve done. It can&apos;t tell you what you&apos;re about to forget.
               </p>
             </div>
-            <div className="bg-muted/10 p-6 sm:p-12">
-              <h2 className="mb-4 text-lg font-medium">Log once, review forever</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+            <div className="bg-muted/5 p-8 sm:p-12 lg:p-16">
+              <p className="type-label mb-3 text-orange-600">The system</p>
+              <h2 className="mb-4 text-xl font-medium tracking-tight">Log once, review forever</h2>
+              <p className="max-w-md text-base leading-relaxed text-muted-foreground">
                 Hit{" "}
                 <ShortcutKeycaps className="align-middle" />{" "}
                 to log a problem. Record the time, the core idea, and any mistakes. The next review
@@ -116,205 +118,241 @@ export default function HomePage() {
           </div>
         </SheetSection>
 
-        {/* ── How it works — horizontal timeline ── */}
-        <SheetSection innerClassName="px-6 py-10 sm:p-12">
-          <div className="mx-auto max-w-5xl grid grid-cols-1 md:grid-cols-2 items-center gap-10 md:gap-16">
-            <div className="flex flex-col justify-center gap-8 stagger-in">
+        {/* ── How it works ── */}
+        <SheetSection band="neutral" flush>
+          <header className="border-b border-border px-8 py-8 sm:px-12 sm:py-10">
+            <h2 className="text-2xl font-medium tracking-tight">How it works</h2>
+            <p className="mt-2 max-w-xl text-base leading-relaxed text-muted-foreground">
+              Three steps from your first solve on LeetCode to long-term retention.
+            </p>
+          </header>
+
+          <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
+            <div className="divide-y divide-border stagger-in">
               {/* Step 1 */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2.5">
+              <div className="space-y-3 p-8 sm:p-10 lg:p-12">
+                <div className="flex items-center gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-orange-500 text-[11px] font-semibold text-orange-600">
                     1
                   </span>
-                  <h3 className="text-sm font-medium">Solve and log</h3>
+                  <h3 className="text-base font-medium">Solve and log</h3>
                 </div>
-                <p className="text-sm leading-relaxed text-muted-foreground">
+                <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
                   Solve a problem on LeetCode. Log the time, the core insight, and what tripped you up.
                 </p>
               </div>
 
               {/* Step 2 */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2.5">
+              <div className="space-y-3 p-8 sm:p-10 lg:p-12">
+                <div className="flex items-center gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-orange-500 text-[11px] font-semibold text-orange-600">
                     2
                   </span>
-                  <h3 className="text-sm font-medium">System schedules</h3>
+                  <h3 className="text-base font-medium">System schedules</h3>
                 </div>
-                <p className="text-sm leading-relaxed text-muted-foreground">
+                <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
                   FSRS picks the exact day you&apos;d forget. It reappears in your queue. No manual scheduling.
                 </p>
               </div>
 
               {/* Step 3 */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2.5">
+              <div className="space-y-3 p-8 sm:p-10 lg:p-12">
+                <div className="flex items-center gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-orange-500 text-[11px] font-semibold text-orange-600">
                     3
                   </span>
-                  <h3 className="text-sm font-medium">Re-solve and grow</h3>
+                  <h3 className="text-base font-medium">Re-solve and grow</h3>
                 </div>
-                <p className="text-sm leading-relaxed text-muted-foreground">
+                <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
                   Each review strengthens the memory. Intervals stretch. You stop forgetting what you&apos;ve learned.
                 </p>
               </div>
             </div>
-            
-            <div className="border border-border bg-background p-3 sm:p-4">
-              <HairlineFigure
-                page="hairline-review-queue.html"
-                title="Interactive review queue mechanics"
-              />
+
+            <div className="flex flex-col justify-between bg-dither-25">
+              <div className="flex flex-1 items-center justify-center p-6 sm:p-10 lg:p-12">
+                <div className="w-full border border-border bg-background p-4 sm:p-6 shadow-xs">
+                  <HairlineFigure
+                    page="hairline-review-queue.html"
+                    title="Interactive review queue mechanics"
+                  />
+                </div>
+              </div>
+              <div className="border-t border-border px-8 py-4 sm:px-12">
+                <FigureCaption
+                  fig={1}
+                  title="Cards move through your queue and return at widening intervals."
+                  className="mt-0"
+                />
+              </div>
             </div>
           </div>
         </SheetSection>
 
-        {/* ── Forgetting curve — stacked vertically ── */}
-        <SheetSection innerClassName="px-6 py-10 sm:p-12" band="neutral">
-          <div className="mx-auto max-w-3xl space-y-8">
-            <div className="space-y-4">
+        {/* ── Forgetting curve ── */}
+        <SheetSection band="stripe" flush>
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-8 py-8 sm:px-12 sm:py-10">
+            <div>
               <h2 className="text-2xl font-medium tracking-tight">
                 Spaced repetition, not guesswork
               </h2>
-              <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-                FSRS calculates when you&apos;re about to forget each problem. Struggled? You&apos;ll
-                see it tomorrow. Solved it cold? Maybe not for a month. You spend time on what&apos;s
-                fading, never on what you already know.
+              <p className="mt-2 max-w-2xl text-base leading-relaxed text-muted-foreground">
+                FSRS calculates when you&apos;re about to forget each problem. You spend time on what&apos;s fading, never on what you already know.
               </p>
-              <a
-                  href="https://github.com/open-spaced-repetition/fsrs4anki"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 border-b border-orange-500 pb-0.5 text-xs text-orange-600 transition-colors hover:text-orange-700"
-                >
-                  Read about FSRS
-                  <ExternalLink className="h-3 w-3" />
-                </a>
             </div>
+            <a
+              href="https://github.com/open-spaced-repetition/fsrs4anki"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 border-b border-orange-500 pb-0.5 text-xs text-orange-600 transition-colors hover:text-orange-700"
+            >
+              Read about FSRS
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </header>
 
-            <div className="border border-border bg-background p-4 sm:p-6">
+          <div className="bg-dither-25 p-8 sm:p-12 lg:p-16">
+            <div className="mx-auto max-w-4xl border border-border bg-background p-6 sm:p-10 shadow-xs">
               <ForgettingCurveGraph />
             </div>
+          </div>
+
+          <div className="border-t border-border px-8 py-4 sm:px-12">
             <FigureCaption
               fig={2}
               title="Without review, recall drops to near zero. Spaced reviews keep it high with widening intervals."
-              className="text-center"
+              className="mt-0"
             />
           </div>
         </SheetSection>
 
         {/* ── Three cadences ── */}
-        <SheetSection>
+        <SheetSection band="neutral" flush>
           <ReviewCadences />
         </SheetSection>
 
         {/* ── Entry example ── */}
-        <SheetSection innerClassName="bg-dither-25 px-6 py-10 sm:p-12">
-          <div className="mx-auto max-w-3xl">
-            <h2 className="mb-8 text-center text-xl font-medium">What an entry looks like</h2>
-            <div className="divide-y divide-border border border-border bg-background text-sm">
-              <div className="p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="font-medium">#146. LRU Cache</span>
-                  <span className="border border-hard/35 px-1.5 py-0.5 text-[10px] text-hard">
+        <SheetSection band="stripe" flush>
+          <header className="border-b border-border px-8 py-8 sm:px-12 sm:py-10">
+            <h2 className="text-2xl font-medium tracking-tight">What an entry looks like</h2>
+            <p className="mt-2 max-w-xl text-base leading-relaxed text-muted-foreground">
+              Every logged problem records the core insight and the exact mistakes that cost you time.
+            </p>
+          </header>
+
+          <div className="bg-dither-25 p-8 sm:p-12 lg:p-16">
+            <div className="mx-auto max-w-3xl divide-y divide-border border border-border bg-background text-sm shadow-xs">
+              <div className="p-6 sm:p-8">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-base font-medium">#146. LRU Cache</span>
+                  <span className="border border-hard/35 px-2 py-0.5 text-[11px] text-hard">
                     Hard
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2 type-caption">
-                  <span className="border border-border px-1">Hash Table</span>
-                  <span className="border border-border px-1">Linked List</span>
-                  <span className="border border-border px-1">Design</span>
+                  <span className="border border-border px-2 py-1">Hash Table</span>
+                  <span className="border border-border px-2 py-1">Linked List</span>
+                  <span className="border border-border px-2 py-1">Design</span>
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-2 p-4 sm:grid-cols-[120px_1fr] sm:gap-6">
-                <div className="type-label">Core idea</div>
-                <div className="leading-relaxed text-foreground">
+              <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-[160px_1fr] sm:divide-x sm:divide-y-0">
+                <div className="bg-muted/5 px-6 py-5 type-label sm:px-8">Core idea</div>
+                <div className="px-6 py-5 leading-relaxed text-foreground sm:px-8">
                   Keep a doubly linked list for the recent items, and a hash map pointing to the list
                   nodes for O(1) access.
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-2 p-4 sm:grid-cols-[120px_1fr] sm:gap-6">
-                <div className="type-label">Mistake log</div>
-                <div className="leading-relaxed text-foreground">
-                  <ul className="list-inside list-disc space-y-1">
+              <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-[160px_1fr] sm:divide-x sm:divide-y-0">
+                <div className="bg-muted/5 px-6 py-5 type-label sm:px-8">Mistake log</div>
+                <div className="px-6 py-5 leading-relaxed text-foreground sm:px-8">
+                  <ul className="list-inside list-disc space-y-1.5">
                     <li>Forgot to remove the tail when capacity is reached.</li>
                     <li>Didn&apos;t update the hash map when moving a node to the head.</li>
                   </ul>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="border-t border-border px-8 py-4 sm:px-12">
             <FigureCaption
               fig={3}
               title="Each entry captures the idea and mistakes, not just the solve."
-              className="text-center"
+              className="mt-0"
             />
           </div>
         </SheetSection>
 
         {/* ── Practice preview ── */}
-        <SheetSection innerClassName="px-6 py-10 sm:p-12" band="neutral">
-          <div className="mx-auto max-w-5xl space-y-8">
-            <div className="space-y-3">
-              <h2 className="text-xl font-medium">Targeted practice by pattern</h2>
-              <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
-                Pick a pattern, get an easy&ndash;medium&ndash;hard set of problems you
-                haven&apos;t solved yet. Shuffle until you find ones that challenge you, then
-                log your attempt.
-              </p>
-            </div>
+        <SheetSection band="neutral" flush>
+          <header className="border-b border-border px-8 py-8 sm:px-12 sm:py-10">
+            <h2 className="text-2xl font-medium tracking-tight">Targeted practice by pattern</h2>
+            <p className="mt-2 max-w-2xl text-base leading-relaxed text-muted-foreground">
+              Pick a pattern, get an easy&ndash;medium&ndash;hard set of problems you
+              haven&apos;t solved yet. Shuffle until you find ones that challenge you, then
+              log your attempt.
+            </p>
+          </header>
 
-            <div className="grid grid-cols-1 items-center gap-4 border border-border bg-background p-3 sm:p-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-              <PracticePatternsGrid />
-              <HairlineFigure
-                id="practice-patterns-iframe"
-                page="hairline-practice-patterns.html"
-                title="Interactive pattern practice field"
-              />
+          <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:divide-x md:divide-y-0">
+            <PracticePatternsGrid />
+            <div className="flex items-center justify-center bg-dither-25 p-6 sm:p-10 lg:p-12">
+              <div className="w-full border border-border bg-background p-3 sm:p-5 shadow-xs">
+                <HairlineFigure
+                  id="practice-patterns-iframe"
+                  page="hairline-practice-patterns.html"
+                  title="Interactive pattern practice field"
+                />
+              </div>
             </div>
+          </div>
 
+          <div className="border-t border-border px-8 py-4 sm:px-12">
             <FigureCaption
               fig={4}
-              title="Pick a pattern, get a graded problem set. Shuffle for fresh picks."
-              className="text-center"
+              title="Hover a pattern to inspect its cluster. Pick a pattern, get a graded problem set."
+              className="mt-0"
             />
           </div>
         </SheetSection>
 
         {/* ── LeetCode import ── */}
-        <SheetSection innerClassName="px-6 py-10 sm:p-12">
-          <div className="mx-auto max-w-5xl space-y-8">
-            <div className="max-w-xl space-y-3">
-              <h2 className="text-xl font-medium">Bring your LeetCode history or DSA sheet</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+        <SheetSection band="stripe" flush>
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-8 py-8 sm:px-12 sm:py-10">
+            <div>
+              <h2 className="text-2xl font-medium tracking-tight">Bring your LeetCode history or DSA sheet</h2>
+              <p className="mt-2 max-w-2xl text-base leading-relaxed text-muted-foreground">
                 Already solved a few hundred? Import them from a LeetCode screenshot, or upload the
                 DSA sheet you track in Excel or CSV. Reviews are spread over 60 days so day one
                 isn&apos;t a wall.
               </p>
-              <Link
-                href="/auth/signin?callbackUrl=%2Fimport"
-                className="inline-flex items-center gap-1.5 border-b border-foreground/40 pb-0.5 text-xs text-foreground transition-colors hover:border-foreground"
-              >
-                Import your problems
-              </Link>
             </div>
-            <ImportSources />
-          </div>
+            <Link
+              href="/auth/signin?callbackUrl=%2Fimport"
+              className="inline-flex items-center gap-1.5 border-b border-orange-500 pb-0.5 text-xs text-orange-600 transition-colors hover:text-orange-700"
+            >
+              Import your problems
+            </Link>
+          </header>
+          <ImportSources />
         </SheetSection>
 
         {/* ── Not Anki ── */}
-        <SheetSection>
+        <SheetSection flush>
           <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
-            <div className="p-6 sm:p-12">
-              <h2 className="mb-4 text-lg font-medium">Not a flashcard app</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+            <div className="p-8 sm:p-12 lg:p-16">
+              <p className="type-label mb-3">Real practice</p>
+              <h2 className="mb-4 text-xl font-medium tracking-tight">Not a flashcard app</h2>
+              <p className="max-w-md text-base leading-relaxed text-muted-foreground">
                 Anki reviews text. Hash-It reviews problems. You re-solve from scratch, on the
                 real platform, under time pressure. The scheduling is the same science — the
                 practice is real.
               </p>
             </div>
-            <div className="bg-muted/10 p-6 sm:p-12">
-              <h2 className="mb-4 text-lg font-medium">Not a problem list</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+            <div className="bg-muted/5 p-8 sm:p-12 lg:p-16">
+              <p className="type-label mb-3 text-orange-600">Adaptive retention</p>
+              <h2 className="mb-4 text-xl font-medium tracking-tight">Not a problem list</h2>
+              <p className="max-w-md text-base leading-relaxed text-muted-foreground">
                 NeetCode and Grind 75 tell you what to solve first. Hash-It tells you what to
                 solve again. Use any list to seed your log — the review schedule is what
                 keeps it in your head.
@@ -324,59 +362,57 @@ export default function HomePage() {
         </SheetSection>
 
         {/* ── Closing CTA with PixelBlast frame ── */}
-        <SheetSection>
+        <SheetSection flush>
           <div className="relative">
             {/* PixelBlast border — all four sides */}
-            <div className="-mx-4 sm:-mx-6 lg:-mx-8 pointer-events-none absolute inset-x-0 top-0 h-6 sm:h-8 overflow-hidden" aria-hidden="true">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-6 sm:h-8 overflow-hidden" aria-hidden="true">
               <PixelBlast color="#f97316" pixelSize={4} />
             </div>
-            <div className="-mx-4 sm:-mx-6 lg:-mx-8 pointer-events-none absolute inset-x-0 bottom-0 h-6 sm:h-8 overflow-hidden" aria-hidden="true">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 sm:h-8 overflow-hidden" aria-hidden="true">
               <PixelBlast color="#f97316" pixelSize={4} />
             </div>
-            <div className="pointer-events-none absolute inset-y-6 sm:inset-y-8 -left-4 sm:-left-6 lg:-left-8 w-6 sm:w-8 overflow-hidden" aria-hidden="true">
+            <div className="pointer-events-none absolute inset-y-6 sm:inset-y-8 left-0 w-6 sm:w-8 overflow-hidden" aria-hidden="true">
               <PixelBlast color="#f97316" pixelSize={4} />
             </div>
-            <div className="pointer-events-none absolute inset-y-6 sm:inset-y-8 -right-4 sm:-right-6 lg:-right-8 w-6 sm:w-8 overflow-hidden" aria-hidden="true">
+            <div className="pointer-events-none absolute inset-y-6 sm:inset-y-8 right-0 w-6 sm:w-8 overflow-hidden" aria-hidden="true">
               <PixelBlast color="#f97316" pixelSize={4} />
             </div>
 
-            <div className="px-4 py-16 text-center sm:py-20">
-              <div className="mx-auto max-w-lg space-y-6">
-                <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">
+            <div className="px-6 py-20 text-center sm:py-28">
+              <div className="mx-auto max-w-xl space-y-7">
+                <h2 className="text-3xl font-medium tracking-tight sm:text-4xl">
                   Your interview prep shouldn&apos;t rely on memory alone.
                 </h2>
-                <p className="text-sm leading-relaxed text-muted-foreground">
+                <p className="text-base leading-relaxed text-muted-foreground">
                   Start logging problems. The system handles the rest.
                 </p>
                 <Link
-                    href="/auth/signin"
-                    className="pressable inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-6 py-2.5 text-sm text-white hover:bg-orange-600"
-                  >
-                    Get started
-                  </Link>
+                  href="/auth/signin"
+                  className="pressable inline-flex items-center justify-center gap-2 border border-orange-500 bg-orange-500 px-7 py-3 text-sm font-medium text-white shadow-sm hover:bg-orange-600"
+                >
+                  Get started
+                </Link>
               </div>
             </div>
           </div>
         </SheetSection>
 
         {/* ── FAQ (mirrored in the FAQPage structured data above) ── */}
-        <SheetSection innerClassName="px-6 py-10 sm:p-12" band="neutral">
-          <div className="mx-auto max-w-3xl space-y-8">
-            <div className="space-y-3">
-              <h2 className="text-xl font-medium">Frequently asked questions about tracking DSA</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                New to spaced repetition for DSA? Read{" "}
-                <Link
-                  href={GUIDE_PATH}
-                  className="border-b border-orange-500 pb-0.5 text-orange-600 transition-colors hover:text-orange-700"
-                >
-                  how to remember DSA problems
-                </Link>
-                .
-              </p>
-            </div>
-            <FaqList items={LANDING_FAQ} />
-          </div>
+        <SheetSection band="neutral" flush>
+          <header className="border-b border-border px-8 py-8 sm:px-12 sm:py-10">
+            <h2 className="text-2xl font-medium tracking-tight">Frequently asked questions about tracking DSA</h2>
+            <p className="mt-2 text-base leading-relaxed text-muted-foreground">
+              New to spaced repetition for DSA? Read{" "}
+              <Link
+                href={GUIDE_PATH}
+                className="border-b border-orange-500 pb-0.5 text-orange-600 transition-colors hover:text-orange-700"
+              >
+                how to remember DSA problems
+              </Link>
+              .
+            </p>
+          </header>
+          <FaqList items={LANDING_FAQ} flush />
         </SheetSection>
       </main>
     </div>
