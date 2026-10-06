@@ -237,6 +237,28 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     };
   }, [isOpen, inline]);
 
+  useEffect(() => {
+    if (!isOpen || inline) return;
+    const bodyOverflow = document.body.style.overflow;
+    const rootOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.overflow = rootOverflow;
+    };
+  }, [isOpen, inline]);
+
+  useEffect(() => {
+    const resize = (textarea: HTMLTextAreaElement | null) => {
+      if (!textarea) return;
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    };
+    resize(ideaRef.current);
+    resize(mistakeRef.current);
+  }, [idea, mistake, isOpen, manualMode, selectedProblem]);
+
   // Listen to Cmd+K & global events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -551,7 +573,8 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       {(isOpen || inline) && (
       <div
         className={cn(
-          "w-full border border-border bg-background shadow-2xl",
+          "w-full overscroll-contain border border-border bg-background shadow-2xl",
+          !inline && "max-h-[calc(100dvh-5rem)] overflow-y-auto",
           !inline && "fixed top-16 left-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2",
           inline && "relative"
         )}
@@ -650,7 +673,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       placeholder="Title"
                       value={manualTitle || inferredUrlTitle}
                       onChange={(e) => setManualTitle(e.target.value)}
-                      className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="h-8 w-full border border-border bg-background px-2.5 py-0 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
 
@@ -659,7 +682,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     <select
                       value={manualDifficulty}
                       onChange={(e) => setManualDifficulty(e.target.value as any)}
-                      className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="h-8 w-full border border-border bg-background px-2.5 py-0 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     >
                       <option value="EASY">Easy</option>
                       <option value="MEDIUM">Medium</option>
@@ -674,7 +697,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       placeholder="e.g. https://practice.geeksforgeeks.org/..."
                       value={manualUrl || (query.startsWith("http") ? query : "")}
                       onChange={(e) => setManualUrl(e.target.value)}
-                      className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="h-8 w-full border border-border bg-background px-2.5 py-0 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
 
@@ -764,22 +787,24 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   <div className="space-y-1">
                     <div className="text-[11px] font-medium text-muted-foreground">Idea / Core insight</div>
                     <textarea
+                      ref={ideaRef}
                       value={idea}
                       onChange={(e) => setIdea(e.target.value)}
                       placeholder="Key observation, invariant, or technique..."
                       rows={2}
-                      className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                      className="w-full resize-none overflow-hidden border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <div className="text-[11px] font-medium text-muted-foreground">What I did wrong / Trap to avoid</div>
                     <textarea
+                      ref={mistakeRef}
                       value={mistake}
                       onChange={(e) => setMistake(e.target.value)}
                       placeholder="Mistake made, edge case missed..."
                       rows={2}
-                      className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                      className="w-full resize-none overflow-hidden border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
                   <LogExtraFields
@@ -899,12 +924,12 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   placeholder="Problem Title"
                   value={manualTitle}
                   onChange={(e) => setManualTitle(e.target.value)}
-                  className="col-span-2 border border-border bg-background px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="col-span-2 h-8 border border-border bg-background px-2.5 py-0 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
                 <select
                   value={manualDifficulty}
                   onChange={(e) => setManualDifficulty(e.target.value as any)}
-                  className="border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="h-8 border border-border bg-background px-2.5 py-0 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <option value="EASY">Easy</option>
                   <option value="MEDIUM">Medium</option>
@@ -915,7 +940,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   placeholder="URL (e.g. GeeksforGeeks)"
                   value={manualUrl}
                   onChange={(e) => setManualUrl(e.target.value)}
-                  className="col-span-3 border border-border bg-background px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="col-span-3 h-8 border border-border bg-background px-2.5 py-0 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
             )}
@@ -1016,7 +1041,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   onChange={(e) => setIdea(e.target.value)}
                   placeholder="Sort by start interval, maintain min-heap of active end times..."
                   rows={2}
-                  className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                  className="w-full resize-none overflow-hidden border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
 
@@ -1031,7 +1056,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                   onChange={(e) => setMistake(e.target.value)}
                   placeholder="Didn't handle negative numbers; missed off-by-one in binary search right boundary..."
                   rows={2}
-                  className="w-full border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                  className="w-full resize-none overflow-hidden border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
               <LogExtraFields

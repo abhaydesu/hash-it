@@ -39,7 +39,7 @@ export function RecallCardItem({ item, onComplete }: RecallCardItemProps) {
         entryId: item.entryId,
         rating: r,
         wroteApproach: approach.trim() || null,
-        retryTomorrow: item.retryTomorrow ?? false,
+        ...(item.retryTomorrow ? { retryTomorrow: true } : {}),
       });
       setTimeout(() => onComplete(), 600);
     } catch (err) {
