@@ -5,6 +5,8 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { CATALOG_CACHE_TAG } from "@/lib/practice";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { addDays, localDay, startOfLocalDay } from "@/lib/dates";
+import { DEFAULT_TIMEZONE } from "@/lib/user-settings";
 import {
   seedCard,
   advanceCard,
@@ -464,6 +466,7 @@ const RecordRecallSchema = z.object({
   entryId: z.string().max(64),
   rating: z.enum(["AGAIN", "HARD", "GOOD"]),
   wroteApproach: z.string().max(LIMITS.note).optional().nullable(),
+  retryTomorrow: z.boolean().default(false),
 });
 
 /**
@@ -506,6 +509,14 @@ export async function recordRecallAttempt(input: z.input<typeof RecordRecallSche
         ...schedule,
       })
     : seedCard({ entryId: entry.id, rating: data.rating as AppRating, now, ...schedule });
+
+  // A blank answer on an overdue quick-recall card returns it to full solve tomorrow.
+  if (data.retryTomorrow && data.rating === "AGAIN") {
+    const timezone = userSettings?.timezone ?? DEFAULT_TIMEZONE;
+    const tomorrow = startOfLocalDay(addDays(localDay(now, timezone), 1), timezone);
+    updatedCard.due = tomorrow;
+    updatedCard.scheduledDays = 1;
+  }
 
   await prisma.$transaction([
     prisma.attempt.create({
@@ -807,4 +818,3 @@ export async function toggleRoadmapItemSolve(params: {
 
   return { success: true };
 }
-

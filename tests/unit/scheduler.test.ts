@@ -8,6 +8,7 @@ import {
   isLeech,
   interleaveLane,
   interleaveQueue,
+  promoteOverdueToRecall,
   spreadImportDueDates,
   DEFAULT_BASELINES,
   DURABLE_STABILITY_DAYS,
@@ -211,6 +212,7 @@ describe("lib/scheduler.ts unit tests", () => {
       const card = seedCard({ entryId: "e3", rating: "AGAIN", now: fixedNow });
       expect(card.entryId).toBe("e3");
       expect(card.state).toBe("REVIEW");
+      expect(card.due.getTime()).toBeGreaterThanOrEqual(fixedNow.getTime() + 3 * 86_400_000);
     });
 
     it("seeds an unaided solve at full Good strength, well above a help-assisted seed", () => {
@@ -301,6 +303,20 @@ describe("lib/scheduler.ts unit tests", () => {
       const due = new Date(fixedNow.getTime() + dueOffsetDays * 86400000);
       return { entryId: id, due, lapses, reps: 1, family, lane };
     }
+
+    it("promotes only the oldest overdue resolve cards to recall", () => {
+      const items = [
+        makeItem("oldest", -8, 0, "F1"),
+        makeItem("middle", -4, 0, "F2"),
+        makeItem("newest", -1, 0, "F3"),
+        makeItem("existing-recall", -9, 0, "F4", "RECALL"),
+      ];
+      const promoted = promoteOverdueToRecall(items, 2);
+      expect(promoted.filter((item) => item.lane === "RECALL").map((item) => item.entryId)).toEqual([
+        "oldest", "middle", "existing-recall",
+      ]);
+      expect(promoted.find((item) => item.entryId === "newest")?.lane).toBe("RESOLVE");
+    });
 
     describe("cap, ordering, and lapses", () => {
       it("respects cap = 0, cap = 1, cap = 2", () => {

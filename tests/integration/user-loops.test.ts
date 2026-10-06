@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/settings-actions";
 import { dryRunImportCSV, commitImportBatch } from "@/app/actions/import-actions";
 import { CardState, Rating } from "@prisma/client";
+import { addDays, localDay, startOfLocalDay } from "@/lib/dates";
 
 describe("User Loops (Integration)", () => {
   it("completes full log problem loop with initial card scheduling and attempt creation", async () => {
@@ -112,8 +113,8 @@ describe("User Loops (Integration)", () => {
       card = await tx.reviewCard.findUnique({ where: { entryId } });
       expect(card?.lapses).toBe(1);
       expect(card?.state).toBe(CardState.REVIEW);
-      // Scheduled for next review
-      expect(card?.scheduledDays).toBeLessThanOrEqual(1);
+      // A failed solve returns after the three-day minimum.
+      expect(card?.scheduledDays).toBeGreaterThanOrEqual(3);
 
       // 4. A fast cold solve right after the fail has to earn its way back: GOOD, not EASY
       const recovery = await recordReviewAttempt({ entryId, status: "SOLVED_UNAIDED", minutes: 5 });
@@ -165,6 +166,24 @@ describe("User Loops (Integration)", () => {
       expect(recallAttempt).toBeDefined();
       expect(recallAttempt?.rating).toBe(Rating.GOOD);
       expect(recallAttempt?.note).toContain("Divide search space");
+    });
+  });
+
+  it("returns a blank promoted recall to the full-solve lane tomorrow", async () => {
+    await runInTestTransaction(async (tx) => {
+      const user = await createTestUser({ email: "user_loop_recall_again@example.com" }, tx);
+      const problem = await createTestProblem({ title: "Recall Miss Retry", difficulty: "MEDIUM" }, tx);
+      setTestUser(user);
+      const { entryId } = await createEntry({ problemId: problem.id, status: "SOLVED_UNAIDED", minutes: 30 });
+
+      const now = new Date();
+      const result = await recordRecallAttempt({ entryId, rating: "AGAIN", retryTomorrow: true });
+      expect(result.success).toBe(true);
+      const card = await tx.reviewCard.findUniqueOrThrow({ where: { entryId } });
+      const timezone = "Asia/Kolkata";
+      const tomorrow = startOfLocalDay(addDays(localDay(now, timezone), 1), timezone);
+      expect(card.due.getTime()).toBe(tomorrow.getTime());
+      expect(card.lapses).toBeGreaterThan(0);
     });
   });
 

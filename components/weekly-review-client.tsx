@@ -212,8 +212,8 @@ function RecallCheckCard({
               {result.recalled
                 ? "Had it. Schedule unchanged."
                 : falseConfidence
-                  ? "You were sure and missed it. It's due tomorrow — read the trap above once more."
-                  : "Missed. It's due tomorrow."}
+                  ? "You were sure and missed it. It's marked to revisit tomorrow; your review schedule is unchanged."
+                  : "Missed. It's marked to revisit tomorrow; your review schedule is unchanged."}
             </p>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -280,7 +280,7 @@ function RecallCheck({
                   <span className="font-medium text-foreground tabular-nums">{certainRight}</span>.
                 </>
               ) : (
-                "You weren't certain on any — that's honest, and the misses are queued for tomorrow."
+                "You weren't certain on any — that's honest, and the misses are marked to revisit tomorrow."
               )}
             </p>
           )}

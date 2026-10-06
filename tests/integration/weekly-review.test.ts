@@ -9,8 +9,9 @@ import {
 } from "@/tests/helpers/factories";
 import { setTestUser } from "@/tests/helpers/auth-helper";
 import { recordRecallCheck, commitWeeklyPlan } from "@/app/actions/weekly-actions";
-import { createEntry } from "@/app/actions/entry-actions";
+import { createEntry, recordRecallAttempt } from "@/app/actions/entry-actions";
 import { getWeeklyReview, getActivePlan } from "@/lib/weekly-review";
+import { getDailyReviewQueue } from "@/lib/dashboard";
 
 const DAY = 86_400_000;
 // Sunday 4 Oct 2026, 11:30 in Asia/Kolkata (the default timezone): the review is open.
@@ -23,18 +24,56 @@ describe("Weekly review (Integration)", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("picks weak problems, pulls a miss to tomorrow, and leaves a hit alone", async () => {
+  it("keeps the daily quick-recall total at three even as passed cards leave the queue", async () => {
+    await runInTestTransaction(async (tx) => {
+      const user = await createTestUser({ email: "weekly-recall-cap@example.com" }, tx);
+      setTestUser(user);
+      for (let i = 0; i < 4; i++) {
+        const problem = await createTestProblem({ title: `Overdue Recall ${i}` }, tx);
+        const { entry } = await createTestEntry(
+          user.id,
+          problem.id,
+          { createAttempt: true, createReviewCard: true, due: new Date("2020-01-01T00:00:00Z") },
+          tx,
+        );
+      }
+
+      const initial = await getDailyReviewQueue(user.id, new Date(SUNDAY.getTime() + 2 * DAY));
+      const recallIds = initial.queue.filter((item) => item.lane === "RECALL").map((item) => item.entryId);
+      expect(recallIds).toHaveLength(3);
+
+      for (const entryId of recallIds) {
+        await recordRecallAttempt({ entryId, rating: "GOOD", retryTomorrow: true });
+      }
+
+      const lastRecall = await tx.attempt.findFirstOrThrow({
+        where: { lane: "RECALL" },
+        orderBy: { at: "desc" },
+      });
+      const afterPassing = await getDailyReviewQueue(user.id, new Date(lastRecall.at.getTime() + 1000));
+      expect(afterPassing.recallCount).toBe(0);
+    });
+  });
+
+  it("picks weak problems, keeps weekly misses out of the FSRS schedule, and shows a next-day recall", async () => {
     await runInTestTransaction(async (tx) => {
       const user = await createTestUser({ email: "weekly1@example.com" }, tx);
       const pattern = await createTestPattern({ name: "Sliding Window Weekly" }, tx);
       const weak = await createTestProblem({ title: "Weak One" }, tx);
       const strong = await createTestProblem({ title: "Strong One" }, tx);
       const unseen = await createTestProblem({ title: "Unseen One", difficulty: "MEDIUM" }, tx);
-      for (const p of [weak, strong, unseen]) await createTestPatternProblem(p.id, pattern.id, "SHEET", tx);
+      const overdue = await createTestProblem({ title: "Overdue Full Solve" }, tx);
+      for (const p of [weak, strong, unseen, overdue]) await createTestPatternProblem(p.id, pattern.id, "SHEET", tx);
 
       const farDue = new Date(Date.now() + 30 * DAY);
       const { entry: weakEntry } = await createTestEntry(user.id, weak.id, { createReviewCard: true, due: farDue }, tx);
       await createTestEntry(user.id, strong.id, { createReviewCard: true, due: farDue }, tx);
+      const { entry: overdueEntry } = await createTestEntry(
+        user.id,
+        overdue.id,
+        { createReviewCard: true, due: new Date(SUNDAY.getTime() - 5 * DAY) },
+        tx,
+      );
       // Make "Weak One" weak: reviewed long ago with low stability.
       await tx.reviewCard.update({
         where: { entryId: weakEntry.id },
@@ -49,12 +88,20 @@ describe("Weekly review (Integration)", () => {
       expect(review.plan.candidates.REDO.map((c) => c.title)).toContain("Weak One");
       expect(review.plan.candidates.FRESH.map((c) => c.title)).toEqual(["Unseen One"]);
 
-      // A confident miss: due moves to tomorrow (earlier), stability untouched.
+      // A confident miss leaves the FSRS date and stability untouched.
+      const originalDue = (await tx.reviewCard.findUnique({ where: { entryId: weakEntry.id } }))!.due;
       const outcome = await recordRecallCheck({ entryId: weakEntry.id, confidence: "CLEAR", recalled: false });
       expect(outcome).toEqual({ dueTomorrow: true, falseConfidence: true });
       const card = await tx.reviewCard.findUnique({ where: { entryId: weakEntry.id } });
-      expect(card!.due.getTime()).toBeLessThan(Date.now() + 2 * DAY);
+      expect(card!.due.getTime()).toBe(originalDue.getTime());
       expect(card!.stability).toBe(1);
+
+      const check = await tx.weeklyCheck.findUniqueOrThrow({
+        where: { entryId_weekStart: { entryId: weakEntry.id, weekStart: "2026-10-05" } },
+      });
+      const queue = await getDailyReviewQueue(user.id, new Date(check.at.getTime() + DAY));
+      expect(queue.queue.some((item) => item.entryId === weakEntry.id && item.lane === "RECALL")).toBe(true);
+      expect(queue.queue.some((item) => item.entryId === overdueEntry.id && item.lane === "RECALL" && item.retryTomorrow)).toBe(true);
 
       const again = await getWeeklyReview(user.id);
       expect(again.checks.find((c) => c.entryId === weakEntry.id)?.result).toEqual({ confidence: "CLEAR", recalled: false });

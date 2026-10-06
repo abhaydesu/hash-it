@@ -43,10 +43,10 @@ export const DURABLE_STABILITY_DAYS = 30;
 /**
  * Longest a just-failed problem may be put off. FSRS carries much of a mature
  * card's stability through a lapse, which can push a problem you just failed a
- * week out. With short-term steps disabled this restores the "fail it, see it
- * tomorrow" guarantee those steps normally provide.
+ * week out. With short-term steps disabled this keeps a failed problem within a
+ * few days while avoiding next-day repeats.
  */
-export const LAPSE_INTERVAL_DAYS = 1;
+export const LAPSE_INTERVAL_DAYS = 3;
 
 /**
  * Build a scheduler honouring this user's retention and any optimised weights.
@@ -248,8 +248,23 @@ export function seedCard(params: {
 
   const f = scheduler(desiredRetention, fsrsParams);
   const scheduled = f.repeat(createEmptyCard(now), now)[APP_RATING_TO_FSRS[rating]].card;
+  const card = fromFSRSCard(entryId, scheduled);
+  if (rating === "AGAIN") {
+    const minimum = new Date(now.getTime() + LAPSE_INTERVAL_DAYS * 86_400_000);
+    if (card.due < minimum) {
+      card.due = minimum;
+      card.scheduledDays = LAPSE_INTERVAL_DAYS;
+    }
+  }
+  return card;
+}
 
-  return fromFSRSCard(entryId, scheduled);
+function applyLapseInterval(card: ReviewCardData, reviewDate: Date) {
+  const soonest = new Date(reviewDate.getTime() + LAPSE_INTERVAL_DAYS * 86_400_000);
+  if (card.due.getTime() !== soonest.getTime()) {
+    card.due = soonest;
+    card.scheduledDays = LAPSE_INTERVAL_DAYS;
+  }
 }
 
 /**
@@ -278,16 +293,22 @@ export function advanceCard(params: {
   const card = fromFSRSCard(currentCard.entryId, repeatResult[grade].card);
 
   if (rating === "AGAIN") {
-    // Only the due date is pulled in; FSRS keeps its own stability estimate, and
-    // reviewing early is something it already accounts for.
-    const soonest = new Date(reviewDate.getTime() + LAPSE_INTERVAL_DAYS * 86_400_000);
-    if (card.due > soonest) {
-      card.due = soonest;
-      card.scheduledDays = LAPSE_INTERVAL_DAYS;
-    }
+    // Keep the failure loop predictable while retaining FSRS's updated memory
+    // estimate; the next successful review will resume the normal intervals.
+    applyLapseInterval(card, reviewDate);
   }
 
   return card;
+}
+
+/** Move a small number of the oldest overdue full solves into the cheaper recall lane. */
+export function promoteOverdueToRecall<T extends QueueItem>(items: T[], limit = 3): T[] {
+  const overdueResolve = items
+    .filter((item) => (item.lane ?? deriveLane(item)) === "RESOLVE")
+    .sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime())
+    .slice(0, Math.max(0, limit));
+  const promoted = new Set(overdueResolve.map((item) => item.entryId));
+  return items.map((item) => promoted.has(item.entryId) ? { ...item, lane: "RECALL" } : item);
 }
 
 /**
@@ -353,7 +374,7 @@ export function interleaveLane<T extends QueueItem>(items: T[], cap: number): T[
  * Interleaving Algorithm per spec §1 and §7:
  * Compose two review lanes:
  * - At most dailyResolveCap (default 2) RESOLVE cards
- * - Up to recallCap (default 6) RECALL cards
+ * - Up to recallCap (default 3) RECALL cards
  * - Resolve cards render first, followed by recall cards
  * - Overdue cards sort ahead of due-today within their lane
  * - Pattern-family interleaving applies within each lane
@@ -367,7 +388,7 @@ export function interleaveQueue<T extends QueueItem>(
   const legacyMode = dailyResolveCapOrNow instanceof Date || typeof dailyResolveCapOrNow === "undefined";
   const resolveCap = legacyMode ? 2 : Number.isFinite(Number(dailyResolveCapOrNow)) ? Number(dailyResolveCapOrNow) : 2;
   const now = legacyMode ? (dailyResolveCapOrNow instanceof Date ? dailyResolveCapOrNow : new Date()) : (maybeNow ?? new Date());
-  const recallCap = typeof maybeRecallCap === "number" ? maybeRecallCap : 6;
+  const recallCap = typeof maybeRecallCap === "number" ? maybeRecallCap : 3;
 
   if (cards.length === 0) return [];
 

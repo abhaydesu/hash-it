@@ -34,6 +34,7 @@ interface QueueItem {
   revisit?: boolean;
   mistake?: string | null;
   idea?: string | null;
+  retryTomorrow?: boolean;
 }
 
 interface Snapshot {
@@ -235,12 +236,8 @@ export function TodayClient({ data }: { data: TodayData }) {
           <div className="collapsible" data-leaving={overdueLeaving || undefined}>
           <div className="flex items-start justify-between gap-3 border border-warning/40 bg-background px-4 py-3 text-sm text-warning">
             <p>
-              <span className="font-semibold tabular-numbers">{overdueCount} cards overdue.</span> Reviews
-              are capped, so this clears slowly. Consider a catch-up session or{" "}
-              <Link href="/settings" className="text-orange-600 underline underline-offset-2 hover:text-orange-700">
-                lowering retention in settings
-              </Link>
-              .
+              <span className="font-semibold tabular-numbers">{overdueCount} cards overdue.</span> Up to three
+              overdue full solves are offered as quick recall each day. A miss returns to the solve queue tomorrow.
             </p>
             <button
               type="button"

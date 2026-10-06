@@ -4,7 +4,6 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { startOfTomorrow } from "@/lib/dates";
 import { weeklyWindow } from "@/lib/review-windows";
 import { checkOutcome, PLAN_KINDS } from "@/lib/weekly-review";
 
@@ -27,8 +26,8 @@ function openPlanWeek(now: Date, timezone: string) {
 }
 
 /**
- * Record one recall-check answer. A miss makes the card due tomorrow — only ever
- * earlier, and only the due date: stability is left to FSRS.
+ * Record one weekly recall-check answer. A miss is surfaced in the daily queue
+ * tomorrow without changing the card's FSRS schedule.
  */
 export async function recordRecallCheck(input: z.infer<typeof CheckSchema>) {
   const user = await getCurrentUser();
@@ -44,18 +43,11 @@ export async function recordRecallCheck(input: z.infer<typeof CheckSchema>) {
 
   const week = openPlanWeek(now, timezone);
   const outcome = checkOutcome(data.confidence, data.recalled);
-  const tomorrow = startOfTomorrow(now, timezone);
-
-  await prisma.$transaction([
-    prisma.weeklyCheck.upsert({
-      where: { entryId_weekStart: { entryId: data.entryId, weekStart: week } },
-      update: { confidence: data.confidence, recalled: data.recalled, at: now },
-      create: { userId: user.id, entryId: data.entryId, weekStart: week, confidence: data.confidence, recalled: data.recalled },
-    }),
-    ...(outcome.dueTomorrow && card.due > tomorrow
-      ? [prisma.reviewCard.update({ where: { entryId: data.entryId }, data: { due: tomorrow } })]
-      : []),
-  ]);
+  await prisma.weeklyCheck.upsert({
+    where: { entryId_weekStart: { entryId: data.entryId, weekStart: week } },
+    update: { confidence: data.confidence, recalled: data.recalled, at: now },
+    create: { userId: user.id, entryId: data.entryId, weekStart: week, confidence: data.confidence, recalled: data.recalled },
+  });
 
   revalidatePath("/today");
   return outcome;

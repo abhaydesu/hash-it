@@ -14,6 +14,7 @@ interface RecallCardItemProps {
     number?: number | null;
     url: string;
     idea?: string | null;
+    retryTomorrow?: boolean;
   };
   onComplete: () => void;
 }
@@ -38,6 +39,7 @@ export function RecallCardItem({ item, onComplete }: RecallCardItemProps) {
         entryId: item.entryId,
         rating: r,
         wroteApproach: approach.trim() || null,
+        retryTomorrow: item.retryTomorrow ?? false,
       });
       setTimeout(() => onComplete(), 600);
     } catch (err) {

@@ -1,16 +1,29 @@
 import { prisma } from "@/lib/prisma";
-import { deriveLane, interleaveQueue, type AppRating } from "@/lib/scheduler";
+import { deriveLane, interleaveQueue, promoteOverdueToRecall, type AppRating, type QueueItem, type ReviewLane } from "@/lib/scheduler";
 import { localDay, startOfLocalDay } from "@/lib/dates";
 import { getUserSettingsRow, DEFAULT_TIMEZONE } from "@/lib/user-settings";
 
-const RECALL_CAP = 6;
+const RECALL_CAP = 3;
+
+export interface DashboardQueueItem extends QueueItem {
+  lane: ReviewLane;
+  problemId: string;
+  title: string;
+  number?: number | null;
+  url: string;
+  difficulty?: "EASY" | "MEDIUM" | "HARD" | null;
+  platform: string;
+  mistake?: string | null;
+  idea?: string | null;
+  retryTomorrow?: boolean;
+}
 
 export async function getDailyReviewQueue(userId: string, now: Date = new Date()) {
   const settings = await getUserSettingsRow(userId);
   const timezone = settings?.timezone ?? DEFAULT_TIMEZONE;
   const dayStart = startOfLocalDay(localDay(now, timezone), timezone);
 
-  const [doneToday, dueCards] = await Promise.all([
+  const [doneToday, dueCards, missedWeeklyChecks] = await Promise.all([
     // Caps are per local day: reviews already logged from the queue today use
     // up slots, so finishing a card doesn't pull the next one in.
     prisma.attempt.groupBy({
@@ -57,6 +70,28 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
         },
       },
     }),
+    prisma.weeklyCheck.findMany({
+      where: { userId, at: { lt: dayStart } },
+      orderBy: { at: "desc" },
+      include: {
+        entry: {
+          select: {
+            id: true,
+            attempts: { orderBy: { at: "desc" }, take: 1, select: { at: true } },
+            reviewCard: { select: { due: true, lapses: true, reps: true, stability: true } },
+            problem: {
+              select: {
+                id: true, title: true, number: true, url: true, difficulty: true, platform: true,
+                patterns: { take: 1, select: { pattern: { select: { family: true } } } },
+              },
+            },
+            idea: true,
+            mistake: true,
+            revisit: true,
+          },
+        },
+      },
+    }),
   ]);
   const doneIn = (lane: "RECALL" | "RESOLVE") =>
     doneToday.find((row) => row.lane === lane)?._count._all ?? 0;
@@ -65,7 +100,7 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
   const resolveLeft = Math.max(0, (settings?.dailyResolveCap ?? 2) - resolveDone);
   const recallLeft = Math.max(0, RECALL_CAP - recallDone);
 
-  const queueItems = dueCards.map((card) => {
+  const queueItems: DashboardQueueItem[] = dueCards.map((card) => {
     const problem = card.entry.problem;
     const family = problem.patterns[0]?.pattern.family ?? null;
     const recentRatings = card.entry.attempts.map((a) => a.rating as AppRating);
@@ -93,7 +128,51 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
     };
   });
 
-  const finalQueue = interleaveQueue(queueItems, resolveLeft, now, recallLeft);
+  // A weekly-check miss becomes a visible recall follow-up the next local day.
+  // It remains outside ReviewCard.due, so the check itself never changes FSRS.
+  const seenWeeklyEntries = new Set<string>();
+  const dueIds = new Set(queueItems.map((item) => item.entryId));
+  for (const check of missedWeeklyChecks) {
+    const entry = check.entry;
+    if (seenWeeklyEntries.has(entry.id)) continue;
+    seenWeeklyEntries.add(entry.id);
+    if (check.recalled) continue;
+    if (dueIds.has(entry.id) || !entry.reviewCard) continue;
+    if (entry.attempts[0] && entry.attempts[0].at > check.at) continue;
+    const problem = entry.problem;
+    queueItems.push({
+      entryId: entry.id,
+      due: check.at,
+      lapses: entry.reviewCard.lapses,
+      reps: entry.reviewCard.reps,
+      family: problem.patterns[0]?.pattern.family ?? null,
+      lane: "RECALL",
+      lastRating: null,
+      revisit: entry.revisit,
+      problemId: problem.id,
+      title: problem.title,
+      number: problem.number,
+      url: problem.url,
+      difficulty: problem.difficulty,
+      platform: problem.platform,
+      mistake: entry.mistake,
+      idea: entry.idea,
+      retryTomorrow: true,
+    });
+  }
+
+  const overdueItems = queueItems.filter((item) => new Date(item.due) < now);
+  const promoted = promoteOverdueToRecall(overdueItems, 3);
+  const promotedById = new Map(promoted.map((item) => [item.entryId, item]));
+  const originalLanes = new Map(queueItems.map((item) => [item.entryId, item.lane]));
+  const promotedQueueItems = queueItems.map((item) => {
+    const promotedItem = promotedById.get(item.entryId) ?? item;
+    return promotedItem.lane === "RECALL" && originalLanes.get(item.entryId) === "RESOLVE"
+      ? { ...promotedItem, retryTomorrow: true }
+      : promotedItem;
+  });
+
+  const finalQueue = interleaveQueue(promotedQueueItems, resolveLeft, now, recallLeft);
   const resolveCount = finalQueue.filter((item) => item.lane === "RESOLVE").length;
   const recallCount = finalQueue.filter((item) => item.lane === "RECALL").length;
 
