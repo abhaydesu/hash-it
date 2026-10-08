@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { addDays, localDay, startOfLocalDay } from "@/lib/dates";
 import { DEFAULT_TIMEZONE, getUserSettingsRow } from "@/lib/user-settings";
+import { loggedInfoFor } from "@/lib/logged-info";
 import { baselinesFrom, cardColumns, scheduleSettings, toCardData } from "@/lib/review-card";
 import {
   seedCard,
@@ -720,4 +721,11 @@ export async function toggleRoadmapItemSolve(params: {
   }
 
   return { success: true };
+}
+
+/** The caller's existing entry for a problem, so the log form can say it was already logged. */
+export async function getLoggedInfo(problemId: string) {
+  const user = await getCurrentUser();
+  const id = z.string().max(64).parse(problemId);
+  return (await loggedInfoFor(user.id, [id]))[id] ?? null;
 }

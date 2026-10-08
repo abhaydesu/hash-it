@@ -13,6 +13,7 @@ vi.mock("@/app/actions/settings-actions", () => ({
 vi.mock("@/app/actions/entry-actions", () => ({
   createEntry: vi.fn(),
   deleteEntry: vi.fn(),
+  getLoggedInfo: vi.fn().mockResolvedValue(null),
 }));
 
 const mockPathname = vi.fn(() => "/today");
@@ -279,5 +280,109 @@ describe("CommandBar", () => {
     );
     await userEvent.click(await screen.findByRole("button", { name: /Log problem/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/minutes/i);
+  });
+
+  it("recognises a pasted GeeksforGeeks link as a GfG problem, not a generic custom one", async () => {
+    const url = "https://www.geeksforgeeks.org/problems/kadanes-algorithm-1587115620/1";
+    mockFetchByUrl({
+      results: [],
+      enrichment: {
+        title: "Kadane's Algorithm",
+        slug: "kadanes-algorithm-1587115620",
+        url,
+        platform: "GFG",
+        difficulty: "MEDIUM",
+        topicTags: ["Arrays", "Dynamic Programming"],
+        source: "gfg",
+      },
+    });
+    const { createEntry } = await import("@/app/actions/entry-actions");
+    vi.mocked(createEntry).mockResolvedValue({ success: true, entryId: "entry-gfg", isNew: true });
+
+    render(<CommandBar inline={true} />);
+    const input = screen.getByRole("combobox", { name: /Search problems/i });
+    await userEvent.click(input);
+    await userEvent.paste(url);
+
+    const row = await screen.findByRole("option", { name: /Kadane's Algorithm/ });
+    expect(row).toHaveTextContent("GeeksforGeeks");
+    expect(screen.queryByText(/as a custom problem/i)).not.toBeInTheDocument();
+
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByRole("heading", { name: "Kadane's Algorithm" })).toBeInTheDocument();
+    expect(screen.queryByText("Custom problem")).not.toBeInTheDocument();
+
+    await userEvent.type(await screen.findByPlaceholderText("25"), "20");
+    await userEvent.click(screen.getByRole("button", { name: /Log problem/i }));
+    await waitFor(() => {
+      expect(createEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          manualTitle: "Kadane's Algorithm",
+          manualUrl: url,
+          manualPlatform: "GFG",
+          manualDifficulty: "MEDIUM",
+          manualTopicTags: ["Arrays", "Dynamic Programming"],
+        }),
+      );
+    });
+  });
+
+  it("marks an already-logged problem in the results and in the form", async () => {
+    const lastAt = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    const nextDue = new Date(Date.now() + 6 * 86_400_000 + 3_600_000).toISOString();
+    mockFetchByUrl({
+      results: [
+        {
+          id: "p1",
+          title: "Two Sum",
+          url: "",
+          difficulty: "EASY",
+          patterns: [],
+          topicTags: [],
+          logged: { entryId: "e1", status: "ATTEMPTED_FAILED", lastAt, nextDue },
+        },
+        { id: "p2", title: "Two Sum II", url: "", difficulty: "EASY", patterns: [], topicTags: [], logged: null },
+      ],
+      enrichment: null,
+    });
+    const { createEntry } = await import("@/app/actions/entry-actions");
+    vi.mocked(createEntry).mockResolvedValue({ success: true, entryId: "e1", isNew: false });
+
+    render(<CommandBar inline={true} />);
+    await userEvent.type(screen.getByRole("combobox", { name: /Search problems/i }), "two sum");
+
+    await screen.findByRole("option", { name: /Two Sum II/ });
+    const logged = screen.getAllByRole("option")[0];
+    expect(within(logged).getByText("Logged")).toBeInTheDocument();
+    expect(within(screen.getByRole("option", { name: /Two Sum II/ })).queryByText("Logged")).not.toBeInTheDocument();
+
+    await userEvent.keyboard("{Enter}");
+    const banner = await screen.findByRole("status");
+    expect(banner).toHaveTextContent("Already logged");
+    expect(banner).toHaveTextContent("Saw solution 3 days ago");
+    expect(banner).toHaveTextContent("due in 6 days");
+    expect(screen.queryByText(/First review in/)).not.toBeInTheDocument();
+
+    await userEvent.type(await screen.findByPlaceholderText("25"), "10");
+    await userEvent.click(screen.getByRole("button", { name: "Log again" }));
+    await waitFor(() => expect(createEntry).toHaveBeenCalledWith(expect.objectContaining({ problemId: "p1" })));
+  });
+
+  it("looks up logged status when opened from another page", async () => {
+    const { getLoggedInfo } = await import("@/app/actions/entry-actions");
+    vi.mocked(getLoggedInfo).mockResolvedValue({
+      entryId: "e1",
+      status: "SOLVED_UNAIDED",
+      lastAt: new Date().toISOString(),
+      nextDue: null,
+    });
+    render(<CommandBar inline={false} />);
+    window.dispatchEvent(
+      new CustomEvent("open-command-bar", {
+        detail: { problem: { id: "p1", title: "Two Sum", url: "", difficulty: "EASY", patterns: [], topicTags: [] } },
+      }),
+    );
+    expect(await screen.findByText("Already logged")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Log again" })).toBeInTheDocument();
   });
 });

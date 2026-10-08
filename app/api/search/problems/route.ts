@@ -8,6 +8,7 @@ import { Platform } from "@prisma/client";
 import { LIMITS } from "@/lib/safe";
 import { parseSlugFromUrl, problemUrlLookupKeys } from "@/lib/problem-url";
 import { fetchGfgProblemMetadata } from "@/lib/gfg-metadata";
+import { attachLogged } from "@/lib/logged-info";
 
 const problemSelect = {
   id: true,
@@ -138,14 +139,14 @@ export async function POST(request: Request) {
             }
 
             return NextResponse.json({
-              results: [
+              results: await attachLogged(session.user.id, [
                 serializeProblem({
                   ...match,
                   title: meta.title || match.title,
                   difficulty: nextDifficulty,
                   topicTags: nextTags,
                 }),
-              ],
+              ]),
             });
           }
         } finally {
@@ -153,7 +154,7 @@ export async function POST(request: Request) {
         }
       }
 
-      return NextResponse.json({ results: [serializeProblem(match)] });
+      return NextResponse.json({ results: await attachLogged(session.user.id, [serializeProblem(match)]) });
       }
 
       if (urlPlatform === Platform.GFG && urlSlug) {
@@ -230,7 +231,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      results: [...numberMatches, ...textMatches].map(serializeProblem),
+      results: await attachLogged(session.user.id, [...numberMatches, ...textMatches].map(serializeProblem)),
     });
   } catch (err) {
     console.error("[api/search/problems]", err);

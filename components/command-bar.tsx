@@ -3,11 +3,11 @@ import React from "react";
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import { usePathname } from "next/navigation";
-import { Search, ExternalLink, Check, AlertCircle, HelpCircle, X, Plus, CornerDownLeft } from "lucide-react";
+import { Search, ExternalLink, Check, AlertCircle, HelpCircle, X, Plus, CornerDownLeft, History } from "lucide-react";
 import { cn, formatDifficulty, safeHref, normalizePatternList } from "@/lib/utils";
 import { isMarketingPath } from "@/lib/site";
 import { titleFromProblemUrl } from "@/lib/problem-url";
-import { createEntry, deleteEntry } from "@/app/actions/entry-actions";
+import { createEntry, deleteEntry, getLoggedInfo } from "@/app/actions/entry-actions";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAlertDialog } from "@/components/ui/alert-dialog";
 import { useIsMac } from "@/lib/use-is-mac";
@@ -17,6 +17,7 @@ import { LogExtraFields } from "@/components/log-extra-fields";
 import { TagCombobox } from "@/components/ui/tag-combobox";
 import { suggestPatterns, canonicalPattern } from "@/lib/pattern-match";
 import { filterNonOverlappingFields, type CustomFieldDef } from "@/lib/custom-fields";
+import { formatAgo, formatDue, type LoggedInfo } from "@/lib/logged-format";
 import { firstIntervalForStatus, type FirstIntervals, type LoggedStatus } from "@/lib/first-intervals";
 
 interface SearchResult {
@@ -30,6 +31,8 @@ interface SearchResult {
   acRate?: number | null;
   topicTags: string[];
   patterns: { id: string; name: string; family: string }[];
+  /** The user's existing entry for this problem, if they have logged it before. */
+  logged?: LoggedInfo | null;
 }
 
 type Difficulty = "EASY" | "MEDIUM" | "HARD";
@@ -115,6 +118,8 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   const [manualUrl, setManualUrl] = useState("");
   const [manualDifficulty, setManualDifficulty] = useState<Difficulty>("MEDIUM");
   const [patternTags, setPatternTags] = useState<string[]>([]);
+  /** Set when a pasted link was recognised on another platform and its details were fetched. */
+  const [fetchedFrom, setFetchedFrom] = useState<string | null>(null);
   const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
   const [customDraft, setCustomDraft] = useState<CustomDraft>({});
   const [sources, setSources] = useState<string[]>([]);
@@ -213,7 +218,13 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
           difficulty: p.difficulty ?? null,
           topicTags: p.topicTags ?? [],
           patterns: p.patterns ?? [],
+          logged: p.logged,
         });
+        if (p.logged === undefined) {
+          getLoggedInfo(p.id)
+            .then((logged) => setSelectedProblem((prev) => (prev?.id === p.id ? { ...prev, logged } : prev)))
+            .catch(() => {});
+        }
         setTimeout(() => minutesInputRef.current?.focus(), 50);
       } else {
         setTimeout(() => searchInputRef.current?.focus(), 50);
@@ -268,7 +279,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
         setResults(data.results || []);
         setActiveIndex(0);
         const enrichment = data.enrichment as
-          | { title?: string; url?: string; difficulty?: Difficulty | null; topicTags?: string[] }
+          | { title?: string; url?: string; difficulty?: Difficulty | null; topicTags?: string[]; source?: string }
           | undefined;
 
         // A late response must not overwrite a custom problem the user is already editing.
@@ -277,8 +288,14 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
           if (enrichment.url) setManualUrl(enrichment.url);
           if (enrichment.difficulty) setManualDifficulty(enrichment.difficulty);
           setPatternTags(Array.isArray(enrichment.topicTags) ? normalizePatternList(enrichment.topicTags) : []);
-        } else if (!enrichment && trimmed.startsWith("http")) {
+          setFetchedFrom(enrichment.source === "gfg" ? "GeeksforGeeks" : null);
+        } else if (!enrichment && !manualModeRef.current) {
+          // Nothing recognised: drop details left over from an earlier link.
+          setManualTitle("");
+          setManualUrl("");
+          setManualDifficulty("MEDIUM");
           setPatternTags([]);
+          setFetchedFrom(null);
         }
       })
       .catch((err) => {
@@ -377,6 +394,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     setManualUrl("");
     setManualDifficulty("MEDIUM");
     setPatternTags([]);
+    setFetchedFrom(null);
     setCustomDraft({});
     setSource("");
     if (!inline) setIsOpen(false);
@@ -452,9 +470,34 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   if (!isOpen && !inline && !toast) return null;
 
   const inForm = selectedProblem != null || manualMode;
+  const logged = selectedProblem?.logged ?? null;
   const modKey = isMac ? "⌘" : "Ctrl";
-  const reviewDays = firstIntervals ? firstIntervalForStatus(status, revisit, firstIntervals) : null;
-  const selectedDifficulty = selectedProblem ? formatDifficulty(selectedProblem.difficulty) : null;
+  // A first-review wait only applies to a problem that is not in rotation yet.
+  const reviewDays = firstIntervals && !logged ? firstIntervalForStatus(status, revisit, firstIntervals) : null;
+  // The problem shown in the form header: a catalog pick, or a pasted link recognised on another platform.
+  const display = selectedProblem
+    ? {
+        number: selectedProblem.number ?? null,
+        title: selectedProblem.title,
+        url: selectedProblem.url,
+        difficulty: selectedProblem.difficulty ?? null,
+        tags: normalizePatternList(
+          selectedProblem.patterns.length > 0 ? selectedProblem.patterns.map((p) => p.name) : selectedProblem.topicTags ?? []
+        ),
+        platform: selectedProblem.platform === "GFG" ? "GeeksforGeeks" : null,
+      }
+    : fetchedFrom && manualMode
+      ? {
+          number: null,
+          title: manualTitle,
+          url: manualUrl,
+          difficulty: manualDifficulty,
+          tags: patternTags,
+          platform: fetchedFrom,
+        }
+      : null;
+  const displayDifficulty = display ? formatDifficulty(display.difficulty) : null;
+  const recognisedLink = Boolean(fetchedFrom && isUrlQuery && results.length === 0);
 
   return (
     <>
@@ -564,6 +607,11 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                             {prob.patterns[0].name}
                           </span>
                         )}
+                        {prob.logged && (
+                          <span className="shrink-0 border border-hint/40 bg-hint/10 px-1.5 py-0.5 text-[11px] text-hint">
+                            Logged
+                          </span>
+                        )}
                         <span className={cn("shrink-0 border px-1.5 py-0.5 text-[11px]", diff.className)}>
                           {diff.label}
                         </span>
@@ -583,11 +631,24 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                       activeIndex === customRowIndex ? "border-l-primary bg-primary/10" : "border-l-transparent"
                     )}
                   >
-                    <Plus className="h-4 w-4 shrink-0 text-primary" />
-                    <span className="min-w-0 flex-1 truncate text-foreground">
-                      {isUrlQuery ? "Add this link as a custom problem" : <>Log &ldquo;{trimmedQuery}&rdquo; as a custom problem</>}
-                    </span>
-                    {results.length === 0 && <span className="shrink-0 text-xs text-muted-foreground">Not in catalog</span>}
+                    {recognisedLink ? (
+                      <>
+                        <span className="w-10 shrink-0 text-right text-xs font-semibold text-primary">GfG</span>
+                        <span className="min-w-0 flex-1 truncate font-medium text-foreground">{manualTitle}</span>
+                        <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">{fetchedFrom}</span>
+                        <span className={cn("shrink-0 border px-1.5 py-0.5 text-[11px]", formatDifficulty(manualDifficulty).className)}>
+                          {formatDifficulty(manualDifficulty).label}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="min-w-0 flex-1 truncate text-foreground">
+                          {isUrlQuery ? "Add this link as a custom problem" : <>Log &ldquo;{trimmedQuery}&rdquo; as a custom problem</>}
+                        </span>
+                        {results.length === 0 && <span className="shrink-0 text-xs text-muted-foreground">Not in catalog</span>}
+                      </>
+                    )}
                   </li>
                 </ul>
               )}
@@ -604,17 +665,17 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
             <>
               <div className="space-y-5 px-5 pb-5 pt-4">
                 {/* Problem */}
-                {selectedProblem ? (
+                {display ? (
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">
                       <div className="flex min-w-0 items-center gap-2">
-                        {selectedProblem.number != null && (
-                          <span className="shrink-0 text-sm tabular-numbers text-muted-foreground">#{selectedProblem.number}</span>
+                        {display.number != null && (
+                          <span className="shrink-0 text-sm tabular-numbers text-muted-foreground">#{display.number}</span>
                         )}
-                        <h2 className="min-w-0 truncate text-base font-semibold text-foreground">{selectedProblem.title}</h2>
-                        {safeHref(selectedProblem.url) && (
+                        <h2 className="min-w-0 truncate text-base font-semibold text-foreground">{display.title}</h2>
+                        {safeHref(display.url) && (
                           <a
-                            href={safeHref(selectedProblem.url)}
+                            href={safeHref(display.url)}
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Open problem"
@@ -625,18 +686,13 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         )}
                       </div>
                       <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                        {selectedDifficulty && selectedProblem.difficulty && (
-                          <span className={cn("border px-1.5 py-0.5 text-[11px]", selectedDifficulty.className)}>
-                            {selectedDifficulty.label}
+                        {displayDifficulty && display.difficulty && (
+                          <span className={cn("border px-1.5 py-0.5 text-[11px]", displayDifficulty.className)}>
+                            {displayDifficulty.label}
                           </span>
                         )}
-                        {normalizePatternList(
-                          selectedProblem.patterns.length > 0
-                            ? selectedProblem.patterns.map((p) => p.name)
-                            : selectedProblem.topicTags ?? []
-                        )
-                          .slice(0, 4)
-                          .join(" · ")}
+                        {display.platform && <span className="font-medium text-foreground">{display.platform}</span>}
+                        {display.tags.slice(0, 4).join(" · ")}
                       </p>
                     </div>
                     <button
@@ -698,6 +754,22 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         onChange={(e) => setManualUrl(e.target.value)}
                         className={controlClass}
                       />
+                    </div>
+                  </div>
+                )}
+
+                {logged && (
+                  <div role="status" className="flex items-start gap-2.5 border border-hint/40 bg-hint/10 px-3 py-2.5">
+                    <History className="mt-0.5 h-4 w-4 shrink-0 text-hint" />
+                    <div className="space-y-0.5 text-xs">
+                      <p className="text-sm font-medium text-foreground">Already logged</p>
+                      <p className="text-muted-foreground">
+                        {OUTCOMES.find((o) => o.value === logged.status)?.label ?? "Logged"} {formatAgo(logged.lastAt)}
+                        {logged.nextDue && <> · next review {formatDue(logged.nextDue)}</>}
+                      </p>
+                      <p className="text-muted-foreground">
+                        Saving adds a new attempt to this problem and reschedules its review.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -851,7 +923,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     onClick={handleSubmit}
                     className="pressable h-9 border border-primary bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
-                    {isPending ? "Saving…" : "Log problem"}
+                    {isPending ? "Saving…" : logged ? "Log again" : "Log problem"}
                   </button>
                 </div>
               </div>
