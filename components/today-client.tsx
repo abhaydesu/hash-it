@@ -40,6 +40,7 @@ interface QueueItem {
 interface Snapshot {
   totalEntries: number;
   coldSolveRate: number;
+  totalAttempts: number;
   leechCount: number;
 }
 
@@ -223,8 +224,8 @@ export function TodayClient({ data }: { data: TodayData }) {
         <SpecGrid columns={4}>
           <SpecCell label="Problems logged" value={snapshot.totalEntries} />
           <SpecCell
-            label="Solved without help"
-            value={`${Math.round(snapshot.coldSolveRate * 100)}%`}
+            label="Re-solved without help"
+            value={snapshot.totalAttempts > 0 ? `${Math.round(snapshot.coldSolveRate * 100)}%` : "–"}
           />
           <SpecCell label="Due today" value={queue.length} />
           <SpecCell label="Stuck problems" value={snapshot.leechCount} />

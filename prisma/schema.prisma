@@ -43,6 +43,14 @@ enum ReviewLane {
   RESOLVE
 }
 
+/// Where an Attempt row came from. Only REVIEW (a queue review, lane set) feeds the
+/// cold-solve rate; IMPORT rows are history carried in from a spreadsheet.
+enum AttemptSource {
+  IMPORT
+  LOG
+  REVIEW
+}
+
 enum CardState {
   NEW
   LEARNING
@@ -150,6 +158,7 @@ model Attempt {
   usedHint Boolean  @default(false)
   note     String?
   lane     ReviewLane?
+  source   AttemptSource @default(LOG)
 
   entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
@@ -178,6 +187,9 @@ model ReviewCard {
 model UserSettings {
   userId           String  @id
   dailyResolveCap  Int     @default(2)
+  dailyRecallCap   Int     @default(5)
+  /// Floor of full re-solves per day; topped up from due cards when fewer qualify on their own.
+  minDailyResolve  Int     @default(1)
   desiredRetention Float   @default(0.80)
   fsrsParams       Float[]
   timezone         String  @default("Asia/Kolkata")
@@ -188,6 +200,11 @@ model UserSettings {
   customFields     Json?
   /// Per-user stats page layout: which sections are visible + display order.
   statsPreferences Json?
+  /// Days until the first review of a newly logged problem. Existing cards are not moved when these change.
+  firstIntervalCold     Int @default(14)
+  firstIntervalHint     Int @default(10)
+  firstIntervalSolution Int @default(7)
+  firstIntervalFlagged  Int @default(4)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

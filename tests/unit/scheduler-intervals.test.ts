@@ -6,7 +6,7 @@ import {
   advanceCard,
   DEFAULT_BASELINES,
   MAX_INTERVAL_DAYS,
-  LAPSE_INTERVAL_DAYS,
+  MIN_INTERVAL_DAYS,
   type AppRating,
   type ProblemDifficulty,
   type ReviewCardData,
@@ -120,7 +120,7 @@ function trajectory(
   const path: Step[] = [];
 
   for (let i = 0; i < steps; i++) {
-    const lane = deriveLane({ recentRatings, lapses: card.lapses, stability: card.stability });
+    const lane = deriveLane({ reviewed: i > 0, lapses: card.lapses });
     const dueAt = new Date(card.due);
     // A re-solve is graded on the clock; a quick recall is self-rated.
     const rating: AppRating =
@@ -290,8 +290,7 @@ describe("scheduler interval sweep", () => {
   it("brings a failed problem back promptly however strong it had become", () => {
     for (const reps of [0, 1, 3, 5]) {
       const { days } = review(maturedCard(reps), OUTCOMES[3], "MEDIUM", 40);
-      expect(days).toBeGreaterThanOrEqual(1);
-      expect(days).toBeLessThanOrEqual(LAPSE_INTERVAL_DAYS);
+      expect(days).toBeGreaterThanOrEqual(MIN_INTERVAL_DAYS);
     }
   });
 

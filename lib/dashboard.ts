@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { deriveLane, interleaveQueue, promoteOverdueToRecall, type AppRating, type QueueItem, type ReviewLane } from "@/lib/scheduler";
+import { deriveLane, failedRecallPending, fillResolveMinimum, hasQueueReview, interleaveQueue, neverSolvedCold, promoteOverdueToRecall, type LaneAttempt, type QueueItem, type ReviewLane } from "@/lib/scheduler";
 import { localDay, startOfLocalDay } from "@/lib/dates";
 import { getUserSettingsRow, DEFAULT_TIMEZONE } from "@/lib/user-settings";
 
-const RECALL_CAP = 3;
+const DEFAULT_RECALL_CAP = 5;
+const DEFAULT_MIN_RESOLVE = 1;
 
 export interface DashboardQueueItem extends QueueItem {
   lane: ReviewLane;
@@ -41,7 +42,6 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
         due: true,
         lapses: true,
         reps: true,
-        stability: true,
         entry: {
           select: {
             mistake: true,
@@ -63,8 +63,7 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
             },
             attempts: {
               orderBy: { at: "desc" },
-              take: 2,
-              select: { rating: true },
+              select: { rating: true, lane: true, at: true },
             },
           },
         },
@@ -78,7 +77,7 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
           select: {
             id: true,
             attempts: { orderBy: { at: "desc" }, take: 1, select: { at: true } },
-            reviewCard: { select: { due: true, lapses: true, reps: true, stability: true } },
+            reviewCard: { select: { due: true, lapses: true, reps: true } },
             problem: {
               select: {
                 id: true, title: true, number: true, url: true, difficulty: true, platform: true,
@@ -98,15 +97,23 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
   const resolveDone = doneIn("RESOLVE");
   const recallDone = doneIn("RECALL");
   const resolveLeft = Math.max(0, (settings?.dailyResolveCap ?? 2) - resolveDone);
-  const recallLeft = Math.max(0, RECALL_CAP - recallDone);
+  const recallLeft = Math.max(0, (settings?.dailyRecallCap ?? DEFAULT_RECALL_CAP) - recallDone);
 
   const queueItems: DashboardQueueItem[] = dueCards.map((card) => {
     const problem = card.entry.problem;
     const family = problem.patterns[0]?.pattern.family ?? null;
-    const recentRatings = card.entry.attempts.map((a) => a.rating as AppRating);
+    const attempts = card.entry.attempts as LaneAttempt[];
+    const recentRatings = attempts.map((a) => a.rating);
     const lastRating = recentRatings[0] ?? null;
     const revisit = card.entry.revisit ?? false;
-    const lane = deriveLane({ recentRatings, lapses: card.lapses, stability: card.stability });
+    const needsFirstSolve = neverSolvedCold(attempts);
+    const lane = deriveLane({
+      reviewed: hasQueueReview(attempts),
+      revisit,
+      neverSolvedCold: needsFirstSolve,
+      lapses: card.lapses,
+      failedRecall: failedRecallPending(attempts),
+    });
 
     return {
       entryId: card.entryId,
@@ -117,6 +124,7 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
       lane,
       lastRating,
       revisit,
+      neverSolvedCold: needsFirstSolve,
       problemId: problem.id,
       title: problem.title,
       number: problem.number,
@@ -161,8 +169,11 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
     });
   }
 
+  // Only re-solves beyond what the day's cap can hold are demoted to a recall check; a lone
+  // overdue re-solve keeps its slot.
+  const resolveCandidates = queueItems.filter((item) => item.lane === "RESOLVE").length;
   const overdueItems = queueItems.filter((item) => new Date(item.due) < now);
-  const promoted = promoteOverdueToRecall(overdueItems, 3);
+  const promoted = promoteOverdueToRecall(overdueItems, Math.min(3, Math.max(0, resolveCandidates - resolveLeft)));
   const promotedById = new Map(promoted.map((item) => [item.entryId, item]));
   const originalLanes = new Map(queueItems.map((item) => [item.entryId, item.lane]));
   const promotedQueueItems = queueItems.map((item) => {
@@ -172,7 +183,15 @@ export async function getDailyReviewQueue(userId: string, now: Date = new Date()
       : promotedItem;
   });
 
-  const finalQueue = interleaveQueue(promotedQueueItems, resolveLeft, now, recallLeft);
+  // Daily floor of re-solves: today's finished ones count toward it, and the cap still bounds it.
+  const minResolve = settings?.minDailyResolve ?? DEFAULT_MIN_RESOLVE;
+  const wantResolve = Math.min(Math.max(0, minResolve - resolveDone), resolveLeft);
+  const toppedUp = fillResolveMinimum(
+    promotedQueueItems,
+    wantResolve - promotedQueueItems.filter((item) => item.lane === "RESOLVE").length,
+  );
+
+  const finalQueue = interleaveQueue(toppedUp, resolveLeft, now, recallLeft);
   const resolveCount = finalQueue.filter((item) => item.lane === "RESOLVE").length;
   const recallCount = finalQueue.filter((item) => item.lane === "RECALL").length;
 
@@ -193,7 +212,8 @@ export async function getHeadlineStats(userId: string) {
     prisma.entry.count({ where: { userId } }),
     prisma.attempt.groupBy({
       by: ["rating"],
-      where: { entry: { userId } },
+      // Cold-solve rate means full re-solves from the queue; recall checks, logs and imports don't count.
+      where: { entry: { userId }, source: "REVIEW", lane: "RESOLVE" },
       _count: { _all: true },
     }),
     prisma.reviewCard.count({
@@ -210,6 +230,7 @@ export async function getHeadlineStats(userId: string) {
   return {
     totalEntries,
     coldSolveRate: totalAttempts > 0 ? coldSolveAttempts / totalAttempts : 0,
+    totalAttempts,
     leechCount,
   };
 }

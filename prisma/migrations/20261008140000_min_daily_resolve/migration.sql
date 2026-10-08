@@ -1,0 +1,1 @@
+ALTER TABLE "UserSettings" ADD COLUMN "minDailyResolve" INTEGER NOT NULL DEFAULT 1;

@@ -247,7 +247,7 @@ export async function buildMonthlyMockSet(userId: string, now: Date = new Date()
         patternOverride: true,
         reviewCard: true,
         problem: { select: { ...catalogSelect, patterns: { select: { pattern: { select: { name: true } } } } } },
-        attempts: { where: { at: { gte: windowStart } }, select: { rating: true, usedHint: true, at: true } },
+        attempts: { where: { at: { gte: windowStart }, source: { not: "IMPORT" } }, select: { rating: true, usedHint: true, at: true } },
       },
     }),
     prisma.pattern.findMany({

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { readCustomFieldDefs } from "@/lib/custom-fields";
-import { isLeech } from "@/lib/scheduler";
+import { failedRecallPending, isLeech, type LaneAttempt } from "@/lib/scheduler";
 import { parseISO, differenceInCalendarDays, subDays } from "date-fns";
 import { localDay } from "@/lib/dates";
 import { getUserSettingsRow, DEFAULT_TIMEZONE } from "@/lib/user-settings";
@@ -40,6 +40,8 @@ export interface HeadlineStats {
   totalLapses: number;
   lapseRate: number;
   medianMinutes: Record<Difficulty, number>;
+  neverSolvedWithoutHelp: number;
+  learnedFromSolutionNeverResolved: number;
 }
 
 export interface LeechEntry {
@@ -122,7 +124,8 @@ export function computeStreak(sortedDays: string[], today: string, yesterday: st
 export async function computeStreakForUser(userId: string): Promise<StreakStats> {
   const [userSettings, attempts] = await Promise.all([
     getUserSettingsRow(userId),
-    prisma.attempt.findMany({ where: { entry: { userId } }, select: { at: true } }),
+    // Imported history is not practice done on that day, so it never counts toward the streak.
+    prisma.attempt.findMany({ where: { entry: { userId }, source: { not: "IMPORT" } }, select: { at: true } }),
   ]);
   const timezone = userSettings?.timezone || DEFAULT_TIMEZONE;
   const toDay = (d: Date) => localDay(d, timezone);
@@ -138,19 +141,39 @@ export async function computeAllStats(userId: string): Promise<AllStats> {
       where: { userId },
       select: {
         id: true,
+        revisit: true,
         minutes: true,
         sourceList: true,
         mistake: true,
         customValues: true,
         problem: { select: { title: true, url: true, difficulty: true } },
         reviewCard: { select: { lapses: true } },
+        attempts: { orderBy: { at: "desc" }, select: { at: true, rating: true, lane: true } },
       },
     }),
-    prisma.attempt.findMany({ where: { entry: { userId } }, select: { at: true, rating: true } }),
+    prisma.attempt.findMany({ where: { entry: { userId } }, select: { at: true, rating: true, source: true, lane: true } }),
   ]);
-  // Both headline counts come from the attempt rows already loaded for the activity map.
-  const totalAttempts = attempts.length;
-  const coldSolveAttempts = attempts.filter((a) => a.rating === "GOOD" || a.rating === "EASY").length;
+  // Cold-solve rate reads full re-solves from the queue (source REVIEW, Resolve lane): "of the
+  // problems I re-solved in the app, how many came back cold". A recall pass proves the idea,
+  // not the code, and imported or logged attempts must not dilute it.
+  const reviewAttempts = attempts.filter((a) => a.source === "REVIEW" && a.lane === "RESOLVE");
+  const totalAttempts = reviewAttempts.length;
+  const coldSolveAttempts = reviewAttempts.filter((a) => a.rating === "GOOD" || a.rating === "EASY").length;
+  // Reads every source: an imported SOLVED_UNAIDED row is a cold solve on record.
+  const neverSolvedWithoutHelpEntries = entries.filter((entry) =>
+    !entry.attempts.some((attempt) =>
+      (attempt.rating === "GOOD" || attempt.rating === "EASY") && attempt.lane !== "RECALL",
+    ),
+  );
+  const learnedFromSolutionNeverResolved = neverSolvedWithoutHelpEntries.filter((entry) => {
+    if (!entry.reviewCard) return false;
+    const entryAttempts = entry.attempts as LaneAttempt[];
+    const passedRecall = entryAttempts.some(
+      (attempt) => attempt.lane === "RECALL" && attempt.rating !== "AGAIN",
+    );
+    // Passed a recall check, no failure since: the idea stuck and a first real solve is queued.
+    return passedRecall && !failedRecallPending(entryAttempts);
+  }).length;
 
   const timezone = userSettings?.timezone || DEFAULT_TIMEZONE;
   const toDay = (d: Date) => localDay(d, timezone);
@@ -159,6 +182,7 @@ export async function computeAllStats(userId: string): Promise<AllStats> {
   // ── Activity + streak ──
   const activityMap: Record<string, number> = {};
   for (const a of attempts) {
+    if (a.source === "IMPORT") continue;
     const day = toDay(a.at);
     activityMap[day] = (activityMap[day] || 0) + 1;
   }
@@ -202,6 +226,8 @@ export async function computeAllStats(userId: string): Promise<AllStats> {
       MEDIUM: median(minutesByDiff.MEDIUM),
       HARD: median(minutesByDiff.HARD),
     },
+    neverSolvedWithoutHelp: neverSolvedWithoutHelpEntries.length,
+    learnedFromSolutionNeverResolved,
   };
 
   // ── Configurable sections ──

@@ -19,8 +19,6 @@ describe("LogExtraFields - Source field", () => {
         values={{}}
         onValuesChange={vi.fn()}
         sources={["Blind 75", "NeetCode 150"]}
-        showSource={true}
-        onShowSource={vi.fn()}
         source=""
         onSourceChange={handleSourceChange}
       />
@@ -31,8 +29,8 @@ describe("LogExtraFields - Source field", () => {
 
     await userEvent.click(input);
 
-    expect(screen.getByRole("button", { name: "Blind 75" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "NeetCode 150" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Blind 75" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "NeetCode 150" })).toBeInTheDocument();
   });
 
   it("selects an existing source from suggestions and commits it as tag", async () => {
@@ -44,8 +42,6 @@ describe("LogExtraFields - Source field", () => {
         values={{}}
         onValuesChange={vi.fn()}
         sources={["Blind 75", "NeetCode 150"]}
-        showSource={true}
-        onShowSource={vi.fn()}
         source=""
         onSourceChange={handleSourceChange}
       />
@@ -54,7 +50,7 @@ describe("LogExtraFields - Source field", () => {
     const input = screen.getByLabelText(/Source \/ list/i);
     await userEvent.click(input);
 
-    const option = screen.getByRole("button", { name: "Blind 75" });
+    const option = screen.getByRole("option", { name: "Blind 75" });
     fireEvent.mouseDown(option);
 
     expect(handleSourceChange).toHaveBeenCalledWith("Blind 75");
@@ -69,8 +65,6 @@ describe("LogExtraFields - Source field", () => {
         values={{}}
         onValuesChange={vi.fn()}
         sources={["Blind 75", "NeetCode 150"]}
-        showSource={true}
-        onShowSource={vi.fn()}
         source=""
         onSourceChange={handleSourceChange}
       />
@@ -92,8 +86,6 @@ describe("LogExtraFields - Source field", () => {
           values={{}}
           onValuesChange={vi.fn()}
           sources={["Blind 75", "NeetCode 150", "Striver SDE"]}
-          showSource={true}
-          onShowSource={vi.fn()}
           source={src}
           onSourceChange={setSrc}
         />
@@ -104,7 +96,7 @@ describe("LogExtraFields - Source field", () => {
 
     expect(screen.getByText("Blind 75")).toBeInTheDocument();
 
-    const input = screen.getByPlaceholderText(/Add another source/i);
+    const input = screen.getByPlaceholderText(/Add another/i);
     await userEvent.type(input, "NeetCode 150{enter}");
 
     expect(screen.getByText("Blind 75")).toBeInTheDocument();
@@ -120,8 +112,6 @@ describe("LogExtraFields - Source field", () => {
         values={{}}
         onValuesChange={vi.fn()}
         sources={["Blind 75", "NeetCode 150"]}
-        showSource={true}
-        onShowSource={vi.fn()}
         source="Blind 75, NeetCode 150"
         onSourceChange={handleSourceChange}
       />
@@ -145,8 +135,6 @@ describe("LogExtraFields - Source field", () => {
         values={{}}
         onValuesChange={vi.fn()}
         sources={[]}
-        showSource={true}
-        onShowSource={vi.fn()}
         source=""
         onSourceChange={handleSourceChange}
       />
@@ -156,5 +144,63 @@ describe("LogExtraFields - Source field", () => {
     await userEvent.type(input, "Blind 75,");
 
     expect(handleSourceChange).toHaveBeenCalledWith("Blind 75");
+  });
+
+  it("moves through suggestions with the arrow keys and picks one with Enter", async () => {
+    const handleSourceChange = vi.fn();
+    render(
+      <LogExtraFields
+        fields={[]}
+        onFieldsChange={vi.fn()}
+        values={{}}
+        onValuesChange={vi.fn()}
+        sources={["Blind 75", "NeetCode 150", "Striver SDE"]}
+        source=""
+        onSourceChange={handleSourceChange}
+      />
+    );
+
+    const input = screen.getByLabelText(/Source \/ list/i);
+    await userEvent.click(input);
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+
+    expect(input).toHaveAttribute("aria-activedescendant", "log-source-option-1");
+    expect(screen.getByRole("option", { name: "NeetCode 150" })).toHaveAttribute("aria-selected", "true");
+
+    // Arrowing through options explores them without changing the value.
+    expect(handleSourceChange).not.toHaveBeenCalled();
+  });
+
+  it("commits the highlighted suggestion on Enter after typing", async () => {
+    const handleSourceChange = vi.fn();
+    render(
+      <LogExtraFields
+        fields={[]}
+        onFieldsChange={vi.fn()}
+        values={{}}
+        onValuesChange={vi.fn()}
+        sources={["Blind 75", "NeetCode 150"]}
+        source=""
+        onSourceChange={handleSourceChange}
+      />
+    );
+
+    await userEvent.type(screen.getByLabelText(/Source \/ list/i), "neet{ArrowDown}{Enter}");
+    expect(handleSourceChange).toHaveBeenCalledWith("NeetCode 150");
+  });
+
+  it("turns off the browser's own autofill list so only ours shows", () => {
+    render(
+      <LogExtraFields
+        fields={[]}
+        onFieldsChange={vi.fn()}
+        values={{}}
+        onValuesChange={vi.fn()}
+        sources={["Blind 75"]}
+        source=""
+        onSourceChange={vi.fn()}
+      />
+    );
+    expect(screen.getByLabelText(/Source \/ list/i)).toHaveAttribute("autocomplete", "off");
   });
 });

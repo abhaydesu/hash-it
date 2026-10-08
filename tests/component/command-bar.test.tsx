@@ -106,7 +106,7 @@ describe("CommandBar", () => {
     await userEvent.type(minutesInput, "15");
 
     // Click Log Solve
-    const logButton = screen.getByRole("button", { name: /Log Solve/i });
+    const logButton = screen.getByRole("button", { name: /Log problem/i });
     await userEvent.click(logButton);
 
     await waitFor(() => {
@@ -126,16 +126,18 @@ describe("CommandBar", () => {
 
     render(<CommandBar inline={true} />);
     await userEvent.type(screen.getByPlaceholderText(/Type problem number/i), "Unknown Problem xyz");
-    await screen.findByText("Manual Problem Entry");
+    await userEvent.click(await screen.findByRole("option", { name: /as a custom problem/i }));
+    // Choosing a problem moves focus to the minutes field; wait for that before moving on.
+    await waitFor(() => expect(screen.getByLabelText(/Time spent/i)).toHaveFocus());
 
     const tagInput = screen.getByPlaceholderText(/Sliding Window, Strings/i);
     await userEvent.type(tagInput, "slidng win");
 
     const option = await screen.findByRole("option", { name: "Sliding Window" });
-    await userEvent.click(within(option).getByRole("button"));
+    await userEvent.click(option);
 
-    expect(screen.getByRole("button", { name: "Remove Sliding Window" })).toBeInTheDocument();
-    expect(screen.queryByRole("listbox", { name: "Existing patterns" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove pattern Sliding Window" })).toBeInTheDocument();
+    expect(screen.queryByRole("listbox", { name: /Pattern suggestions/ })).not.toBeInTheDocument();
   });
 
   it("handles manual entry form if no results found", async () => {
@@ -149,15 +151,15 @@ describe("CommandBar", () => {
     const input = screen.getByPlaceholderText(/Type problem number/i);
     await userEvent.type(input, "Unknown Problem xyz");
 
-    // Manual form appears
-    const manualFormHeading = await screen.findByText("Manual Problem Entry");
-    expect(manualFormHeading).toBeInTheDocument();
+    // The last row offers a custom problem; Enter takes it
+    expect(await screen.findByRole("option", { name: /as a custom problem/i })).toBeInTheDocument();
+    await userEvent.type(input, "{Enter}");
 
-    const titleInput = screen.getByPlaceholderText("Title");
+    const titleInput = await screen.findByLabelText("Title");
     expect(titleInput).toHaveValue("Unknown Problem xyz");
 
     // Click Log Solve
-    const logButton = screen.getByRole("button", { name: /Log Solve/i });
+    const logButton = screen.getByRole("button", { name: /Log problem/i });
     
     // We need minutes first
     const minutesInput = screen.getByPlaceholderText("25");
@@ -213,5 +215,69 @@ describe("CommandBar", () => {
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Type problem number/i)).toBeInTheDocument();
     });
+  });
+
+  it("navigates results with the arrow keys and selects with Enter", async () => {
+    mockFetchByUrl({
+      results: [
+        { id: "p1", title: "Two Sum", url: "", difficulty: "EASY", patterns: [] },
+        { id: "p2", title: "Three Sum", url: "", difficulty: "MEDIUM", patterns: [] },
+      ],
+      enrichment: null,
+    });
+    const { createEntry } = await import("@/app/actions/entry-actions");
+    vi.mocked(createEntry).mockResolvedValue({ success: true, entryId: "entry-9", isNew: true });
+
+    render(<CommandBar inline={true} />);
+    const input = screen.getByRole("combobox", { name: /Search problems/i });
+    await userEvent.type(input, "sum");
+    await screen.findByRole("option", { name: /Two Sum/ });
+
+    // First result is highlighted by default
+    expect(screen.getByRole("option", { name: /Two Sum/ })).toHaveAttribute("aria-selected", "true");
+
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("option", { name: /Three Sum/ })).toHaveAttribute("aria-selected", "true");
+    expect(input).toHaveAttribute("aria-activedescendant", "problem-option-1");
+
+    await userEvent.keyboard("{Enter}");
+    await userEvent.type(await screen.findByPlaceholderText("25"), "12");
+    await userEvent.click(screen.getByRole("button", { name: /Log problem/i }));
+
+    await waitFor(() => {
+      expect(createEntry).toHaveBeenCalledWith(expect.objectContaining({ problemId: "p2", minutes: 12 }));
+    });
+  });
+
+  it("shows the review wait for the chosen outcome and flag", async () => {
+    const { getLogFormConfig } = await import("@/app/actions/settings-actions");
+    vi.mocked(getLogFormConfig).mockResolvedValue({
+      customFields: [],
+      sources: [],
+      firstIntervals: { cold: 14, hint: 10, solution: 7, flagged: 4 },
+    });
+    render(<CommandBar inline={false} />);
+    window.dispatchEvent(
+      new CustomEvent("open-command-bar", {
+        detail: { problem: { id: "p1", title: "Two Sum", url: "", difficulty: "EASY", patterns: [], topicTags: [] } },
+      }),
+    );
+
+    expect(await screen.findByText("14 days")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: /Saw solution/i }));
+    expect(screen.getByText("7 days")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("switch", { name: /Revisit early/i }));
+    expect(screen.getByText("4 days")).toBeInTheDocument();
+  });
+
+  it("asks for minutes inline instead of an alert when a solve has none", async () => {
+    render(<CommandBar inline={false} />);
+    window.dispatchEvent(
+      new CustomEvent("open-command-bar", {
+        detail: { problem: { id: "p1", title: "Two Sum", url: "", difficulty: "EASY", patterns: [], topicTags: [] } },
+      }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /Log problem/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/minutes/i);
   });
 });

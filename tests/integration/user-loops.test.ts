@@ -113,8 +113,8 @@ describe("User Loops (Integration)", () => {
       card = await tx.reviewCard.findUnique({ where: { entryId } });
       expect(card?.lapses).toBe(1);
       expect(card?.state).toBe(CardState.REVIEW);
-      // A failed solve returns after the three-day minimum.
-      expect(card?.scheduledDays).toBeGreaterThanOrEqual(3);
+      // A failed solve follows FSRS, with a two-day floor rather than a forced interval.
+      expect(card?.scheduledDays).toBeGreaterThanOrEqual(2);
 
       // 4. A fast cold solve right after the fail has to earn its way back: GOOD, not EASY
       const recovery = await recordReviewAttempt({ entryId, status: "SOLVED_UNAIDED", minutes: 5 });
@@ -224,6 +224,23 @@ New Custom Problem,https://custom.com/p/1,Graphs,DFS,Search all nodes,Stack over
 
       expect(userEntries.length).toBe(2);
 
+      const revisitEntry = userEntries.find((entry: { problem: { title: string } }) => entry.problem.title === "Trapping Rain Water")!;
+      const laterEntry = userEntries.find((entry: { problem: { title: string } }) => entry.problem.title === "New Custom Problem")!;
+      expect(revisitEntry.revisit).toBe(false);
+      expect(revisitEntry.reviewCard!.due.getTime()).toBeLessThan(laterEntry.reviewCard!.due.getTime());
+
+      // Each imported entry carries one IMPORT attempt: history, not a queue review.
+      const attempts = await tx.attempt.findMany({ where: { entry: { userId: user.id } } });
+      expect(attempts).toHaveLength(2);
+      for (const attempt of attempts) {
+        expect(attempt.source).toBe("IMPORT");
+        expect(attempt.lane).toBeNull();
+        expect(attempt.minutes).toBeNull();
+        const owner = userEntries.find((entry: { id: string }) => entry.id === attempt.entryId)!;
+        expect(attempt.at.getTime()).toBe(owner.firstSolvedAt.getTime());
+        expect(attempt.rating).toBe(owner.status === "SOLVED_UNAIDED" ? "GOOD" : "HARD");
+      }
+
       // Review cards scheduled across spread
       for (const entry of userEntries) {
         expect(entry.reviewCard).not.toBeNull();
@@ -240,6 +257,7 @@ New Custom Problem,https://custom.com/p/1,Graphs,DFS,Search all nodes,Stack over
       // Initial settings
       const initial = await getUserSettings();
       expect(initial.dailyResolveCap).toBe(2);
+      expect(initial.dailyRecallCap).toBe(5);
 
       // Update settings
       await updateUserSettings({

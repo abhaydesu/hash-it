@@ -109,7 +109,9 @@ describe("scheduler - card seeding", () => {
       now,
     });
     expect(cardFailed.reps).toBe(1);
-    expect(cardFailed.stability).toBeLessThan(1.0);
+    expect(cardFailed.scheduledDays).toBe(7);
+    expect(cardUnaided.scheduledDays).toBe(14);
+    expect(cardUnaided.stability).toBeGreaterThan(cardFailed.stability);
   });
 });
 
@@ -140,11 +142,11 @@ describe("scheduler - interleaving constraint", () => {
 
   it("prevents more than 2 consecutive cards of the same pattern family", () => {
     const cards: QueueItem[] = [
-      { entryId: "1", due: new Date("2026-09-10"), lapses: 0, reps: 1, family: "Pointers" },
-      { entryId: "2", due: new Date("2026-09-11"), lapses: 0, reps: 1, family: "Pointers" },
-      { entryId: "3", due: new Date("2026-09-12"), lapses: 0, reps: 1, family: "Pointers" },
-      { entryId: "4", due: new Date("2026-09-13"), lapses: 0, reps: 1, family: "Intervals" },
-      { entryId: "5", due: new Date("2026-09-13"), lapses: 0, reps: 1, family: "Pointers" },
+      { entryId: "1", due: new Date("2026-09-10"), lapses: 0, reps: 1, family: "Pointers", lane: "RESOLVE" },
+      { entryId: "2", due: new Date("2026-09-11"), lapses: 0, reps: 1, family: "Pointers", lane: "RESOLVE" },
+      { entryId: "3", due: new Date("2026-09-12"), lapses: 0, reps: 1, family: "Pointers", lane: "RESOLVE" },
+      { entryId: "4", due: new Date("2026-09-13"), lapses: 0, reps: 1, family: "Intervals", lane: "RESOLVE" },
+      { entryId: "5", due: new Date("2026-09-13"), lapses: 0, reps: 1, family: "Pointers", lane: "RESOLVE" },
     ];
 
     const queue = interleaveQueue(cards, 5, now);

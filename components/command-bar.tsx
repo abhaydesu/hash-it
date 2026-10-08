@@ -1,9 +1,9 @@
 "use client";
-import React from 'react';
+import React from "react";
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import { usePathname } from "next/navigation";
-import { Search, ExternalLink, Check, AlertCircle, HelpCircle, X, Sparkles, Clock } from "lucide-react";
+import { Search, ExternalLink, Check, AlertCircle, HelpCircle, X, Plus, CornerDownLeft } from "lucide-react";
 import { cn, formatDifficulty, safeHref, normalizePatternList } from "@/lib/utils";
 import { isMarketingPath } from "@/lib/site";
 import { titleFromProblemUrl } from "@/lib/problem-url";
@@ -14,8 +14,10 @@ import { useIsMac } from "@/lib/use-is-mac";
 import { getLogFormConfig } from "@/app/actions/settings-actions";
 import { type CustomDraft } from "@/components/custom-field-inputs";
 import { LogExtraFields } from "@/components/log-extra-fields";
+import { TagCombobox } from "@/components/ui/tag-combobox";
 import { suggestPatterns, canonicalPattern } from "@/lib/pattern-match";
 import { filterNonOverlappingFields, type CustomFieldDef } from "@/lib/custom-fields";
+import { firstIntervalForStatus, type FirstIntervals, type LoggedStatus } from "@/lib/first-intervals";
 
 interface SearchResult {
   id: string;
@@ -30,21 +32,33 @@ interface SearchResult {
   patterns: { id: string; name: string; family: string }[];
 }
 
-function PatternTagsField({
-  tags,
-  onChange,
-  optionalHint = false,
-}: {
-  tags: string[];
-  onChange: (tags: string[]) => void;
-  optionalHint?: boolean;
-}) {
-  const [draft, setDraft] = useState("");
-  const [known, setKnown] = useState<string[]>([]);
-  const [focused, setFocused] = useState(false);
-  const [active, setActive] = useState(-1);
+type Difficulty = "EASY" | "MEDIUM" | "HARD";
 
-  // Patterns the user (and the catalog) already has, so typing can snap to them instead of forking a near-duplicate.
+/** One shape for every text control in the form, so sizes and focus never drift apart. */
+const controlClass =
+  "h-9 w-full border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
+const textareaClass =
+  "w-full resize-none overflow-hidden border border-border bg-background px-3 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
+const labelClass = "block text-xs font-medium text-foreground";
+const ghostButtonClass =
+  "pressable h-9 border border-border bg-background px-3 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground";
+
+const OUTCOMES: Array<{
+  value: LoggedStatus;
+  label: string;
+  key: string;
+  icon: typeof Check;
+  fill: string;
+}> = [
+  { value: "SOLVED_UNAIDED", label: "Solved cold", key: "1", icon: Check, fill: "outcome-fill-good" },
+  { value: "SOLVED_WITH_HELP", label: "Used hint", key: "2", icon: HelpCircle, fill: "outcome-fill-hint" },
+  { value: "ATTEMPTED_FAILED", label: "Saw solution", key: "3", icon: AlertCircle, fill: "outcome-fill-failed" },
+];
+
+/** Pattern picker: suggests what the user and catalog already have so typing snaps instead of forking near-duplicates. */
+function PatternField({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
+  const [known, setKnown] = useState<string[]>([]);
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/patterns")
@@ -58,118 +72,18 @@ function PatternTagsField({
     };
   }, []);
 
-  const suggestions = focused ? suggestPatterns(draft, known, tags) : [];
-  const showList = suggestions.length > 0;
-
-  const commitDraft = (raw: string = draft) => {
-    // A different spelling of a known pattern (case, spacing, hyphens) resolves to the known one.
-    const parts = normalizePatternList([raw]).map((part) => canonicalPattern(part, known));
-    const next = normalizePatternList([...tags, ...parts]);
-    if (next.length !== tags.length || next.some((t, i) => t !== tags[i])) {
-      onChange(next);
-    }
-    setDraft("");
-    setActive(-1);
-  };
-
-  const removeTag = (index: number) => {
-    onChange(tags.filter((_, i) => i !== index));
-  };
-
   return (
-    <div className="space-y-1 text-xs">
-      <label className="text-[11px] font-medium text-muted-foreground">
-        Pattern / topics
-        {optionalHint && !tags.length && (
-          <span className="ml-1 font-normal text-muted-foreground/70">(optional)</span>
-        )}
-      </label>
-      <div className="flex min-h-[34px] flex-wrap items-center gap-1.5 border border-border bg-background px-2 py-1.5 focus-within:ring-1 focus-within:ring-ring">
-        {tags.map((tag, index) => (
-          <span
-            key={`${tag}-${index}`}
-            className="inline-flex max-w-full items-center gap-1 border border-border bg-muted/40 px-1.5 py-0.5 text-[11px] text-foreground"
-          >
-            <span className="truncate">{tag}</span>
-            <button
-              type="button"
-              onClick={() => removeTag(index)}
-              className="text-muted-foreground hover:text-foreground"
-              aria-label={`Remove ${tag}`}
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-        <input
-          type="text"
-          value={draft}
-          onChange={(e) => {
-            const value = e.target.value;
-            if (/[,;|]/.test(value)) {
-              commitDraft(value);
-              return;
-            }
-            setDraft(value);
-            setActive(-1);
-          }}
-          onFocus={() => setFocused(true)}
-          onKeyDown={(e) => {
-            if (showList && e.key === "ArrowDown") {
-              e.preventDefault();
-              setActive((i) => (i + 1) % suggestions.length);
-            } else if (showList && e.key === "ArrowUp") {
-              e.preventDefault();
-              setActive((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
-            } else if (showList && e.key === "Escape") {
-              e.stopPropagation();
-              setFocused(false);
-            } else if (e.key === "Enter" || e.key === "Tab") {
-              if (draft.trim()) {
-                e.preventDefault();
-                // Enter takes the highlighted suggestion; Tab takes the top one; otherwise keep what was typed.
-                const pick = active >= 0 ? suggestions[active] : e.key === "Tab" ? suggestions[0] : undefined;
-                commitDraft(pick ?? draft);
-              }
-            } else if (e.key === "Backspace" && !draft && tags.length > 0) {
-              removeTag(tags.length - 1);
-            }
-          }}
-          onBlur={() => {
-            setFocused(false);
-            if (draft.trim()) commitDraft();
-          }}
-          placeholder={tags.length ? "Add another…" : "e.g. Sliding Window, Strings"}
-          className="min-w-[8rem] flex-1 bg-transparent py-0.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
-        />
-      </div>
-      {showList && (
-        <ul role="listbox" aria-label="Existing patterns" className="border border-border bg-background shadow-sm">
-          {suggestions.map((name, i) => (
-            <li key={name} role="option" aria-selected={i === active}>
-              <button
-                type="button"
-                // mousedown (not click) so the input's blur doesn't commit the half-typed draft first.
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  commitDraft(name);
-                }}
-                onMouseEnter={() => setActive(i)}
-                className={cn(
-                  "block w-full truncate px-2 py-1 text-left text-xs text-foreground",
-                  i === active ? "bg-muted" : "hover:bg-muted/60"
-                )}
-              >
-                {name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="text-[10px] text-muted-foreground">
-        Comma-separated values become separate patterns. Existing patterns are suggested as you type.
-      </p>
-    </div>
+    <TagCombobox
+      id="log-pattern"
+      label="Pattern"
+      noun="pattern"
+      optional
+      tags={tags}
+      onTagsChange={onChange}
+      getSuggestions={(draft, current) => suggestPatterns(draft, known, current)}
+      normalize={(raw) => normalizePatternList([raw]).map((part) => canonicalPattern(part, known))}
+      placeholder="Sliding Window, Strings…"
+    />
   );
 }
 
@@ -183,36 +97,34 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(inline);
   const [query, setQuery] = useState("");
-  const debouncedQuery = useDebounce(query, 300);
+  const debouncedQuery = useDebounce(query, 200);
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [selectedProblem, setSelectedProblem] = useState<SearchResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
   // Form state
-  const [status, setStatus] = useState<"SOLVED_UNAIDED" | "SOLVED_WITH_HELP" | "ATTEMPTED_FAILED">("SOLVED_UNAIDED");
+  const [status, setStatus] = useState<LoggedStatus>("SOLVED_UNAIDED");
   const [minutes, setMinutes] = useState<string>("");
+  const [minutesError, setMinutesError] = useState(false);
   const [idea, setIdea] = useState("");
   const [mistake, setMistake] = useState("");
   const [revisit, setRevisit] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const [manualTitle, setManualTitle] = useState("");
   const [manualUrl, setManualUrl] = useState("");
-  const [manualDifficulty, setManualDifficulty] = useState<"EASY" | "MEDIUM" | "HARD">("MEDIUM");
+  const [manualDifficulty, setManualDifficulty] = useState<Difficulty>("MEDIUM");
   const [patternTags, setPatternTags] = useState<string[]>([]);
-  const [urlEnrichmentSource, setUrlEnrichmentSource] = useState<string | null>(null);
   const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
   const [customDraft, setCustomDraft] = useState<CustomDraft>({});
   const [sources, setSources] = useState<string[]>([]);
-  const [sourceRevealed, setSourceRevealed] = useState(false);
   const [source, setSource] = useState("");
+  const [firstIntervals, setFirstIntervals] = useState<FirstIntervals | null>(null);
 
   // Undo Toast state
   const [toast, setToast] = useState<{ id: string; title: string } | null>(null);
 
-  // OS and device detection
   const isMac = useIsMac();
-  const [isMobile, setIsMobile] = useState(false);
-
   const [isPending, startTransition] = useTransition();
   const { showAlert, alertDialog } = useAlertDialog();
 
@@ -220,8 +132,10 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
   const minutesInputRef = useRef<HTMLInputElement>(null);
   const ideaRef = useRef<HTMLTextAreaElement>(null);
   const mistakeRef = useRef<HTMLTextAreaElement>(null);
+  const manualModeRef = useRef(false);
+  manualModeRef.current = manualMode;
 
-  // The user's own columns and sources, refreshed each time the bar opens (they can change in Settings/Import).
+  // The user's own columns, sources and review waits, refreshed each time the bar opens (they change in Settings/Import).
   useEffect(() => {
     if (!isOpen && !inline) return;
     let cancelled = false;
@@ -230,6 +144,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
         if (cancelled) return;
         setCustomFields(filterNonOverlappingFields(cfg.customFields));
         setSources(cfg.sources);
+        setFirstIntervals(cfg.firstIntervals ?? null);
       })
       .catch(() => {});
     return () => {
@@ -319,26 +234,15 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     }
   }, [autoFocus]);
 
-  // Detect device
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setIsMobile(window.innerWidth < 768);
-  }, []);
-
   // Clear results immediately when query is emptied
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
       setIsSearching(false);
-      // Don't wipe pattern tags here — selecting a catalog problem clears the query
-      // but keeps prefilled pattern / topic tags for the log form.
-      if (!selectedProblem && !manualMode) {
-        setUrlEnrichmentSource(null);
-      }
     }
-  }, [query, selectedProblem, manualMode]);
+  }, [query]);
 
-  // Debounced 300ms search with cancellation against local Problem table
+  // Debounced search against the catalog; a pasted URL also returns metadata to prefill a custom problem.
   useEffect(() => {
     const trimmed = debouncedQuery.trim();
     if (!trimmed) {
@@ -362,28 +266,18 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       })
       .then((data) => {
         setResults(data.results || []);
+        setActiveIndex(0);
         const enrichment = data.enrichment as
-          | {
-              title?: string;
-              url?: string;
-              difficulty?: "EASY" | "MEDIUM" | "HARD" | null;
-              topicTags?: string[];
-              source?: string;
-            }
+          | { title?: string; url?: string; difficulty?: Difficulty | null; topicTags?: string[] }
           | undefined;
 
-        if (enrichment) {
+        // A late response must not overwrite a custom problem the user is already editing.
+        if (enrichment && !manualModeRef.current) {
           if (enrichment.title) setManualTitle(enrichment.title);
           if (enrichment.url) setManualUrl(enrichment.url);
           if (enrichment.difficulty) setManualDifficulty(enrichment.difficulty);
-          setPatternTags(
-            Array.isArray(enrichment.topicTags)
-              ? normalizePatternList(enrichment.topicTags)
-              : []
-          );
-          setUrlEnrichmentSource(enrichment.source || "url");
-        } else if (trimmed.startsWith("http")) {
-          setUrlEnrichmentSource(null);
+          setPatternTags(Array.isArray(enrichment.topicTags) ? normalizePatternList(enrichment.topicTags) : []);
+        } else if (!enrichment && trimmed.startsWith("http")) {
           setPatternTags([]);
         }
       })
@@ -403,11 +297,19 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     };
   }, [debouncedQuery]);
 
-  const isDebouncing = query.trim().length > 0 && query !== debouncedQuery;
-  const isLoading = isSearching || isDebouncing;
+  const trimmedQuery = query.trim();
+  const isLoading = isSearching || (trimmedQuery.length > 0 && query !== debouncedQuery);
+  const isUrlQuery = trimmedQuery.startsWith("http");
+  const inferredUrlTitle = isUrlQuery ? titleFromProblemUrl(trimmedQuery) || "" : trimmedQuery;
 
-  const inferredUrlTitle =
-    query.startsWith("http") ? titleFromProblemUrl(query) || "" : query;
+  // The last row is always "log it as a custom problem", so an unlisted problem is one keystroke away.
+  const customRowIndex = results.length;
+  const rowCount = trimmedQuery ? results.length + 1 : 0;
+  const showList = rowCount > 0 && !isLoading;
+
+  useEffect(() => {
+    document.getElementById(`problem-option-${activeIndex}`)?.scrollIntoView?.({ block: "nearest" });
+  }, [activeIndex, showList]);
 
   // Form Keyboard Shortcuts (Keys 1, 2, 3 for status, Cmd+Enter to save)
   const handleFormKeyDown = (e: React.KeyboardEvent) => {
@@ -419,16 +321,25 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
 
     const targetTag = (e.target as HTMLElement).tagName;
     if (targetTag !== "TEXTAREA" && targetTag !== "INPUT") {
-      if (e.key === "1") {
+      const outcome = OUTCOMES.find((o) => o.key === e.key);
+      if (outcome) {
         e.preventDefault();
-        setStatus("SOLVED_UNAIDED");
-      } else if (e.key === "2") {
-        e.preventDefault();
-        setStatus("SOLVED_WITH_HELP");
-      } else if (e.key === "3") {
-        e.preventDefault();
-        setStatus("ATTEMPTED_FAILED");
+        setStatus(outcome.value);
       }
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (rowCount === 0) return;
+      e.preventDefault();
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      setActiveIndex((i) => (i + step + rowCount) % rowCount);
+    } else if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+      if (!showList) return;
+      e.preventDefault();
+      if (activeIndex < results.length) selectProblem(results[activeIndex]);
+      else startCustomProblem();
     }
   };
 
@@ -437,9 +348,17 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     setQuery("");
     setResults([]);
     setManualMode(false);
-    // Topic tags already appear next to the title; leave pattern blank for the solve pattern.
+    // Topic tags already appear under the title; leave pattern blank for the solve pattern.
     setPatternTags([]);
-    setUrlEnrichmentSource(null);
+    setTimeout(() => minutesInputRef.current?.focus(), 50);
+  };
+
+  const startCustomProblem = () => {
+    setManualMode(true);
+    setManualTitle((prev) => prev || inferredUrlTitle);
+    setManualUrl((prev) => prev || (isUrlQuery ? trimmedQuery : ""));
+    setQuery("");
+    setResults([]);
     setTimeout(() => minutesInputRef.current?.focus(), 50);
   };
 
@@ -450,6 +369,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     setResults([]);
     setStatus("SOLVED_UNAIDED");
     setMinutes("");
+    setMinutesError(false);
     setIdea("");
     setMistake("");
     setRevisit(false);
@@ -457,48 +377,39 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
     setManualUrl("");
     setManualDifficulty("MEDIUM");
     setPatternTags([]);
-    setUrlEnrichmentSource(null);
     setCustomDraft({});
     setSource("");
     if (!inline) setIsOpen(false);
     setTimeout(() => searchInputRef.current?.focus(), 50);
   };
 
-  const handleSubmit = (overrides?: {
-    forceManual?: boolean;
-    title?: string;
-    url?: string;
-    tags?: string[];
-  }) => {
-    const asManual = Boolean(overrides?.forceManual || manualMode);
-    if (!selectedProblem && !asManual) return;
+  const canSubmit = selectedProblem != null || (manualMode && Boolean(manualTitle.trim() || manualUrl.trim()));
 
-    const submitTitle = overrides?.title ?? (selectedProblem ? selectedProblem.title : manualTitle);
-    const submitUrl = overrides?.url ?? manualUrl;
-    const submitTags = normalizePatternList(overrides?.tags ?? patternTags);
-
-    if (asManual && !submitTitle && !submitUrl) return;
+  const handleSubmit = () => {
+    if (!canSubmit || isPending) return;
 
     const trimmedMinutes = minutes.trim();
     const parsedMinutes = trimmedMinutes === "" ? null : Number.parseInt(trimmedMinutes, 10);
     if (status !== "ATTEMPTED_FAILED" && parsedMinutes === null) {
-      showAlert("Please enter the minutes spent before saving a solved problem.");
-      setTimeout(() => minutesInputRef.current?.focus(), 50);
+      setMinutesError(true);
+      minutesInputRef.current?.focus();
       return;
     }
 
-    const probTitle = selectedProblem && !asManual ? selectedProblem.title : submitTitle;
+    const isCustom = manualMode && !selectedProblem;
+    const title = isCustom ? manualTitle.trim() || "Untitled problem" : selectedProblem!.title;
+    const tags = normalizePatternList(patternTags);
 
     startTransition(async () => {
       try {
         const res = await createEntry({
-          problemId: selectedProblem && !asManual ? selectedProblem.id : undefined,
-          manualTitle: asManual ? submitTitle : undefined,
-          manualUrl: asManual ? submitUrl : undefined,
-          manualPlatform: (submitUrl || "").includes("geeksforgeeks.org") ? "GFG" : "OTHER",
-          manualDifficulty: manualDifficulty,
-          manualTopicTags: asManual ? submitTags : [],
-          patternOverride: submitTags,
+          problemId: isCustom ? undefined : selectedProblem!.id,
+          manualTitle: isCustom ? title : undefined,
+          manualUrl: isCustom ? manualUrl.trim() : undefined,
+          manualPlatform: manualUrl.includes("geeksforgeeks.org") ? "GFG" : "OTHER",
+          manualDifficulty,
+          manualTopicTags: isCustom ? tags : [],
+          patternOverride: tags,
           status,
           minutes: parsedMinutes,
           idea: idea.trim() || null,
@@ -511,13 +422,10 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
         if (res.success && res.entryId) {
           window.dispatchEvent(
             new CustomEvent("problem-logged", {
-              detail: {
-                problemId: selectedProblem && !asManual ? selectedProblem.id : undefined,
-                entryId: res.entryId,
-              },
+              detail: { problemId: isCustom ? undefined : selectedProblem!.id, entryId: res.entryId },
             }),
           );
-          setToast({ id: res.entryId, title: probTitle || "Problem" });
+          setToast({ id: res.entryId, title });
           resetForm();
           onSuccess?.();
 
@@ -543,12 +451,17 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
 
   if (!isOpen && !inline && !toast) return null;
 
+  const inForm = selectedProblem != null || manualMode;
+  const modKey = isMac ? "⌘" : "Ctrl";
+  const reviewDays = firstIntervals ? firstIntervalForStatus(status, revisit, firstIntervals) : null;
+  const selectedDifficulty = selectedProblem ? formatDifficulty(selectedProblem.difficulty) : null;
+
   return (
     <>
       {toast && (
         <div className="ui-toast fixed bottom-5 right-5 z-[60] flex items-center gap-3 border border-border bg-background px-4 py-2.5 shadow-2xl">
           <div className="flex h-2 w-2 bg-easy" />
-          <div className="text-xs text-foreground">
+          <div className="text-sm text-foreground">
             Logged <span className="font-semibold">{toast.title}</span>
           </div>
           <button
@@ -571,535 +484,380 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
       )}
 
       {(isOpen || inline) && (
-      <div
-        className={cn(
-          "w-full overscroll-contain border border-border bg-background shadow-2xl",
-          !inline && "max-h-[calc(100dvh-5rem)] overflow-y-auto",
-          !inline && "fixed top-16 left-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2",
-          inline && "relative"
-        )}
-        onKeyDown={handleFormKeyDown}
-      >
-        {/* Step 1: Search & Selection Input */}
-        {!selectedProblem && !manualMode ? (
-          <div className="p-3">
-            <div className="relative flex items-center">
-              <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Type problem number (e.g. 15), title, or paste URL..."
-                className="w-full border border-border bg-background py-2 pl-9 pr-3 text-xs sm:pr-24 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              <div className="absolute right-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                {isLoading ? (
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className="h-1.5 w-1.5 animate-ping bg-primary rounded-full" />
-                    Searching...
-                  </span>
-                ) : (
-                  <span className="hidden items-center gap-1 pb-0.5 sm:inline-flex">
-                    <span className="keycap">Esc</span>
-                    <span>to exit</span>
-                  </span>
-                )}
+        <div
+          role={inline ? undefined : "dialog"}
+          aria-modal={inline ? undefined : true}
+          aria-label="Log a problem"
+          className={cn(
+            "w-full overscroll-contain border border-border bg-background shadow-2xl",
+            !inline && "max-h-[calc(100dvh-5rem)] overflow-y-auto",
+            !inline && "fixed top-16 left-1/2 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2",
+            inline && "relative"
+          )}
+          onKeyDown={handleFormKeyDown}
+        >
+          {!inForm ? (
+            /* Step 1: find the problem */
+            <div className="p-4">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  role="combobox"
+                  aria-expanded={showList}
+                  aria-controls="problem-listbox"
+                  aria-autocomplete="list"
+                  aria-activedescendant={showList ? `problem-option-${activeIndex}` : undefined}
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Type problem number (e.g. 15), title, or paste URL..."
+                  aria-label="Search problems"
+                  className={cn(controlClass, "h-10 pl-9 pr-24")}
+                />
+                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  {isLoading ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 animate-ping rounded-full bg-primary" />
+                      Searching
+                    </span>
+                  ) : (
+                    <span className="hidden items-center gap-1 sm:inline-flex">
+                      <span className="keycap">Esc</span>
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Results Dropdown */}
-            {results.length > 0 && (
-              <div className="mt-2 max-h-64 overflow-y-auto border border-border bg-background divide-y divide-border text-xs">
-                {results.map((prob) => {
-                  const diff = formatDifficulty(prob.difficulty);
-                  return (
-                    <button
-                      key={prob.id}
-                      type="button"
-                      onClick={() => selectProblem(prob)}
-                      className="flex w-full items-center justify-between p-2.5 text-left hover:bg-muted/50 transition-colors group"
-                    >
-                      <div className="flex items-center gap-2.5 truncate">
-                        {prob.number != null && (
-                          <span className="w-10 text-right text-muted-foreground tabular-numbers text-xs">
-                            #{prob.number}
-                          </span>
+              {showList && (
+                <ul
+                  id="problem-listbox"
+                  role="listbox"
+                  aria-label="Problems"
+                  className="mt-2 max-h-72 overflow-y-auto border border-border bg-background"
+                >
+                  {results.map((prob, i) => {
+                    const diff = formatDifficulty(prob.difficulty);
+                    return (
+                      <li
+                        key={prob.id}
+                        id={`problem-option-${i}`}
+                        role="option"
+                        aria-selected={i === activeIndex}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => selectProblem(prob)}
+                        onMouseEnter={() => setActiveIndex(i)}
+                        className={cn(
+                          "flex cursor-pointer items-center gap-3 border-l-2 px-3 py-2.5 text-sm",
+                          i === activeIndex ? "border-l-primary bg-primary/10" : "border-l-transparent"
                         )}
-                        <span className="truncate font-medium text-foreground group-hover:underline">
-                          {prob.title}
+                      >
+                        <span className="w-10 shrink-0 text-right text-xs tabular-numbers text-muted-foreground">
+                          {prob.number != null ? `#${prob.number}` : ""}
                         </span>
+                        <span className="min-w-0 flex-1 truncate font-medium text-foreground">{prob.title}</span>
                         {prob.patterns.length > 0 && (
-                          <span className="border border-border bg-muted/40 px-1.5 py-0.2 text-[10px] text-muted-foreground">
+                          <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
                             {prob.patterns[0].name}
                           </span>
                         )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {prob.acRate != null && (
-                          <span className="text-[11px] text-muted-foreground tabular-numbers">
-                            {prob.acRate.toFixed(1)}% ac
-                          </span>
-                        )}
-                        <span className={cn("border px-1.5 py-0.2 text-[10px]", diff.className)}>
+                        <span className={cn("shrink-0 border px-1.5 py-0.5 text-[11px]", diff.className)}>
                           {diff.label}
                         </span>
+                      </li>
+                    );
+                  })}
+                  <li
+                    id={`problem-option-${customRowIndex}`}
+                    role="option"
+                    aria-selected={activeIndex === customRowIndex}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={startCustomProblem}
+                    onMouseEnter={() => setActiveIndex(customRowIndex)}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-3 border-l-2 px-3 py-2.5 text-sm",
+                      results.length > 0 && "border-t border-t-border",
+                      activeIndex === customRowIndex ? "border-l-primary bg-primary/10" : "border-l-transparent"
+                    )}
+                  >
+                    <Plus className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1 truncate text-foreground">
+                      {isUrlQuery ? "Add this link as a custom problem" : <>Log &ldquo;{trimmedQuery}&rdquo; as a custom problem</>}
+                    </span>
+                    {results.length === 0 && <span className="shrink-0 text-xs text-muted-foreground">Not in catalog</span>}
+                  </li>
+                </ul>
+              )}
+
+              {showList && (
+                <p className="mt-2 hidden items-center gap-3 text-xs text-muted-foreground sm:flex">
+                  <span className="inline-flex items-center gap-1"><span className="keycap">↑</span><span className="keycap">↓</span> move</span>
+                  <span className="inline-flex items-center gap-1"><span className="keycap"><CornerDownLeft className="h-3 w-3" /></span> select</span>
+                </p>
+              )}
+            </div>
+          ) : (
+            /* Step 2: log it */
+            <>
+              <div className="space-y-5 px-5 pb-5 pt-4">
+                {/* Problem */}
+                {selectedProblem ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex min-w-0 items-center gap-2">
+                        {selectedProblem.number != null && (
+                          <span className="shrink-0 text-sm tabular-numbers text-muted-foreground">#{selectedProblem.number}</span>
+                        )}
+                        <h2 className="min-w-0 truncate text-base font-semibold text-foreground">{selectedProblem.title}</h2>
+                        {safeHref(selectedProblem.url) && (
+                          <a
+                            href={safeHref(selectedProblem.url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Open problem"
+                            className="shrink-0 text-muted-foreground transition-colors hover:text-primary"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        )}
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Inline Manual Entry if No Results */}
-            {query.trim().length > 0 && results.length === 0 && !isLoading && (
-              <div className="mt-3 space-y-3 border border-border bg-muted/20 p-3.5 text-xs animate-in fade-in">
-                <div className="flex items-center justify-between border-b border-border pb-2">
-                  <span className="text-xs font-semibold text-foreground">
-                    {query.startsWith("http") ? "URL Problem Import" : "Manual Problem Entry"}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {urlEnrichmentSource === "gfg"
-                      ? "Fetched from GeeksforGeeks"
-                      : "Not found in catalog"}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div className="sm:col-span-2 space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground">Problem Title</label>
-                    <input
-                      type="text"
-                      placeholder="Title"
-                      value={manualTitle || inferredUrlTitle}
-                      onChange={(e) => setManualTitle(e.target.value)}
-                      className="h-8 w-full border border-border bg-background px-2.5 py-0 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground">Difficulty</label>
-                    <select
-                      value={manualDifficulty}
-                      onChange={(e) => setManualDifficulty(e.target.value as any)}
-                      className="h-8 w-full border border-border bg-background px-2.5 py-0 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                        {selectedDifficulty && selectedProblem.difficulty && (
+                          <span className={cn("border px-1.5 py-0.5 text-[11px]", selectedDifficulty.className)}>
+                            {selectedDifficulty.label}
+                          </span>
+                        )}
+                        {normalizePatternList(
+                          selectedProblem.patterns.length > 0
+                            ? selectedProblem.patterns.map((p) => p.name)
+                            : selectedProblem.topicTags ?? []
+                        )
+                          .slice(0, 4)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      aria-label="Choose a different problem"
+                      className="shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      <option value="EASY">Easy</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HARD">Hard</option>
-                    </select>
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
-
-                  <div className="sm:col-span-3 space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground">Problem URL (optional)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. https://practice.geeksforgeeks.org/..."
-                      value={manualUrl || (query.startsWith("http") ? query : "")}
-                      onChange={(e) => setManualUrl(e.target.value)}
-                      className="h-8 w-full border border-border bg-background px-2.5 py-0 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-3">
-                    <PatternTagsField tags={patternTags} onChange={setPatternTags} />
-                  </div>
-                </div>
-
-                {/* Hot Fields */}
-                <div className="space-y-3 pt-2 border-t border-border">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-muted-foreground">Status</span>
-                    <div className="flex flex-wrap items-center gap-1.5">
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">Custom problem</span>
                       <button
                         type="button"
-                        onClick={() => setStatus("SOLVED_UNAIDED")}
-                        className={cn(
-                          "flex items-center gap-1 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
-                          status === "SOLVED_UNAIDED"
-                            ? "outcome-fill-good"
-                            : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                        )}
+                        onClick={resetForm}
+                        aria-label="Choose a different problem"
+                        className="p-1 text-muted-foreground transition-colors hover:text-foreground"
                       >
-                        <Check className="h-3 w-3" />
-                        <span>Solved cold</span>
-                        <kbd className="hidden text-[10px] opacity-70 sm:inline">[1]</kbd>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setStatus("SOLVED_WITH_HELP")}
-                        className={cn(
-                          "flex items-center gap-1 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
-                          status === "SOLVED_WITH_HELP"
-                            ? "outcome-fill-hint"
-                            : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                        )}
-                      >
-                        <HelpCircle className="h-3 w-3" />
-                        <span>Used hint</span>
-                        <kbd className="hidden text-[10px] opacity-70 sm:inline">[2]</kbd>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setStatus("ATTEMPTED_FAILED")}
-                        className={cn(
-                          "flex items-center gap-1 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
-                          status === "ATTEMPTED_FAILED"
-                            ? "outcome-fill-failed"
-                            : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                        )}
-                      >
-                        <AlertCircle className="h-3 w-3" />
-                        <span>Saw solution</span>
-                        <kbd className="hidden text-[10px] opacity-70 sm:inline">[3]</kbd>
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">Minutes</span>
+                    <div className="grid grid-cols-[1fr_8rem] gap-3">
+                      <div className="space-y-1.5">
+                        <label htmlFor="manual-title" className={labelClass}>Title</label>
+                        <input
+                          id="manual-title"
+                          type="text"
+                          value={manualTitle}
+                          onChange={(e) => setManualTitle(e.target.value)}
+                          className={controlClass}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label htmlFor="manual-difficulty" className={labelClass}>Difficulty</label>
+                        <select
+                          id="manual-difficulty"
+                          value={manualDifficulty}
+                          onChange={(e) => setManualDifficulty(e.target.value as Difficulty)}
+                          className={controlClass}
+                        >
+                          <option value="EASY">Easy</option>
+                          <option value="MEDIUM">Medium</option>
+                          <option value="HARD">Hard</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="manual-url" className={labelClass}>
+                        Link <span className="font-normal text-muted-foreground">optional</span>
+                      </label>
                       <input
+                        id="manual-url"
+                        type="text"
+                        inputMode="url"
+                        value={manualUrl}
+                        onChange={(e) => setManualUrl(e.target.value)}
+                        className={controlClass}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Outcome */}
+                <div className="space-y-2">
+                  <span id="outcome-label" className={labelClass}>How did it go?</span>
+                  <div role="radiogroup" aria-labelledby="outcome-label" className="grid grid-cols-3 gap-2">
+                    {OUTCOMES.map((o) => {
+                      const Icon = o.icon;
+                      const selected = status === o.value;
+                      return (
+                        <button
+                          key={o.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => setStatus(o.value)}
+                          className={cn(
+                            "pressable flex h-10 items-center justify-center gap-1.5 whitespace-nowrap border px-2 text-sm",
+                            selected
+                              ? o.fill
+                              : "border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                          )}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          <span>{o.label}</span>
+                          <kbd className="hidden text-[10px] opacity-70 sm:inline">{o.key}</kbd>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {reviewDays != null && (
+                    <p className="text-xs text-muted-foreground">
+                      First review in <span className="font-medium text-foreground">{reviewDays} days</span>
+                      {revisit ? " · full re-solve" : " · quick recall check"}
+                    </p>
+                  )}
+                </div>
+
+                {/* Time + flag */}
+                <div className="grid grid-cols-[8rem_1fr] items-end gap-3">
+                  <div className="space-y-1.5">
+                    <label htmlFor="log-minutes" className={labelClass}>
+                      Time spent
+                      {status === "ATTEMPTED_FAILED" && <span className="ml-1.5 font-normal text-muted-foreground">optional</span>}
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="log-minutes"
+                        ref={minutesInputRef}
                         type="number"
                         min="0"
                         max="600"
                         value={minutes}
-                        onChange={(e) => setMinutes(e.target.value)}
+                        onChange={(e) => {
+                          setMinutes(e.target.value);
+                          setMinutesError(false);
+                        }}
                         placeholder="25"
-                        className="w-20 border border-border bg-background px-2 py-1 text-xs tabular-numbers text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        aria-invalid={minutesError}
+                        className={cn(controlClass, "pr-10 tabular-numbers [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", minutesError && "border-destructive focus:border-destructive focus:ring-destructive")}
                       />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">min</span>
                     </div>
-
-                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={revisit}
-                        onChange={(e) => setRevisit(e.target.checked)}
-                        className="border-border bg-background text-foreground focus:ring-ring"
-                      />
-                      <span>Flag for early revisit</span>
-                    </label>
                   </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={revisit}
+                    onClick={() => setRevisit((v) => !v)}
+                    className={cn(
+                      "pressable flex h-9 items-center gap-2 border px-3 text-sm",
+                      revisit
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-4 w-4 items-center justify-center border",
+                        revisit ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                      )}
+                    >
+                      {revisit && <Check className="h-3 w-3" />}
+                    </span>
+                    Revisit early
+                  </button>
+                  {minutesError && (
+                    <p role="alert" className="col-span-2 -mt-1 text-xs text-destructive">
+                      Enter the minutes you spent, or pick &ldquo;Saw solution&rdquo;.
+                    </p>
+                  )}
+                </div>
 
-                  <div className="space-y-1">
-                    <div className="text-[11px] font-medium text-muted-foreground">Idea / Core insight</div>
+                {/* Notes */}
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label htmlFor="log-idea" className={labelClass}>Key idea</label>
                     <textarea
+                      id="log-idea"
                       ref={ideaRef}
                       value={idea}
                       onChange={(e) => setIdea(e.target.value)}
-                      placeholder="Key observation, invariant, or technique..."
+                      placeholder="Sort by start, keep a min-heap of end times…"
                       rows={2}
-                      className="w-full resize-none overflow-hidden border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      className={textareaClass}
                     />
                   </div>
-
-                  <div className="space-y-1">
-                    <div className="text-[11px] font-medium text-muted-foreground">What I did wrong / Trap to avoid</div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="log-mistake" className={labelClass}>Mistake or trap</label>
                     <textarea
+                      id="log-mistake"
                       ref={mistakeRef}
                       value={mistake}
                       onChange={(e) => setMistake(e.target.value)}
-                      placeholder="Mistake made, edge case missed..."
+                      placeholder="Missed the off-by-one on the right boundary…"
                       rows={2}
-                      className="w-full resize-none overflow-hidden border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      className={textareaClass}
                     />
                   </div>
-                  <LogExtraFields
-                    fields={customFields}
-                    onFieldsChange={setCustomFields}
-                    values={customDraft}
-                    onValuesChange={setCustomDraft}
-                    sources={sources}
-                    showSource={sourceRevealed || sources.length > 0}
-                    onShowSource={() => setSourceRevealed(true)}
-                    source={source}
-                    onSourceChange={setSource}
-                  />
                 </div>
 
-                {/* Bottom Actions */}
-                <div className={`flex items-center ${isMobile ? "justify-end" : "justify-between"} border-t border-border pt-3`}>
-                  {!isMobile && (
-                    <div className="text-[11px] text-muted-foreground">
-                      <kbd className="border border-border bg-muted px-1 py-0.5 text-[10px]">{isMac ? "⌘" : "Ctrl"} + Enter</kbd> saves & resets
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={resetForm}
-                      className="pressable border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => {
-                        const effTitle =
-                          manualTitle || inferredUrlTitle || "Untitled Problem";
-                        const effUrl = manualUrl || (query.startsWith("http") ? query : "");
-                        setManualMode(true);
-                        setManualTitle(effTitle);
-                        setManualUrl(effUrl);
-                        handleSubmit({
-                          forceManual: true,
-                          title: effTitle,
-                          url: effUrl,
-                          tags: patternTags,
-                        });
-                      }}
-                      className="pressable border border-primary bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                    >
-                      {isPending ? <span>Saving...</span> : <span>Log Solve</span>}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Step 2: The Fast Add Form */
-          <div className="p-4 space-y-3.5">
-            {/* Prefilled Problem Summary Bar */}
-            <div className="border-b border-border pb-2.5 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                  {selectedProblem?.number != null && (
-                    <span className="shrink-0 text-xs text-muted-foreground tabular-numbers">
-                      #{selectedProblem.number}
-                    </span>
-                  )}
-                  <span className="min-w-0 truncate font-semibold text-foreground text-sm">
-                    {selectedProblem ? selectedProblem.title : manualTitle || "Manual Problem"}
-                  </span>
-                  {selectedProblem && safeHref(selectedProblem.url) && (
-                    <a
-                      href={safeHref(selectedProblem.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="shrink-0 p-1 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              {selectedProblem &&
-                ((selectedProblem.patterns?.length ?? 0) > 0 || (selectedProblem.topicTags?.length ?? 0) > 0) && (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Sparkles className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
-                    {normalizePatternList(
-                      (selectedProblem.patterns?.length ?? 0) > 0
-                        ? selectedProblem.patterns?.map((p) => p.name) || []
-                        : selectedProblem.topicTags || []
-                    ).map((tag) => (
-                      <span
-                        key={tag}
-                        className="border border-border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-            </div>
-
-            {/* Manual Edit Inputs */}
-            {manualMode && (
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <input
-                  type="text"
-                  placeholder="Problem Title"
-                  value={manualTitle}
-                  onChange={(e) => setManualTitle(e.target.value)}
-                  className="col-span-2 h-8 border border-border bg-background px-2.5 py-0 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-                <select
-                  value={manualDifficulty}
-                  onChange={(e) => setManualDifficulty(e.target.value as any)}
-                  className="h-8 border border-border bg-background px-2.5 py-0 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="EASY">Easy</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HARD">Hard</option>
-                </select>
-                <input
-                  type="text"
-                  placeholder="URL (e.g. GeeksforGeeks)"
-                  value={manualUrl}
-                  onChange={(e) => setManualUrl(e.target.value)}
-                  className="col-span-3 h-8 border border-border bg-background px-2.5 py-0 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                {/* Optional fields: pattern, source and the user's own columns */}
+                <LogExtraFields
+                  fields={customFields}
+                  onFieldsChange={setCustomFields}
+                  values={customDraft}
+                  onValuesChange={setCustomDraft}
+                  sources={sources}
+                  source={source}
+                  onSourceChange={setSource}
+                  leading={<PatternField tags={patternTags} onChange={setPatternTags} />}
                 />
               </div>
-            )}
 
-            <PatternTagsField
-              tags={patternTags}
-              onChange={setPatternTags}
-              optionalHint
-            />
-
-            {/* The 4 Hot Fields */}
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Status</span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setStatus("SOLVED_UNAIDED")}
-                    className={cn(
-                      "flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
-                      status === "SOLVED_UNAIDED"
-                        ? "outcome-fill-good"
-                        : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                    )}
-                  >
-                    <Check className="h-3 w-3" />
-                    <span>Solved cold</span>
-                    <kbd className="hidden text-[10px] opacity-70 sm:inline">[1]</kbd>
+              {/* Actions */}
+              <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-border bg-muted/40 px-5 py-3">
+                <p className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+                  <span className="keycap">{modKey}</span>
+                  <span className="keycap"><CornerDownLeft className="h-3 w-3" /></span>
+                  <span className="ml-1">to save</span>
+                </p>
+                <div className="ml-auto flex items-center gap-2">
+                  <button type="button" onClick={resetForm} className={ghostButtonClass}>
+                    Cancel
                   </button>
-
                   <button
                     type="button"
-                    onClick={() => setStatus("SOLVED_WITH_HELP")}
-                    className={cn(
-                      "flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
-                      status === "SOLVED_WITH_HELP"
-                        ? "outcome-fill-hint"
-                        : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                    )}
+                    disabled={isPending || !canSubmit}
+                    onClick={handleSubmit}
+                    className="pressable h-9 border border-primary bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
-                    <HelpCircle className="h-3 w-3" />
-                    <span>Used hint</span>
-                    <kbd className="hidden text-[10px] opacity-70 sm:inline">[2]</kbd>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setStatus("ATTEMPTED_FAILED")}
-                    className={cn(
-                      "flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 text-xs transition-colors border",
-                      status === "ATTEMPTED_FAILED"
-                        ? "outcome-fill-failed"
-                        : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                    )}
-                  >
-                    <AlertCircle className="h-3 w-3" />
-                    <span>Saw solution</span>
-                    <kbd className="hidden text-[10px] opacity-70 sm:inline">[3]</kbd>
+                    {isPending ? "Saving…" : "Log problem"}
                   </button>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">Minutes</span>
-                  <input
-                    ref={minutesInputRef}
-                    type="number"
-                    min="0"
-                    max="600"
-                    value={minutes}
-                    onChange={(e) => setMinutes(e.target.value)}
-                    placeholder="25"
-                    className="w-20 border border-border bg-background px-2 py-1 text-xs tabular-numbers text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                </div>
-
-                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={revisit}
-                    onChange={(e) => setRevisit(e.target.checked)}
-                    className="border-border bg-background text-foreground focus:ring-ring"
-                  />
-                  <span>Flag for early revisit</span>
-                </label>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
-                  <span>Idea / Core insight</span>
-                  <span className="hidden text-[10px] text-muted-foreground/60 sm:inline">Tab to mistake</span>
-                </div>
-                <textarea
-                  ref={ideaRef}
-                  value={idea}
-                  onChange={(e) => setIdea(e.target.value)}
-                  placeholder="Sort by start interval, maintain min-heap of active end times..."
-                  rows={2}
-                  className="w-full resize-none overflow-hidden border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
-                  <span>What I did wrong / Trap to avoid</span>
-                  <span className="hidden text-[10px] text-muted-foreground/60 sm:inline">Highest-value artifact</span>
-                </div>
-                <textarea
-                  ref={mistakeRef}
-                  value={mistake}
-                  onChange={(e) => setMistake(e.target.value)}
-                  placeholder="Didn't handle negative numbers; missed off-by-one in binary search right boundary..."
-                  rows={2}
-                  className="w-full resize-none overflow-hidden border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-              <LogExtraFields
-                    fields={customFields}
-                    onFieldsChange={setCustomFields}
-                    values={customDraft}
-                    onValuesChange={setCustomDraft}
-                    sources={sources}
-                    showSource={sourceRevealed || sources.length > 0}
-                    onShowSource={() => setSourceRevealed(true)}
-                    source={source}
-                    onSourceChange={setSource}
-                  />
-            </div>
-
-            {/* Bottom Actions Bar */}
-            <div className={`flex items-center ${isMobile ? "justify-end" : "justify-between"} border-t border-border pt-3`}>
-              {!isMobile && (
-                <div className="text-[11px] text-muted-foreground">
-                  <kbd className="border border-border bg-muted px-1 py-0.5 text-[10px]">{isMac ? "⌘" : "Ctrl"} + Enter</kbd> saves & resets
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="pressable border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => handleSubmit()}
-                  className="pressable border border-primary bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {isPending ? <span>Saving...</span> : <span>Log Solve</span>}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+            </>
+          )}
+        </div>
       )}
       {alertDialog}
     </>

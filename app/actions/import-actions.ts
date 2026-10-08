@@ -8,6 +8,7 @@ import { z } from "zod";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { CATALOG_CACHE_TAG } from "@/lib/practice";
 import { seedCard, spreadImportDueDates } from "@/lib/scheduler";
+import { cardColumns } from "@/lib/review-card";
 import { LIMITS, storedHttpUrl } from "@/lib/safe";
 import {
   DryRunRow,
@@ -543,6 +544,18 @@ export async function commitImportBatch(params: {
       const existingEntryMap = new Map(userExistingEntries.map((e) => [e.problemId, e]));
 
       const entriesToSeed: Array<{ id: string; status: SolveStatus; revisit: boolean }> = [];
+      // When each seeded entry was first solved, for its IMPORT attempt (null = already has history).
+      const importAttemptAt = new Map<string, Date>();
+      const createdEntryIds = new Set<string>();
+      const entryIdsWithHistory = new Set(
+        (
+          await tx.attempt.findMany({
+            where: { entry: { userId: user.id } },
+            distinct: ["entryId"],
+            select: { entryId: true },
+          })
+        ).map((a) => a.entryId),
+      );
       const processedProblemIds = new Set<string>();
 
       for (const row of rows) {
@@ -603,7 +616,8 @@ export async function commitImportBatch(params: {
                 ...customValuesFor(row),
               } as Prisma.InputJsonObject,
               minutes: row.parsedMinutes ?? undefined,
-              revisit: row.parsedRevisit,
+              // Preserve a live in-app revisit flag on an existing entry. The
+              // spreadsheet signal below still orders its import spread.
               importBatchId: importBatch.id,
             },
           });
@@ -611,8 +625,11 @@ export async function commitImportBatch(params: {
           entriesToSeed.push({
             id: updated.id,
             status: updated.status,
-            revisit: updated.revisit,
+            revisit: row.parsedRevisit,
           });
+          if (!entryIdsWithHistory.has(updated.id)) {
+            importAttemptAt.set(updated.id, updated.firstSolvedAt);
+          }
           continue;
         }
 
@@ -635,7 +652,7 @@ export async function commitImportBatch(params: {
             sourceList: row.rawSource || null,
             ...(row.customRaw && fieldDefs.length > 0 ? { customValues: customValuesFor(row) } : {}),
             minutes: row.parsedMinutes ?? null,
-            revisit: row.parsedRevisit,
+            revisit: false,
             firstSolvedAt: solvedAt,
             importBatchId: importBatch.id,
           },
@@ -644,45 +661,49 @@ export async function commitImportBatch(params: {
         entriesToSeed.push({
           id: entry.id,
           status: entry.status,
-          revisit: entry.revisit,
+          revisit: row.parsedRevisit,
         });
+        importAttemptAt.set(entry.id, entry.firstSolvedAt);
+        createdEntryIds.add(entry.id);
       }
 
       const spreadResults = spreadImportDueDates(entriesToSeed, new Date());
       const seedById = new Map(entriesToSeed.map((e) => [e.id, e]));
 
-      for (const spread of spreadResults) {
-        const seeded = seedCard({
-          entryId: spread.id,
-          rating: spread.seededRating,
-          now: new Date(),
-        });
+      const reviewedAt = new Date();
+      const cardFor = (spread: (typeof spreadResults)[number]) => ({
+        ...cardColumns(seedCard({ entryId: spread.id, rating: spread.seededRating, now: reviewedAt }), reviewedAt),
+        due: spread.due,
+      });
 
+      // History, not a review: no lane, so the entry still routes to Recall on its first due date.
+      await tx.attempt.createMany({
+        data: spreadResults.flatMap((spread) => {
+          const solvedAt = importAttemptAt.get(spread.id);
+          return solvedAt
+            ? [{
+                entryId: spread.id,
+                at: solvedAt,
+                rating: spread.seededRating,
+                minutes: null,
+                usedHint: seedById.get(spread.id)?.status === "SOLVED_WITH_HELP",
+                lane: null,
+                source: "IMPORT" as const,
+              }]
+            : [];
+        }),
+      });
+
+      // New entries have no card yet, so they insert in one statement; re-imported ones may, so they upsert.
+      const fresh = spreadResults.filter((spread) => createdEntryIds.has(spread.id));
+      await tx.reviewCard.createMany({ data: fresh.map((spread) => ({ entryId: spread.id, ...cardFor(spread) })) });
+      for (const spread of spreadResults) {
+        if (createdEntryIds.has(spread.id)) continue;
+        const columns = cardFor(spread);
         await tx.reviewCard.upsert({
           where: { entryId: spread.id },
-          update: {
-            due: spread.due,
-            stability: seeded.stability,
-            difficulty: seeded.difficulty,
-            elapsedDays: seeded.elapsedDays,
-            scheduledDays: seeded.scheduledDays,
-            reps: seeded.reps,
-            lapses: seeded.lapses,
-            state: seeded.state,
-            lastReview: new Date(),
-          },
-          create: {
-            entryId: spread.id,
-            due: spread.due,
-            stability: seeded.stability,
-            difficulty: seeded.difficulty,
-            elapsedDays: seeded.elapsedDays,
-            scheduledDays: seeded.scheduledDays,
-            reps: seeded.reps,
-            lapses: seeded.lapses,
-            state: seeded.state,
-            lastReview: new Date(),
-          },
+          update: columns,
+          create: { entryId: spread.id, ...columns },
         });
       }
 

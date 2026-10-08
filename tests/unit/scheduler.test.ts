@@ -11,7 +11,6 @@ import {
   promoteOverdueToRecall,
   spreadImportDueDates,
   DEFAULT_BASELINES,
-  DURABLE_STABILITY_DAYS,
   type QueueItem,
   type ReviewCardData,
 } from "@/lib/scheduler";
@@ -159,34 +158,20 @@ describe("lib/scheduler.ts unit tests", () => {
   });
 
   describe("deriveLane", () => {
-    const durable = DURABLE_STABILITY_DAYS;
-
-    it("returns RECALL once a passed card's memory is durable", () => {
-      expect(deriveLane({ lastRating: "GOOD", stability: durable })).toBe("RECALL");
-      expect(deriveLane({ lastRating: "EASY", stability: durable * 10 })).toBe("RECALL");
+    it("sends a never-reviewed card to recall even when stability is under 30 days", () => {
+      expect(deriveLane({ reviewed: false, lapses: 0 })).toBe("RECALL");
+      expect(deriveLane({})).toBe("RECALL");
     });
 
-    it("returns RESOLVE while a passed card's memory is still fragile", () => {
-      expect(deriveLane({ lastRating: "GOOD", stability: durable - 1 })).toBe("RESOLVE");
-      expect(deriveLane({ lastRating: "EASY", stability: 3 })).toBe("RESOLVE");
+    it("sends a flagged, lapsed, or failed-recall card to resolve once it has been reviewed", () => {
+      expect(deriveLane({ reviewed: true, revisit: true })).toBe("RESOLVE");
+      expect(deriveLane({ reviewed: false, revisit: true })).toBe("RESOLVE");
+      expect(deriveLane({ reviewed: true, lapses: 2 })).toBe("RESOLVE");
+      expect(deriveLane({ reviewed: true, failedRecall: true })).toBe("RESOLVE");
     });
 
-    it("forces RESOLVE after a struggle, however durable the card looked", () => {
-      expect(deriveLane({ lastRating: "AGAIN", stability: durable * 100 })).toBe("RESOLVE");
-      expect(deriveLane({ lastRating: "HARD", stability: durable * 100 })).toBe("RESOLVE");
-    });
-
-    it("needs two clean attempts in a row after a struggle before quick checks", () => {
-      // One success right after a fail isn't enough, however durable FSRS thinks it is.
-      expect(deriveLane({ recentRatings: ["EASY", "AGAIN"], stability: durable * 3 })).toBe("RESOLVE");
-      expect(deriveLane({ recentRatings: ["GOOD", "HARD"], stability: durable * 3 })).toBe("RESOLVE");
-      expect(deriveLane({ recentRatings: ["GOOD", "GOOD", "AGAIN"], stability: durable })).toBe("RECALL");
-    });
-
-    it("defaults to RESOLVE when maturity is unknown or the card is new", () => {
-      expect(deriveLane({})).toBe("RESOLVE");
-      expect(deriveLane({ lastRating: null })).toBe("RESOLVE");
-      expect(deriveLane({ lapses: 4 })).toBe("RESOLVE");
+    it("keeps a clean reviewed card on recall", () => {
+      expect(deriveLane({ reviewed: true, lapses: 0, revisit: false, failedRecall: false })).toBe("RECALL");
     });
   });
 

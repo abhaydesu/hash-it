@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { getUserSettingsRow } from "@/lib/user-settings";
+import { firstIntervalsFrom, type FirstIntervals } from "@/lib/first-intervals";
 import {
   CustomFieldDefSchema,
   MAX_CUSTOM_FIELDS,
@@ -19,11 +20,17 @@ import { StatsPreferencesSchema, type StatsPreferences } from "@/lib/stats-prefe
 
 const SettingsSchema = z.object({
   dailyResolveCap: z.number().int().min(1).max(50),
+  dailyRecallCap: z.number().int().min(1).max(50).default(5),
+  minDailyResolve: z.number().int().min(0).max(50).default(1),
   desiredRetention: z.number().min(0.7).max(0.95),
   timezone: z.string().min(1).max(64),
   easyBaseline: z.number().int().min(1).max(600),
   mediumBaseline: z.number().int().min(1).max(600),
   hardBaseline: z.number().int().min(1).max(600),
+  firstIntervalCold: z.number().int().min(1).max(365).default(14),
+  firstIntervalHint: z.number().int().min(1).max(365).default(10),
+  firstIntervalSolution: z.number().int().min(1).max(365).default(7),
+  firstIntervalFlagged: z.number().int().min(1).max(365).default(4),
 });
 
 export type UserSettingsInput = z.infer<typeof SettingsSchema>;
@@ -37,7 +44,7 @@ export async function getUserSettings() {
   const [existing, attemptCount] = await Promise.all([
     getUserSettingsRow(user.id),
     prisma.attempt.count({
-      where: { entry: { userId: user.id } },
+      where: { entry: { userId: user.id }, source: { not: "IMPORT" } },
     }),
   ]);
   const settings =
@@ -48,6 +55,7 @@ export async function getUserSettings() {
       create: {
         userId: user.id,
         dailyResolveCap: 2,
+        dailyRecallCap: 5,
         desiredRetention: 0.8,
         timezone: "Asia/Kolkata",
         easyBaseline: 20,
@@ -62,7 +70,7 @@ export async function getUserSettings() {
   };
 }
 
-export async function updateUserSettings(input: UserSettingsInput) {
+export async function updateUserSettings(input: z.input<typeof SettingsSchema>) {
   const user = await getCurrentUser();
   const data = SettingsSchema.parse(input);
 
@@ -80,7 +88,7 @@ export async function optimizeFSRSParams() {
   const user = await getCurrentUser();
 
   const attemptCount = await prisma.attempt.count({
-    where: { entry: { userId: user.id } },
+    where: { entry: { userId: user.id }, source: { not: "IMPORT" } },
   });
 
   if (attemptCount < 1000) {
@@ -160,10 +168,15 @@ export async function saveStatsPreferences(input: StatsPreferences): Promise<Sta
 }
 
 /** Everything the log-problem form needs beyond the built-ins: the user's columns and sources they've used. */
-export async function getLogFormConfig(): Promise<{ customFields: CustomFieldDef[]; sources: string[] }> {
+export async function getLogFormConfig(): Promise<{
+  customFields: CustomFieldDef[];
+  sources: string[];
+  firstIntervals: FirstIntervals;
+}> {
   const user = await getCurrentUser();
-  const [customFields, rows] = await Promise.all([
+  const [customFields, settings, rows] = await Promise.all([
     getCustomFields(),
+    getUserSettingsRow(user.id),
     prisma.entry.findMany({
       where: { userId: user.id, sourceList: { not: null } },
       select: { sourceList: true },
@@ -180,7 +193,7 @@ export async function getLogFormConfig(): Promise<{ customFields: CustomFieldDef
         .filter(isUserSource)
     )
   ).sort((a, b) => a.localeCompare(b));
-  return { customFields, sources };
+  return { customFields, sources, firstIntervals: firstIntervalsFrom(settings) };
 }
 
 /** Append one column (quick-add from the log form). Returns the full, saved list. */

@@ -24,11 +24,11 @@ describe("Weekly review (Integration)", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("keeps the daily quick-recall total at three even as passed cards leave the queue", async () => {
+  it("keeps the daily quick-recall total at five as passed cards leave the queue", async () => {
     await runInTestTransaction(async (tx) => {
       const user = await createTestUser({ email: "weekly-recall-cap@example.com" }, tx);
       setTestUser(user);
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 10; i++) {
         const problem = await createTestProblem({ title: `Overdue Recall ${i}` }, tx);
         const { entry } = await createTestEntry(
           user.id,
@@ -40,18 +40,16 @@ describe("Weekly review (Integration)", () => {
 
       const initial = await getDailyReviewQueue(user.id, new Date(SUNDAY.getTime() + 2 * DAY));
       const recallIds = initial.queue.filter((item) => item.lane === "RECALL").map((item) => item.entryId);
-      expect(recallIds).toHaveLength(3);
+      expect(recallIds).toHaveLength(5);
 
-      for (const entryId of recallIds) {
-        await recordRecallAttempt({ entryId, rating: "GOOD", retryTomorrow: true });
-      }
+      await recordRecallAttempt({ entryId: recallIds[0], rating: "GOOD", retryTomorrow: true });
 
       const lastRecall = await tx.attempt.findFirstOrThrow({
         where: { lane: "RECALL" },
         orderBy: { at: "desc" },
       });
       const afterPassing = await getDailyReviewQueue(user.id, new Date(lastRecall.at.getTime() + 1000));
-      expect(afterPassing.recallCount).toBe(0);
+      expect(afterPassing.recallCount).toBe(4);
     });
   });
 
@@ -74,6 +72,10 @@ describe("Weekly review (Integration)", () => {
         { createReviewCard: true, due: new Date(SUNDAY.getTime() - 5 * DAY) },
         tx,
       );
+      await tx.reviewCard.update({ where: { entryId: overdueEntry.id }, data: { lapses: 2 } });
+      await tx.attempt.create({
+        data: { entryId: overdueEntry.id, rating: "AGAIN", lane: "RESOLVE", at: new Date(SUNDAY.getTime() - 6 * DAY) },
+      });
       // Make "Weak One" weak: reviewed long ago with low stability.
       await tx.reviewCard.update({
         where: { entryId: weakEntry.id },
@@ -101,7 +103,8 @@ describe("Weekly review (Integration)", () => {
       });
       const queue = await getDailyReviewQueue(user.id, new Date(check.at.getTime() + DAY));
       expect(queue.queue.some((item) => item.entryId === weakEntry.id && item.lane === "RECALL")).toBe(true);
-      expect(queue.queue.some((item) => item.entryId === overdueEntry.id && item.lane === "RECALL" && item.retryTomorrow)).toBe(true);
+      // A lone overdue re-solve fits the day's cap, so it stays a re-solve instead of being demoted.
+      expect(queue.queue.some((item) => item.entryId === overdueEntry.id && item.lane === "RESOLVE" && !item.retryTomorrow)).toBe(true);
 
       const again = await getWeeklyReview(user.id);
       expect(again.checks.find((c) => c.entryId === weakEntry.id)?.result).toEqual({ confidence: "CLEAR", recalled: false });

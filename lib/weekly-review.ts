@@ -227,7 +227,7 @@ function planSelect(userId: string) {
             ...problemSelect,
             entries: {
               where: { userId },
-              select: { id: true, attempts: { orderBy: { at: "desc" as const }, take: 1, select: { at: true } } },
+              select: { id: true, attempts: { where: { source: { not: "IMPORT" as const } }, orderBy: { at: "desc" as const }, take: 1, select: { at: true } } },
             },
           },
         },
@@ -277,10 +277,10 @@ export async function getWeeklyReview(userId: string, now: Date = new Date()): P
         patternOverride: true,
         reviewCard: true,
         problem: { select: { ...problemSelect, patterns: { select: { pattern: { select: { name: true } } } } } },
-        attempts: { where: { at: { gte: since }, rating: "AGAIN" }, select: { id: true } },
+        attempts: { where: { at: { gte: since }, rating: "AGAIN", source: { not: "IMPORT" } }, select: { id: true } },
       },
     }),
-    prisma.attempt.count({ where: { entry: { userId }, at: { gte: since } } }),
+    prisma.attempt.count({ where: { entry: { userId }, at: { gte: since }, source: { not: "IMPORT" } } }),
     prisma.entry.count({ where: { userId, firstSolvedAt: { gte: since } } }),
     prisma.reviewCard.count({ where: { entry: { userId }, due: { lt: now } } }),
     prisma.weeklyCheck.findMany({

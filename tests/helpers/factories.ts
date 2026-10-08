@@ -151,6 +151,7 @@ export async function createTestUserSettings(
     data: {
       userId,
       dailyResolveCap: overrides?.dailyResolveCap ?? 2,
+      dailyRecallCap: overrides?.dailyRecallCap ?? 5,
       desiredRetention: overrides?.desiredRetention ?? 0.8,
       timezone: overrides?.timezone ?? "Asia/Kolkata",
       easyBaseline: overrides?.easyBaseline ?? 15,

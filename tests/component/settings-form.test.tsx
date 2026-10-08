@@ -15,11 +15,17 @@ vi.mock("@/app/actions/settings-actions", () => ({
 describe("SettingsClient", () => {
   const mockSettings = {
     dailyResolveCap: 5,
+    dailyRecallCap: 6,
+    minDailyResolve: 1,
     desiredRetention: 0.85,
     timezone: "UTC",
     easyBaseline: 10,
     mediumBaseline: 20,
     hardBaseline: 30,
+    firstIntervalCold: 14,
+    firstIntervalHint: 10,
+    firstIntervalSolution: 7,
+    firstIntervalFlagged: 4,
     fsrsParams: [0.1, 0.2, 0.3],
     attemptCount: 1200,
   };

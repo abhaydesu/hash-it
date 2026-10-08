@@ -6,16 +6,18 @@ import { CATALOG_CACHE_TAG } from "@/lib/practice";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { addDays, localDay, startOfLocalDay } from "@/lib/dates";
-import { DEFAULT_TIMEZONE } from "@/lib/user-settings";
+import { DEFAULT_TIMEZONE, getUserSettingsRow } from "@/lib/user-settings";
+import { baselinesFrom, cardColumns, scheduleSettings, toCardData } from "@/lib/review-card";
 import {
   seedCard,
   advanceCard,
   deriveRating,
+  firstIntervalsFrom,
   type SolveStatusType,
   type ProblemDifficulty,
   type AppRating,
 } from "@/lib/scheduler";
-import { Platform, Difficulty, SolveStatus, Rating, CardState } from "@prisma/client";
+import { Platform, Difficulty, SolveStatus, Rating } from "@prisma/client";
 import { LIMITS, storedHttpUrl } from "@/lib/safe";
 import { parseSlugFromUrl } from "@/lib/problem-url";
 import { readCustomFieldDefs, sanitizeCustomValues, mergeSelectOptions, SYSTEM_SOURCES } from "@/lib/custom-fields";
@@ -132,17 +134,9 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
 
   if (existingEntry) {
     // Spec §3: Re-solving a problem never creates a second Entry. It appends an Attempt and advances ReviewCard.
-    const userSettings = await prisma.userSettings.findUnique({
-      where: { userId: user.id },
-    });
+    const userSettings = await getUserSettingsRow(user.id);
 
-    const baselines = userSettings
-      ? {
-          easy: userSettings.easyBaseline,
-          medium: userSettings.mediumBaseline,
-          hard: userSettings.hardBaseline,
-        }
-      : undefined;
+    const baselines = baselinesFrom(userSettings);
 
     const rating = deriveRating({
       status: data.status as SolveStatusType,
@@ -157,31 +151,29 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
     let updatedCardData;
     if (existingEntry.reviewCard) {
       updatedCardData = advanceCard({
-        currentCard: {
-          entryId: existingEntry.id,
-          due: existingEntry.reviewCard.due,
-          stability: existingEntry.reviewCard.stability,
-          difficulty: existingEntry.reviewCard.difficulty,
-          elapsedDays: existingEntry.reviewCard.elapsedDays,
-          scheduledDays: existingEntry.reviewCard.scheduledDays,
-          reps: existingEntry.reviewCard.reps,
-          lapses: existingEntry.reviewCard.lapses,
-          state: existingEntry.reviewCard.state as any,
-          lastReview: existingEntry.reviewCard.lastReview,
-        },
+        currentCard: toCardData(existingEntry.reviewCard),
         rating,
         reviewDate: now,
-        desiredRetention: userSettings?.desiredRetention ?? 0.80,
-        fsrsParams: userSettings?.fsrsParams ?? [],
+        ...scheduleSettings(userSettings),
       });
     } else {
       updatedCardData = seedCard({
         entryId: existingEntry.id,
         rating,
         now,
-        desiredRetention: userSettings?.desiredRetention ?? 0.80,
-        fsrsParams: userSettings?.fsrsParams ?? [],
+        ...scheduleSettings(userSettings),
+        flagged: data.revisit,
+        intervals: firstIntervalsFrom(userSettings),
       });
+    }
+
+    if (existingEntry.reviewCard && data.revisit && !existingEntry.revisit) {
+      const flaggedDays = firstIntervalsFrom(userSettings).flagged;
+      const sooner = new Date(now.getTime() + flaggedDays * 86_400_000);
+      if (updatedCardData.due > sooner) {
+        updatedCardData.due = sooner;
+        updatedCardData.scheduledDays = flaggedDays;
+      }
     }
 
     const [updatedEntry, attempt] = await prisma.$transaction([
@@ -210,32 +202,17 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
           minutes: data.minutes,
           usedHint: data.status === "SOLVED_WITH_HELP",
           note: data.idea ? `Logged: ${data.idea.slice(0, 80)}` : null,
+          source: "LOG",
         },
       }),
       prisma.reviewCard.upsert({
         where: { entryId: existingEntry.id },
         update: {
-          due: updatedCardData.due,
-          stability: updatedCardData.stability,
-          difficulty: updatedCardData.difficulty,
-          elapsedDays: updatedCardData.elapsedDays,
-          scheduledDays: updatedCardData.scheduledDays,
-          reps: updatedCardData.reps,
-          lapses: updatedCardData.lapses,
-          state: updatedCardData.state as CardState,
-          lastReview: now,
+          ...cardColumns(updatedCardData, now),
         },
         create: {
           entryId: existingEntry.id,
-          due: updatedCardData.due,
-          stability: updatedCardData.stability,
-          difficulty: updatedCardData.difficulty,
-          elapsedDays: updatedCardData.elapsedDays,
-          scheduledDays: updatedCardData.scheduledDays,
-          reps: updatedCardData.reps,
-          lapses: updatedCardData.lapses,
-          state: updatedCardData.state as CardState,
-          lastReview: now,
+          ...cardColumns(updatedCardData, now),
         },
       }),
     ]);
@@ -248,9 +225,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
   }
 
   // Create brand new Entry
-  const newEntrySettings = await prisma.userSettings.findUnique({
-    where: { userId: user.id },
-  });
+  const newEntrySettings = await getUserSettingsRow(user.id);
 
   const rating = deriveRating({
     status: data.status as SolveStatusType,
@@ -258,21 +233,16 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
     usedHint: data.status === "SOLVED_WITH_HELP",
     difficulty: problem.difficulty as ProblemDifficulty | null,
     firstSolve: true,
-    baselines: newEntrySettings
-      ? {
-          easy: newEntrySettings.easyBaseline,
-          medium: newEntrySettings.mediumBaseline,
-          hard: newEntrySettings.hardBaseline,
-        }
-      : undefined,
+    baselines: baselinesFrom(newEntrySettings),
   });
 
   const initialCard = seedCard({
     entryId: "placeholder",
     rating,
     now,
-    desiredRetention: newEntrySettings?.desiredRetention ?? 0.80,
-    fsrsParams: newEntrySettings?.fsrsParams ?? [],
+    ...scheduleSettings(newEntrySettings),
+    flagged: data.revisit,
+    intervals: firstIntervalsFrom(newEntrySettings),
   });
 
   const result = await prisma.$transaction(async (tx) => {
@@ -301,6 +271,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
         minutes: data.minutes,
         usedHint: data.status === "SOLVED_WITH_HELP",
         note: data.idea ? `Initial solve: ${data.idea.slice(0, 80)}` : null,
+        source: "LOG",
       },
     });
 
@@ -309,15 +280,7 @@ export async function createEntry(input: z.input<typeof CreateEntrySchema>) {
     await tx.reviewCard.create({
       data: {
         entryId: entry.id,
-        due: initialCard.due,
-        stability: initialCard.stability,
-        difficulty: initialCard.difficulty,
-        elapsedDays: initialCard.elapsedDays,
-        scheduledDays: initialCard.scheduledDays,
-        reps: initialCard.reps,
-        lapses: initialCard.lapses,
-        state: initialCard.state as CardState,
-        lastReview: now,
+        ...cardColumns(initialCard, now),
       },
     });
 
@@ -355,17 +318,9 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
     },
   });
 
-  const userSettings = await prisma.userSettings.findUnique({
-    where: { userId: user.id },
-  });
+  const userSettings = await getUserSettingsRow(user.id);
 
-  const baselines = userSettings
-    ? {
-        easy: userSettings.easyBaseline,
-        medium: userSettings.mediumBaseline,
-        hard: userSettings.hardBaseline,
-      }
-    : undefined;
+  const baselines = baselinesFrom(userSettings);
 
   const rating = deriveRating({
     status: data.status as SolveStatusType,
@@ -381,29 +336,15 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
 
   // This attempt advances the existing card; with no card yet it *is* the first
   // review, so it seeds one — applying the rating once, not twice.
-  const schedule = {
-    desiredRetention: userSettings?.desiredRetention ?? 0.80,
-    fsrsParams: userSettings?.fsrsParams ?? [],
-  };
+  const schedule = scheduleSettings(userSettings);
   const updatedCard = entry.reviewCard
     ? advanceCard({
-        currentCard: {
-          entryId: entry.id,
-          due: entry.reviewCard.due,
-          stability: entry.reviewCard.stability,
-          difficulty: entry.reviewCard.difficulty,
-          elapsedDays: entry.reviewCard.elapsedDays,
-          scheduledDays: entry.reviewCard.scheduledDays,
-          reps: entry.reviewCard.reps,
-          lapses: entry.reviewCard.lapses,
-          state: entry.reviewCard.state as any,
-          lastReview: entry.reviewCard.lastReview,
-        },
+        currentCard: toCardData(entry.reviewCard),
         rating,
         reviewDate: now,
         ...schedule,
       })
-    : seedCard({ entryId: entry.id, rating, now, ...schedule });
+    : seedCard({ entryId: entry.id, rating, now, ...schedule, intervals: firstIntervalsFrom(userSettings) });
 
   await prisma.$transaction([
     prisma.attempt.create({
@@ -415,32 +356,17 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
         usedHint: data.usedHint || data.status === "SOLVED_WITH_HELP",
         note: data.note,
         lane: data.fromQueue ? "RESOLVE" : null,
+        source: data.fromQueue ? "REVIEW" : "LOG",
       },
     }),
     prisma.reviewCard.upsert({
       where: { entryId: entry.id },
       update: {
-        due: updatedCard.due,
-        stability: updatedCard.stability,
-        difficulty: updatedCard.difficulty,
-        elapsedDays: updatedCard.elapsedDays,
-        scheduledDays: updatedCard.scheduledDays,
-        reps: updatedCard.reps,
-        lapses: updatedCard.lapses,
-        state: updatedCard.state as CardState,
-        lastReview: now,
+        ...cardColumns(updatedCard, now),
       },
       create: {
         entryId: entry.id,
-        due: updatedCard.due,
-        stability: updatedCard.stability,
-        difficulty: updatedCard.difficulty,
-        elapsedDays: updatedCard.elapsedDays,
-        scheduledDays: updatedCard.scheduledDays,
-        reps: updatedCard.reps,
-        lapses: updatedCard.lapses,
-        state: updatedCard.state as CardState,
-        lastReview: now,
+        ...cardColumns(updatedCard, now),
       },
     }),
     ...(data.newMistake
@@ -449,10 +375,13 @@ export async function recordReviewAttempt(input: z.input<typeof RecordReviewSche
             where: { id: entry.id },
             data: {
               mistake: entry.mistake ? `${entry.mistake}\n\n[Update ${now.toLocaleDateString()}]: ${data.newMistake}` : data.newMistake,
+              ...(data.status === "SOLVED_UNAIDED" ? { revisit: false } : {}),
             },
           }),
         ]
-      : []),
+      : data.status === "SOLVED_UNAIDED"
+        ? [prisma.entry.update({ where: { id: entry.id }, data: { revisit: false } })]
+        : []),
   ]);
 
   revalidatePath("/today");
@@ -481,34 +410,20 @@ export async function recordRecallAttempt(input: z.input<typeof RecordRecallSche
     include: { reviewCard: true },
   });
 
-  const userSettings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  const userSettings = await getUserSettingsRow(user.id);
   const now = new Date();
 
   // This attempt advances the existing card; with no card yet it *is* the first
   // review, so it seeds one — applying the rating once, not twice.
-  const schedule = {
-    desiredRetention: userSettings?.desiredRetention ?? 0.80,
-    fsrsParams: userSettings?.fsrsParams ?? [],
-  };
+  const schedule = scheduleSettings(userSettings);
   const updatedCard = entry.reviewCard
     ? advanceCard({
-        currentCard: {
-          entryId: entry.id,
-          due: entry.reviewCard.due,
-          stability: entry.reviewCard.stability,
-          difficulty: entry.reviewCard.difficulty,
-          elapsedDays: entry.reviewCard.elapsedDays,
-          scheduledDays: entry.reviewCard.scheduledDays,
-          reps: entry.reviewCard.reps,
-          lapses: entry.reviewCard.lapses,
-          state: entry.reviewCard.state as any,
-          lastReview: entry.reviewCard.lastReview,
-        },
+        currentCard: toCardData(entry.reviewCard),
         rating: data.rating as AppRating,
         reviewDate: now,
         ...schedule,
       })
-    : seedCard({ entryId: entry.id, rating: data.rating as AppRating, now, ...schedule });
+    : seedCard({ entryId: entry.id, rating: data.rating as AppRating, now, ...schedule, intervals: firstIntervalsFrom(userSettings) });
 
   // A blank answer on an overdue quick-recall card returns it to full solve tomorrow.
   if (data.retryTomorrow && data.rating === "AGAIN") {
@@ -528,32 +443,17 @@ export async function recordRecallAttempt(input: z.input<typeof RecordRecallSche
         usedHint: false,
         note: data.wroteApproach ? `Recall: ${data.wroteApproach.slice(0, 120)}` : "Recall review",
         lane: "RECALL",
+        source: "REVIEW",
       },
     }),
     prisma.reviewCard.upsert({
       where: { entryId: entry.id },
       update: {
-        due: updatedCard.due,
-        stability: updatedCard.stability,
-        difficulty: updatedCard.difficulty,
-        elapsedDays: updatedCard.elapsedDays,
-        scheduledDays: updatedCard.scheduledDays,
-        reps: updatedCard.reps,
-        lapses: updatedCard.lapses,
-        state: updatedCard.state as CardState,
-        lastReview: now,
+        ...cardColumns(updatedCard, now),
       },
       create: {
         entryId: entry.id,
-        due: updatedCard.due,
-        stability: updatedCard.stability,
-        difficulty: updatedCard.difficulty,
-        elapsedDays: updatedCard.elapsedDays,
-        scheduledDays: updatedCard.scheduledDays,
-        reps: updatedCard.reps,
-        lapses: updatedCard.lapses,
-        state: updatedCard.state as CardState,
-        lastReview: now,
+        ...cardColumns(updatedCard, now),
       },
     }),
   ]);
@@ -595,6 +495,24 @@ export async function updateEntryInline(params: z.input<typeof UpdateInlineSchem
 
   if (result.count === 0) {
     throw new Error("Entry not found");
+  }
+
+  // Flagging pulls a card in to the flagged first interval. It never pushes a due date out.
+  if (field === "revisit" && value === true) {
+    const now = new Date();
+    const card = await prisma.reviewCard.findFirst({
+      where: { entryId, entry: { userId: user.id } },
+      select: { due: true },
+    });
+    const flaggedDays = firstIntervalsFrom(await getUserSettingsRow(user.id)).flagged;
+    const sooner = new Date(now.getTime() + flaggedDays * 86_400_000);
+    if (card && card.due > sooner) {
+      await prisma.reviewCard.update({
+        where: { entryId },
+        data: { due: sooner, scheduledDays: flaggedDays },
+      });
+      revalidatePath("/today");
+    }
   }
 
   revalidatePath("/problems");
@@ -659,7 +577,7 @@ export async function toggleScheduleReview(entryId: string, schedule: boolean) {
   if (schedule) {
     if (!entry.reviewCard) {
       const now = new Date();
-      const userSettings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+      const userSettings = await getUserSettingsRow(user.id);
       const initialCard = seedCard({
         entryId: entry.id,
         rating: deriveRating({
@@ -668,21 +586,14 @@ export async function toggleScheduleReview(entryId: string, schedule: boolean) {
           firstSolve: true,
         }),
         now,
-        desiredRetention: userSettings?.desiredRetention ?? 0.80,
-        fsrsParams: userSettings?.fsrsParams ?? [],
+        ...scheduleSettings(userSettings),
+        flagged: entry.revisit,
+        intervals: firstIntervalsFrom(userSettings),
       });
       await prisma.reviewCard.create({
         data: {
           entryId: entry.id,
-          due: initialCard.due,
-          stability: initialCard.stability,
-          difficulty: initialCard.difficulty,
-          elapsedDays: initialCard.elapsedDays,
-          scheduledDays: initialCard.scheduledDays,
-          reps: initialCard.reps,
-          lapses: initialCard.lapses,
-          state: initialCard.state as CardState,
-          lastReview: now,
+          ...cardColumns(initialCard, now),
         },
       });
     }
@@ -794,15 +705,7 @@ export async function toggleRoadmapItemSolve(params: {
       await tx.reviewCard.create({
         data: {
           entryId: created.id,
-          due: seeded.due,
-          stability: seeded.stability,
-          difficulty: seeded.difficulty,
-          elapsedDays: seeded.elapsedDays,
-          scheduledDays: seeded.scheduledDays,
-          reps: seeded.reps,
-          lapses: seeded.lapses,
-          state: seeded.state as CardState,
-          lastReview: now,
+          ...cardColumns(seeded, now),
         },
       });
 

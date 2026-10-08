@@ -17,6 +17,7 @@ export async function findOrCreateLocalUser(emailInput?: string | null, nameInpu
     create: {
       userId: user.id,
       dailyResolveCap: 2,
+      dailyRecallCap: 5,
       desiredRetention: 0.8,
       fsrsParams: [],
       timezone: "Asia/Kolkata",

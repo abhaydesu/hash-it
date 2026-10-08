@@ -21,7 +21,7 @@ type SectionOf<K extends StatsSection["kind"]> = Extract<StatsSection, { kind: K
 const DIFFICULTY_BAR: Record<string, string> = { EASY: "bg-easy", MEDIUM: "bg-medium", HARD: "bg-hard" };
 
 const GLOSSARY = [
-  ["Solved without help", "Share of reviews rated Good or Easy — you solved it without a hint."],
+  ["Re-solved without help", "Share of full re-solves from your queue rated Good or Easy. Recall checks are not counted."],
   ["Practice streak", "Consecutive days with at least one review. Stays alive until you miss a full day."],
   ["Times forgotten", "Average lapses per carded problem — how often a problem you knew slipped away."],
   ["Typical solve time", "Median recorded minutes for each difficulty, ignoring entries without a time."],
@@ -36,9 +36,9 @@ function Headline({ headline: h, streak }: { headline: HeadlineStats; streak: St
     <SpecGrid columns={5}>
       <StreakBadge streak={streak} className="col-span-2 lg:col-span-1" />
       <SpecCell
-        label="Solved without help"
-        value={<span className="text-easy">{(h.coldSolveRate * 100).toFixed(0)}%</span>}
-        subvalue={`${h.coldSolveAttempts} of ${h.totalAttempts} reviews`}
+        label="Re-solved without help"
+        value={h.totalAttempts > 0 ? <span className="text-easy">{(h.coldSolveRate * 100).toFixed(0)}%</span> : "–"}
+        subvalue={`${h.coldSolveAttempts} of ${h.totalAttempts} re-solves`}
       />
       <SpecCell label="Problems practised" value={h.totalEntries} subvalue={`${h.totalCards} in review rotation`} />
       <SpecCell
@@ -365,7 +365,21 @@ export function StatsClient({ allStats, preferences }: { allStats: AllStats; pre
       )}
 
       <SheetSection innerClassName="py-6" band="neutral">
-        <Headline headline={headline} streak={streak} />
+        <div className="space-y-4">
+          <Headline headline={headline} streak={streak} />
+          <SpecGrid columns={2}>
+            <SpecCell
+              label="Never solved without help"
+              value={headline.neverSolvedWithoutHelp}
+              subvalue="Entries with no cold-solve attempt on record."
+            />
+            <SpecCell
+              label="Learned from a solution, never re-solved"
+              value={headline.learnedFromSolutionNeverResolved}
+              subvalue="Of those, passed a recall check; a first real solve is queued."
+            />
+          </SpecGrid>
+        </div>
       </SheetSection>
 
       <SheetSection innerClassName="space-y-4 py-6" last={isEmpty}>

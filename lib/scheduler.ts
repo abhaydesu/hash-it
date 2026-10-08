@@ -4,8 +4,11 @@ import {
   Rating as FSRSRating,
   State as FSRSState,
   generatorParameters,
+  FACTOR,
+  DECAY,
   type Card as FSRSCard,
   type Grade,
+  type FSRS,
 } from "ts-fsrs";
 
 export type ProblemDifficulty = "EASY" | "MEDIUM" | "HARD";
@@ -34,19 +37,31 @@ export const DEFAULT_BASELINES: TimeBaselines = {
 export const MAX_INTERVAL_DAYS = 365;
 
 /**
- * Stability (in days) at which a memory is treated as durable. Below this a due
- * problem is written out in full; above it a quick recall check is enough to
- * maintain it. ~30 days means "I would still recall this a month from now".
+ * Shortest a review may be scheduled. Short-term steps are off, and FSRS can
+ * otherwise hand back a sub-day interval after Again. This is a floor, not a
+ * forced interval — a lapse otherwise follows FSRS.
  */
-export const DURABLE_STABILITY_DAYS = 30;
+export const MIN_INTERVAL_DAYS = 2;
+
+export {
+  DEFAULT_FIRST_INTERVALS,
+  firstIntervalFor,
+  firstIntervalForStatus,
+  firstIntervalsFrom,
+  type FirstIntervals,
+} from "./first-intervals";
+import { firstIntervalFor, type FirstIntervals } from "./first-intervals";
 
 /**
- * Longest a just-failed problem may be put off. FSRS carries much of a mature
- * card's stability through a lapse, which can push a problem you just failed a
- * week out. With short-term steps disabled this keeps a failed problem within a
- * few days while avoiding next-day repeats.
+ * Stability that makes FSRS schedule `intervalDays` at `desiredRetention`.
+ *
+ * Inverting R = (1 + FACTOR * t / S) ^ DECAY gives
+ * S = FACTOR * t / (R ^ (1/DECAY) - 1). FACTOR and DECAY come from the
+ * installed ts-fsrs so a learned decay stays consistent with scheduling.
  */
-export const LAPSE_INTERVAL_DAYS = 3;
+export function stabilityForInterval(intervalDays: number, desiredRetention: number): number {
+  return (FACTOR * intervalDays) / (desiredRetention ** (1 / DECAY) - 1);
+}
 
 /**
  * Build a scheduler honouring this user's retention and any optimised weights.
@@ -100,31 +115,77 @@ export interface QueueItem {
   lane?: ReviewLane;
   lastRating?: AppRating | null;
   revisit?: boolean;
-  stability?: number;
   [key: string]: any;
 }
 
 /**
- * Choose how a due problem comes back: written out in full, or checked quickly.
+ * Choose how a due problem comes back.
  *
- * Maturity decides. A problem is re-solved while the memory is still fragile —
- * recognising an approach is not the same as being able to produce the code —
- * and switches to cheap recall checks once FSRS considers it durable.
+ * The revisit flag is checked first: it is an explicit request to re-solve,
+ * so it wins over the first-review recall. After that:
+ * 1. Never reviewed through the queue → Recall, whatever was logged.
+ * 2. Never solved cold (learned from a hint or solution) → Resolve. The first
+ *    Recall check confirmed the idea stuck; this is the one real solve.
+ * 3. Two or more lapses → Resolve.
+ * 4. A failed recall that has not yet been solved cold → Resolve.
+ * 5. Otherwise → Recall.
  *
- * Struggling forces a re-solve, and it takes two clean attempts in a row to earn
- * quick checks back: a single success right after a fail (especially a late one,
- * which FSRS rewards heavily) is not yet evidence the problem is retained.
+ * Stability is not a lane. A young card's first check is whether the
+ * editorial stuck, which is a recall, not a 25-minute re-solve.
  */
 export function deriveLane(item: {
-  lastRating?: AppRating | null;
-  /** Most recent first; only the last two matter. Falls back to `lastRating`. */
-  recentRatings?: AppRating[];
+  /** At least one attempt was logged from the queue (Attempt.lane set). */
+  reviewed?: boolean;
+  revisit?: boolean;
+  /** No cold solve on record in any source (see neverSolvedCold). */
+  neverSolvedCold?: boolean;
   lapses?: number;
-  stability?: number;
+  /** Latest failed recall is newer than the latest cold solve. */
+  failedRecall?: boolean;
 }): ReviewLane {
-  const recent = item.recentRatings ?? (item.lastRating ? [item.lastRating] : []);
-  if (recent.slice(0, 2).some((r) => r === "AGAIN" || r === "HARD")) return "RESOLVE";
-  return (item.stability ?? 0) < DURABLE_STABILITY_DAYS ? "RESOLVE" : "RECALL";
+  if (item.revisit) return "RESOLVE";
+  if (!item.reviewed) return "RECALL";
+  if (item.neverSolvedCold) return "RESOLVE";
+  if ((item.lapses ?? 0) >= 2) return "RESOLVE";
+  if (item.failedRecall) return "RESOLVE";
+  return "RECALL";
+}
+
+export interface LaneAttempt {
+  rating: AppRating;
+  lane: ReviewLane | null;
+  at: Date;
+}
+
+/** Queue reviews set Attempt.lane. A log leaves it null, so reps/lastReview cannot mean "reviewed". */
+export function hasQueueReview(attempts: Array<{ lane: ReviewLane | null }>): boolean {
+  return attempts.some((attempt) => attempt.lane != null);
+}
+
+/**
+ * True when no attempt outside the recall lane was rated Good/Easy, from any
+ * source: an imported SOLVED_UNAIDED row counts as a cold solve, an imported
+ * "saw solution" row does not. A Recall pass proves the idea, not the code.
+ */
+export function neverSolvedCold(attempts: LaneAttempt[]): boolean {
+  return !attempts.some(
+    (attempt) => attempt.lane !== "RECALL" && (attempt.rating === "GOOD" || attempt.rating === "EASY"),
+  );
+}
+
+/**
+ * The re-solve marker is the failed recall itself: a RECALL attempt rated Again,
+ * still ahead of the latest cold solve (Good/Easy outside the recall lane).
+ * The next cold solve clears it by being newer.
+ */
+export function failedRecallPending(attempts: LaneAttempt[]): boolean {
+  const ordered = [...attempts].sort((a, b) => b.at.getTime() - a.at.getTime());
+  const failed = ordered.find((attempt) => attempt.lane === "RECALL" && attempt.rating === "AGAIN");
+  if (!failed) return false;
+  const cold = ordered.find(
+    (attempt) => attempt.lane !== "RECALL" && (attempt.rating === "GOOD" || attempt.rating === "EASY"),
+  );
+  return !cold || failed.at.getTime() > cold.at.getTime();
 }
 
 export const FSRS_STATE_TO_APP: Record<number, AppCardState> = {
@@ -231,11 +292,12 @@ export function fromFSRSCard(entryId: string, card: FSRSCard): ReviewCardData {
 }
 
 /**
- * Seed a review card for a newly logged Entry by applying its first rating.
+ * Seed a review card for a newly logged Entry.
  *
- * The rating comes from `deriveRating`, so how the problem was actually solved —
- * including how quickly — shapes the very first interval rather than only
- * kicking in from the second review onward.
+ * FSRS supplies difficulty (and reps/state) from the first rating. The interval
+ * itself is fixed by outcome — a first log has no review history for FSRS to
+ * fit — and stability is set so that same interval is what FSRS would schedule
+ * at the user's retention. From the second review, `advanceCard` takes over.
  */
 export function seedCard(params: {
   entryId: string;
@@ -243,27 +305,47 @@ export function seedCard(params: {
   now?: Date;
   desiredRetention?: number;
   fsrsParams?: number[];
+  flagged?: boolean;
+  intervals?: FirstIntervals;
 }): ReviewCardData {
-  const { entryId, rating, now = new Date(), desiredRetention = 0.80, fsrsParams } = params;
+  const {
+    entryId,
+    rating,
+    now = new Date(),
+    desiredRetention = 0.80,
+    fsrsParams,
+    flagged = false,
+    intervals,
+  } = params;
 
   const f = scheduler(desiredRetention, fsrsParams);
   const scheduled = f.repeat(createEmptyCard(now), now)[APP_RATING_TO_FSRS[rating]].card;
   const card = fromFSRSCard(entryId, scheduled);
-  if (rating === "AGAIN") {
-    const minimum = new Date(now.getTime() + LAPSE_INTERVAL_DAYS * 86_400_000);
-    if (card.due < minimum) {
-      card.due = minimum;
-      card.scheduledDays = LAPSE_INTERVAL_DAYS;
-    }
-  }
+  const days = firstIntervalFor(rating, flagged, intervals);
+  applyFixedInterval(card, days, now, desiredRetention, f);
   return card;
 }
 
-function applyLapseInterval(card: ReviewCardData, reviewDate: Date) {
-  const soonest = new Date(reviewDate.getTime() + LAPSE_INTERVAL_DAYS * 86_400_000);
-  if (card.due.getTime() !== soonest.getTime()) {
-    card.due = soonest;
-    card.scheduledDays = LAPSE_INTERVAL_DAYS;
+/** Point due/stability/scheduledDays at a chosen interval, keeping FSRS difficulty. */
+function applyFixedInterval(
+  card: ReviewCardData,
+  days: number,
+  now: Date,
+  desiredRetention: number,
+  f: FSRS,
+) {
+  const stability = stabilityForInterval(days, desiredRetention);
+  const scheduledDays = f.next_interval(stability, 0);
+  card.stability = stability;
+  card.scheduledDays = scheduledDays;
+  card.due = new Date(now.getTime() + scheduledDays * 86_400_000);
+}
+
+function applyMinInterval(card: ReviewCardData, reviewDate: Date) {
+  const floor = new Date(reviewDate.getTime() + MIN_INTERVAL_DAYS * 86_400_000);
+  if (card.due < floor) {
+    card.due = floor;
+    card.scheduledDays = MIN_INTERVAL_DAYS;
   }
 }
 
@@ -293,9 +375,7 @@ export function advanceCard(params: {
   const card = fromFSRSCard(currentCard.entryId, repeatResult[grade].card);
 
   if (rating === "AGAIN") {
-    // Keep the failure loop predictable while retaining FSRS's updated memory
-    // estimate; the next successful review will resume the normal intervals.
-    applyLapseInterval(card, reviewDate);
+    applyMinInterval(card, reviewDate);
   }
 
   return card;
@@ -312,6 +392,29 @@ export function promoteOverdueToRecall<T extends QueueItem>(items: T[], limit = 
 }
 
 /**
+ * Top the re-solve lane up to a daily minimum. Only due Recall cards that show a real reason
+ * to write the code qualify, in this order: never solved cold (oldest due first), then cards
+ * with lapses. Follow-ups that are retrying tomorrow are left alone. Nothing arbitrary is
+ * ever pulled in, so with no qualifying card the lane simply stays short.
+ */
+export function fillResolveMinimum<T extends QueueItem>(items: T[], need: number): T[] {
+  if (need <= 0) return items;
+  const tier = (item: T) => (item.neverSolvedCold ? 0 : (item.lapses ?? 0) > 0 ? 1 : 2);
+  const picked = items
+    .filter((item) => (item.lane ?? deriveLane(item)) === "RECALL" && !item.retryTomorrow && tier(item) < 2)
+    .sort(
+      (a, b) =>
+        tier(a) - tier(b) ||
+        new Date(a.due).getTime() - new Date(b.due).getTime() ||
+        (b.lapses ?? 0) - (a.lapses ?? 0),
+    )
+    .slice(0, need)
+    .map((item) => item.entryId);
+  const chosen = new Set(picked);
+  return items.map((item) => (chosen.has(item.entryId) ? { ...item, lane: "RESOLVE" as const } : item));
+}
+
+/**
  * Calculate current retrievability (R) of a card based on stability and elapsed time.
  * R = (1 + factor * t / S)^decay
  */
@@ -322,10 +425,8 @@ export function calculateRetrievability(card: ReviewCardData, now: Date = new Da
   const elapsedDays = Math.max(0, (now.getTime() - new Date(card.lastReview).getTime()) / (1000 * 60 * 60 * 24));
   if (elapsedDays === 0) return 1.0;
 
-  // FSRS forgetting curve formula: R = (1 + 19/81 * (t / S))^-0.5 (standard decay)
-  const factor = 19 / 81;
-  const power = -0.5;
-  const retrievability = Math.pow(1 + factor * (elapsedDays / card.stability), power);
+  // FSRS forgetting curve: R = (1 + FACTOR * t / S) ^ DECAY, constants from ts-fsrs.
+  const retrievability = Math.pow(1 + FACTOR * (elapsedDays / card.stability), DECAY);
 
   return Math.min(1.0, Math.max(0.0, retrievability));
 }
@@ -374,7 +475,7 @@ export function interleaveLane<T extends QueueItem>(items: T[], cap: number): T[
  * Interleaving Algorithm per spec §1 and §7:
  * Compose two review lanes:
  * - At most dailyResolveCap (default 2) RESOLVE cards
- * - Up to recallCap (default 3) RECALL cards
+ * - Up to recallCap (default 5) RECALL cards
  * - Resolve cards render first, followed by recall cards
  * - Overdue cards sort ahead of due-today within their lane
  * - Pattern-family interleaving applies within each lane
@@ -388,7 +489,7 @@ export function interleaveQueue<T extends QueueItem>(
   const legacyMode = dailyResolveCapOrNow instanceof Date || typeof dailyResolveCapOrNow === "undefined";
   const resolveCap = legacyMode ? 2 : Number.isFinite(Number(dailyResolveCapOrNow)) ? Number(dailyResolveCapOrNow) : 2;
   const now = legacyMode ? (dailyResolveCapOrNow instanceof Date ? dailyResolveCapOrNow : new Date()) : (maybeNow ?? new Date());
-  const recallCap = typeof maybeRecallCap === "number" ? maybeRecallCap : 3;
+  const recallCap = typeof maybeRecallCap === "number" ? maybeRecallCap : 5;
 
   if (cards.length === 0) return [];
 
@@ -409,6 +510,13 @@ export interface ImportedRowInput {
   status: SolveStatusType;
   revisit: boolean;
   firstSolvedAt?: Date;
+}
+
+/** Rating for an imported row: seeds its card and is the rating of its IMPORT attempt. */
+export function importedRating(status: SolveStatusType): AppRating {
+  if (status === "ATTEMPTED_FAILED") return "AGAIN";
+  if (status === "SOLVED_WITH_HELP") return "HARD";
+  return "GOOD";
 }
 
 /**
@@ -437,17 +545,10 @@ export function spreadImportDueDates(
     // Initial seeded rating. `revisit` only moves a row earlier in the queue
     // (via the sort above) — it is a "practice this someday" marker, not
     // evidence of weak recall, so it must not depress the seeded strength.
-    let seededRating: AppRating = "GOOD";
-    if (row.status === "ATTEMPTED_FAILED") {
-      seededRating = "AGAIN";
-    } else if (row.status === "SOLVED_WITH_HELP") {
-      seededRating = "HARD";
-    }
-
     return {
       id: row.id,
       due,
-      seededRating,
+      seededRating: importedRating(row.status),
     };
   });
 }

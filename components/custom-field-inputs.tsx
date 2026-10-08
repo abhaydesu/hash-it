@@ -8,7 +8,7 @@ import type { CustomFieldDef, CustomValue } from "@/lib/custom-fields";
 export type CustomDraft = Record<string, CustomValue | null>;
 
 const inputClass =
-  "w-full border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring";
+  "h-9 w-full border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
 
 /** One input per user-defined field, matched to its type. */
 export function CustomFieldInputs({
@@ -31,12 +31,12 @@ export function CustomFieldInputs({
         const v = values[f.id];
         const id = `cf-${f.id}`;
         return (
-          <div key={f.id} className={cn("space-y-1", f.type === "text" && "sm:col-span-2")}>
-            <label htmlFor={id} className="block text-[11px] font-medium text-muted-foreground">
+          <div key={f.id} className={cn("space-y-1.5", f.type === "text" && "sm:col-span-2")}>
+            <label htmlFor={id} className="block text-xs font-medium text-foreground">
               {f.label}
             </label>
             {f.type === "boolean" ? (
-              <label className="flex h-[30px] cursor-pointer items-center gap-2 text-xs text-foreground">
+              <label className="flex h-9 cursor-pointer items-center gap-2 text-sm text-foreground">
                 <input
                   id={id}
                   type="checkbox"
@@ -52,6 +52,7 @@ export function CustomFieldInputs({
                   id={id}
                   type="text"
                   list={`${id}-opts`}
+                  autoComplete="off"
                   value={typeof v === "string" ? v : ""}
                   onChange={(e) => set(f.id, e.target.value || null)}
                   placeholder="Pick or type new..."
