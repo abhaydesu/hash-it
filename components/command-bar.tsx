@@ -2,6 +2,7 @@
 import React from "react";
 
 import { useState, useEffect, useRef, useTransition } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search, ExternalLink, Check, AlertCircle, HelpCircle, X, Plus, CornerDownLeft, History } from "lucide-react";
 import { cn, formatDifficulty, safeHref, normalizePatternList } from "@/lib/utils";
@@ -768,8 +769,16 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         {logged.nextDue && <> · next review {formatDue(logged.nextDue)}</>}
                       </p>
                       <p className="text-muted-foreground">
-                        Saving adds a new attempt to this problem and reschedules its review.
+                        Pick one: view or edit the existing log, or fill in the form below to record a new attempt
+                        (it reschedules the review).
                       </p>
+                      <Link
+                        href={`/problems/${logged.entryId}`}
+                        onClick={resetForm}
+                        className="inline-flex items-center gap-1 pt-1 font-medium text-primary hover:underline"
+                      >
+                        View / edit existing log
+                      </Link>
                     </div>
                   </div>
                 )}
@@ -923,7 +932,7 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                     onClick={handleSubmit}
                     className="pressable h-9 border border-primary bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
-                    {isPending ? "Saving…" : logged ? "Log again" : "Log problem"}
+                    {isPending ? "Saving…" : logged ? "Log new attempt" : "Log problem"}
                   </button>
                 </div>
               </div>

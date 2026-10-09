@@ -364,7 +364,7 @@ describe("CommandBar", () => {
     expect(screen.queryByText(/First review in/)).not.toBeInTheDocument();
 
     await userEvent.type(await screen.findByPlaceholderText("25"), "10");
-    await userEvent.click(screen.getByRole("button", { name: "Log again" }));
+    await userEvent.click(screen.getByRole("button", { name: "Log new attempt" }));
     await waitFor(() => expect(createEntry).toHaveBeenCalledWith(expect.objectContaining({ problemId: "p1" })));
   });
 
@@ -383,6 +383,6 @@ describe("CommandBar", () => {
       }),
     );
     expect(await screen.findByText("Already logged")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Log again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Log new attempt" })).toBeInTheDocument();
   });
 });

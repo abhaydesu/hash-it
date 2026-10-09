@@ -258,7 +258,7 @@ export async function buildMonthlyMockSet(userId: string, now: Date = new Date()
   const known = patterns.map((p) => p.name);
   const facts: LoggedFact[] = entries.map((e) => {
     const sheet = e.problem.patterns.map((pp) => pp.pattern.name);
-    const raw = e.customPattern ? [e.customPattern] : e.patternOverride.length > 0 ? e.patternOverride : sheet;
+    const raw = e.patternOverride.length > 0 ? e.patternOverride : e.customPattern ? [e.customPattern] : sheet;
     const loggedThisMonth = e.firstSolvedAt >= windowStart;
     const struggle =
       e.attempts.reduce((s, a) => s + (a.rating === "AGAIN" ? 2 : 0) + (a.usedHint ? 1 : 0), 0) +

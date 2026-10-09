@@ -476,6 +476,7 @@ const UpdateInlineSchema = z.discriminatedUnion("field", [
     value: z.enum(["SOLVED_UNAIDED", "SOLVED_WITH_HELP", "ATTEMPTED_FAILED"]),
   }),
   z.object({ entryId: z.string().max(64), field: z.literal("patternOverride"), value: z.array(z.string().max(120)).max(10) }),
+  z.object({ entryId: z.string().max(64), field: z.literal("sourceList"), value: z.string().max(200).nullable() }),
   z.object({ entryId: z.string().max(64), field: z.literal("minutes"), value: z.number().int().min(0).max(9999).nullable() }),
 ]);
 
@@ -484,9 +485,13 @@ export async function updateEntryInline(params: z.input<typeof UpdateInlineSchem
   const { entryId, field, value } = UpdateInlineSchema.parse(params);
 
   const data: Record<string, unknown> = { [field]: value };
+  if (field === "idea" || field === "mistake" || field === "sourceList") {
+    data[field] = (value as string | null)?.trim() || null;
+  }
   if (field === "patternOverride") {
-    const patterns = value as string[];
-    data.customPattern = patterns[0] ?? null;
+    // customPattern is a legacy single-value copy that would shadow the list; the list is the truth now.
+    data.customPattern = null;
+    data.topic = (value as string[])[0] ?? null;
   }
 
   const result = await prisma.entry.updateMany({

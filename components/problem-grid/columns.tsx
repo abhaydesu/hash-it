@@ -3,38 +3,20 @@ import React from 'react';
 
 import { ColumnDef } from "@tanstack/react-table";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ExternalLink, Check, HelpCircle, XCircle, Pencil, Trash2, Plus, MoreHorizontal } from "lucide-react";
+import { ExternalLink, Check, HelpCircle, XCircle, Trash2, Plus, MoreHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AddFieldForm } from "@/components/add-field-form";
 import { EditFieldForm } from "@/components/edit-field-form";
-import { formatCustomValue, type CustomFieldDef, type CustomValues } from "@/lib/custom-fields";
+import { type CustomFieldDef, type CustomValues } from "@/lib/custom-fields";
 import {
   cn,
   formatDifficulty,
   formatMinutes,
   formatStatus,
-  normalizePatternList,
-  patternClayStyle,
   safeHref,
 } from "@/lib/utils";
 import { updateEntryInline, deleteEntry } from "@/app/actions/entry-actions";
-
-const GRID_EDIT_EVENT = "grid-cell-edit";
-
-function broadcastEditStart(cellId: string) {
-  window.dispatchEvent(new CustomEvent(GRID_EDIT_EVENT, { detail: { cellId } }));
-}
-
-function useCloseOnOtherEdit(cellId: React.RefObject<string | null>, onClose: () => void) {
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.cellId !== cellId.current) onClose();
-    };
-    window.addEventListener(GRID_EDIT_EVENT, handler);
-    return () => window.removeEventListener(GRID_EDIT_EVENT, handler);
-  }, [cellId, onClose]);
-}
+import { NoteCell, PatternCell, SourceCell, CustomCell, broadcastEditStart, useCloseOnOtherEdit } from "./cell-editors";
 
 export interface ProblemGridRow {
   id: string;
@@ -61,286 +43,6 @@ export interface ProblemGridRow {
   customValues?: CustomValues;
 }
 
-function InlineEditCell({
-  entryId,
-  field,
-  initialValue,
-}: {
-  entryId: string;
-  field: "idea" | "mistake";
-  initialValue?: string | null;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [value, setValue] = useState(initialValue || "");
-  const [isSaving, setIsSaving] = useState(false);
-  const [panelPos, setPanelPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const cellId = useRef(`edit-${entryId}-${field}`);
-
-  const closeAll = React.useCallback(() => {
-    setIsEditing(false);
-    setIsOpen(false);
-    setValue(initialValue || "");
-  }, [initialValue]);
-
-  useCloseOnOtherEdit(cellId, closeAll);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
-        setIsEditing(false);
-        setValue(initialValue || "");
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        if (isEditing) {
-          setIsEditing(false);
-          setValue(initialValue || "");
-        } else {
-          setIsOpen(false);
-        }
-      }
-    };
-    // The panel is fixed-positioned (an absolute one is clipped by the table's scroll
-    // container), so it would drift from its cell on scroll; close instead.
-    const onDismiss = () => {
-      setIsOpen(false);
-      setIsEditing(false);
-      setValue(initialValue || "");
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    window.addEventListener("resize", onDismiss);
-    window.addEventListener("scroll", onDismiss, true);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("resize", onDismiss);
-      window.removeEventListener("scroll", onDismiss, true);
-    };
-  }, [isOpen, isEditing, initialValue]);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await updateEntryInline({ entryId, field, value: value.trim() || null });
-      setIsEditing(false);
-      setIsOpen(false);
-    } catch (err) {
-      console.error("Save error:", err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Empty cell → inline input directly in the cell
-  if (isEditing && !isOpen) {
-    return (
-      <div className="flex min-w-[200px] items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSave();
-            if (e.key === "Escape") { setValue(initialValue || ""); setIsEditing(false); }
-          }}
-          onBlur={() => {
-            if ((value.trim() || null) === (initialValue || null)) {
-              setIsEditing(false);
-              return;
-            }
-            handleSave();
-          }}
-          disabled={isSaving}
-          autoFocus
-          className="w-full border border-border bg-background px-2 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div ref={rootRef} className="relative min-w-0 max-w-[260px]">
-      <button
-        type="button"
-        onClick={() => {
-          broadcastEditStart(cellId.current);
-          if (!initialValue) {
-            setIsEditing(true);
-            return;
-          }
-          if (!isOpen && rootRef.current) {
-            const r = rootRef.current.getBoundingClientRect();
-            const width = Math.min(352, window.innerWidth - 16);
-            const left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8);
-            // Open upward when there's little room below (e.g. a lone row at the bottom of the grid).
-            const flip = window.innerHeight - r.bottom < 300 && r.top > 300;
-            setPanelPos(flip ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
-          }
-          setIsOpen((open) => !open);
-        }}
-        aria-expanded={isOpen}
-        aria-label={`${field === "idea" ? "Core idea" : "Mistake"}. Click to read or edit.`}
-        className="w-full truncate px-1.5 py-0.5 text-left text-foreground transition-colors hover:bg-muted/50 focus-visible:bg-muted/50"
-      >
-        {initialValue ? initialValue : <span className="italic text-muted-foreground">—</span>}
-      </button>
-
-      {isOpen && panelPos && (
-        <div
-          style={panelPos}
-          className="fixed z-50 w-[min(22rem,calc(100vw-16px))] border border-border bg-background shadow-lg"
-        >
-          {isEditing ? (
-            <>
-              <textarea
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                disabled={isSaving}
-                autoFocus
-                rows={5}
-                className="w-full resize-y border-0 px-3 py-2.5 text-sm leading-relaxed text-foreground bg-background focus:outline-none"
-              />
-              <div className="flex items-center justify-end gap-2 border-t border-border px-3 py-2">
-                <button
-                  type="button"
-                  onClick={() => { setIsEditing(false); setValue(initialValue || ""); }}
-                  className="text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 transition-colors hover:text-orange-700"
-                >
-                  <Check className="h-3 w-3" />
-                  {isSaving ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="max-h-56 overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-foreground">
-                <p className="whitespace-pre-wrap">{initialValue}</p>
-              </div>
-              <div className="flex items-center justify-between border-t border-border px-3 py-2">
-                <span className="type-label">
-                  {field === "idea" ? "Core idea" : "Mistake log"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 transition-colors hover:text-orange-700"
-                >
-                  <Pencil className="h-3 w-3" /> Edit
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function InlinePatternCell({
-  entryId,
-  patterns,
-}: {
-  entryId: string;
-  patterns: string[];
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [value, setValue] = useState(patterns.join(", "));
-  const [isSaving, setIsSaving] = useState(false);
-  const cellId = useRef(`pattern-${entryId}`);
-
-  const closeAll = React.useCallback(() => {
-    setIsEditing(false);
-    setValue(patterns.join(", "));
-  }, [patterns]);
-
-  useCloseOnOtherEdit(cellId, closeAll);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const parsed = value
-        .split(/[,;|]/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      await updateEntryInline({ entryId, field: "patternOverride", value: parsed });
-      setIsEditing(false);
-    } catch (err) {
-      console.error("Save error:", err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  if (isEditing) {
-    return (
-      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSave();
-            if (e.key === "Escape") { setValue(patterns.join(", ")); setIsEditing(false); }
-          }}
-          onBlur={() => {
-            const parsed = value.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
-            if (JSON.stringify(parsed) === JSON.stringify(patterns)) {
-              setIsEditing(false);
-              return;
-            }
-            handleSave();
-          }}
-          disabled={isSaving}
-          autoFocus
-          placeholder="e.g. Two Pointer, DFS"
-          className="w-full border border-border bg-background px-2 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        broadcastEditStart(cellId.current);
-        setIsEditing(true);
-      }}
-      className="w-full text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 px-1.5 py-0.5"
-    >
-      {patterns.length > 0 ? (
-        <div className="flex max-w-[220px] flex-wrap gap-1">
-          {normalizePatternList(patterns).map((p) => (
-            <span
-              key={p}
-              className="border px-1.5 py-0.5 text-[10px] font-semibold"
-              style={patternClayStyle(p)}
-            >
-              {p}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <span className="text-xs italic text-muted-foreground">—</span>
-      )}
-    </button>
-  );
-}
-
 function InlineMinutesCell({
   entryId,
   initialValue,
@@ -364,7 +66,11 @@ function InlineMinutesCell({
     setIsSaving(true);
     try {
       const num = value.trim() === "" ? null : parseInt(value.trim(), 10);
-      if (num !== null && (isNaN(num) || num < 0 || num > 9999)) return;
+      if (num !== null && (isNaN(num) || num < 0 || num > 9999)) {
+        setValue(initialValue != null ? String(initialValue) : "");
+        setIsEditing(false);
+        return;
+      }
       await updateEntryInline({ entryId, field: "minutes", value: num });
       setIsEditing(false);
     } catch (err) {
@@ -572,7 +278,7 @@ const baseColumns: ColumnDef<ProblemGridRow>[] = [
     header: "Pattern",
     size: 180,
     cell: ({ row }) => (
-      <InlinePatternCell entryId={row.original.id} patterns={row.original.patterns} />
+      <PatternCell entryId={row.original.id} patterns={row.original.patterns} />
     ),
   },
   {
@@ -588,7 +294,7 @@ const baseColumns: ColumnDef<ProblemGridRow>[] = [
     header: "Core idea",
     size: 220,
     cell: ({ row }) => (
-      <InlineEditCell entryId={row.original.id} field="idea" initialValue={row.original.idea} />
+      <NoteCell entryId={row.original.id} field="idea" value={row.original.idea} />
     ),
   },
   {
@@ -596,11 +302,7 @@ const baseColumns: ColumnDef<ProblemGridRow>[] = [
     header: "Mistake log",
     size: 220,
     cell: ({ row }) => (
-      <InlineEditCell
-        entryId={row.original.id}
-        field="mistake"
-        initialValue={row.original.mistake}
-      />
+      <NoteCell entryId={row.original.id} field="mistake" value={row.original.mistake} />
     ),
   },
   {
@@ -764,16 +466,6 @@ function CustomColumnHeader({ def }: { def: CustomFieldDef }) {
   );
 }
 
-function CustomValueCell({ def, value }: { def: CustomFieldDef; value: CustomValues[string] | undefined }) {
-  const text = formatCustomValue(def, value);
-  if (!text) return <span className="text-muted-foreground/50">—</span>;
-  return (
-    <span className="block truncate text-xs text-foreground" title={text}>
-      {text}
-    </span>
-  );
-}
-
 const COLUMN_SIZE: Record<CustomFieldDef["type"], number> = {
   text: 180,
   select: 120,
@@ -802,7 +494,7 @@ export function buildColumns({
             header: "Source",
             size: 120,
             cell: ({ row }) => (
-              <CustomValueCell def={{ id: "source", label: "Source", type: "text" }} value={row.original.sourceList ?? undefined} />
+              <SourceCell entryId={row.original.id} value={row.original.sourceList} />
             ),
           } satisfies ColumnDef<ProblemGridRow>,
         ]
@@ -814,7 +506,9 @@ export function buildColumns({
         size: COLUMN_SIZE[def.type],
         accessorFn: (row) => row.customValues?.[def.id] ?? null,
         sortUndefined: "last",
-        cell: ({ row }) => <CustomValueCell def={def} value={row.original.customValues?.[def.id]} />,
+        cell: ({ row }) => (
+          <CustomCell entryId={row.original.id} def={def} value={row.original.customValues?.[def.id]} />
+        ),
       })
     ),
   ];

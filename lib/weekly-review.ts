@@ -298,7 +298,7 @@ export async function getWeeklyReview(userId: string, now: Date = new Date()): P
 
   const facts: CardFacts[] = entries.map((e) => {
     const sheet = e.problem.patterns.map((pp) => pp.pattern.name);
-    const raw = e.customPattern ? [e.customPattern] : e.patternOverride.length > 0 ? e.patternOverride : sheet;
+    const raw = e.patternOverride.length > 0 ? e.patternOverride : e.customPattern ? [e.customPattern] : sheet;
     return {
       entryId: e.id,
       patterns: normalizePatternList(raw),

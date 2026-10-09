@@ -112,11 +112,12 @@ async function ProblemsTable() {
     const p = entry.problem;
     const card = entry.reviewCard;
     const sheetPatterns = p.patterns.map((pp) => pp.pattern.name);
-    const rawPatterns = entry.customPattern
-      ? [entry.customPattern]
-      : entry.patternOverride.length > 0
+    const rawPatterns =
+      entry.patternOverride.length > 0
         ? entry.patternOverride
-        : sheetPatterns;
+        : entry.customPattern
+          ? [entry.customPattern]
+          : sheetPatterns;
     const effectivePatterns = normalizePatternList(rawPatterns);
     const primaryFamily = p.patterns.length > 0 ? p.patterns[0].pattern.family : null;
 
