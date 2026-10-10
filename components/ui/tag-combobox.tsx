@@ -110,10 +110,15 @@ export function TagCombobox({
       e.stopPropagation();
       setOpen(false);
       setActive(-1);
-    } else if ((e.key === "Enter" || e.key === "Tab") && !e.metaKey && !e.ctrlKey && trimmed) {
+    } else if (
+      (e.key === "Enter" || e.key === "Tab") &&
+      !e.metaKey &&
+      !e.ctrlKey &&
+      (trimmed || (showList && active >= 0))
+    ) {
       e.preventDefault();
       // Enter takes the highlighted row, otherwise what was typed. Tab takes the top suggestion.
-      const pick = active >= 0 ? rows[active] : e.key === "Tab" ? suggestions[0] : undefined;
+      const pick = showList && active >= 0 ? rows[active] : e.key === "Tab" ? suggestions[0] : undefined;
       commit(pick ?? draft);
       setOpen(false);
     } else if (e.key === "Backspace" && !draft && tags.length > 0) {

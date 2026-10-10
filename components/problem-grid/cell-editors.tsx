@@ -84,8 +84,9 @@ function CellDialog({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (!panelRef.current?.contains(t) && !triggerRef.current?.contains(t)) close();
+      // composedPath, not contains(target): a clicked suggestion may already be unmounted by React.
+      const path = e.composedPath();
+      if (!path.includes(panelRef.current as EventTarget) && !path.includes(triggerRef.current as EventTarget)) close();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;

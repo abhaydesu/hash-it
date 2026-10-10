@@ -768,17 +768,17 @@ export function CommandBar({ autoFocus = false, inline = false, onSuccess }: Com
                         {OUTCOMES.find((o) => o.value === logged.status)?.label ?? "Logged"} {formatAgo(logged.lastAt)}
                         {logged.nextDue && <> · next review {formatDue(logged.nextDue)}</>}
                       </p>
-                      <p className="text-muted-foreground">
-                        Pick one: view or edit the existing log, or fill in the form below to record a new attempt
-                        (it reschedules the review).
+                      <p className="font-medium text-foreground">
+                        Logging a new attempt overwrites the previous attempt, and reschedules the review. You can{" "}
+                        <Link
+                          href={`/problems/${logged.entryId}`}
+                          onClick={resetForm}
+                          className="text-primary hover:underline"
+                        >
+                          view / edit the existing log here
+                        </Link>
+                        .
                       </p>
-                      <Link
-                        href={`/problems/${logged.entryId}`}
-                        onClick={resetForm}
-                        className="inline-flex items-center gap-1 pt-1 font-medium text-primary hover:underline"
-                      >
-                        View / edit existing log
-                      </Link>
                     </div>
                   </div>
                 )}

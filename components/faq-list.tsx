@@ -7,12 +7,10 @@ import { cn } from "@/lib/utils";
 function FaqItem({
   q,
   a,
-  flush,
   defaultOpen = false,
 }: {
   q: string;
   a: string;
-  flush: boolean;
   defaultOpen?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -29,10 +27,7 @@ function FaqItem({
           aria-expanded={isOpen}
           aria-controls={panelId}
           onClick={() => setIsOpen((prev) => !prev)}
-          className={cn(
-            "flex w-full cursor-pointer items-center justify-between gap-4 text-left transition-colors duration-150 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-            flush ? "px-6 py-4.5 sm:px-8 sm:py-5" : "p-4 sm:px-5 sm:py-4.5"
-          )}
+          className="flex w-full cursor-pointer items-center justify-between gap-4 p-4 text-left transition-colors duration-150 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:px-5 sm:py-4.5"
         >
           <span className="text-sm font-medium text-foreground">{q}</span>
           <ChevronDown
@@ -54,14 +49,7 @@ function FaqItem({
         )}
       >
         <div className="overflow-hidden">
-          <p
-            className={cn(
-              "text-sm leading-relaxed text-muted-foreground",
-              flush ? "px-6 pb-5 sm:px-8 sm:pb-6" : "px-4 pb-4 sm:px-5 sm:pb-5"
-            )}
-          >
-            {a}
-          </p>
+          <p className="px-4 pb-4 text-sm leading-relaxed text-muted-foreground sm:px-5 sm:pb-5">{a}</p>
         </div>
       </div>
     </div>
@@ -73,24 +61,11 @@ function FaqItem({
  * Accessible with WAI-ARIA accordion semantics (aria-expanded, aria-controls, role="region").
  * Answers remain in the HTML DOM at all times so search engines and screen readers can index them.
  */
-export function FaqList({
-  items,
-  flush = false,
-}: {
-  items: Array<{ q: string; a: string }>;
-  flush?: boolean;
-}) {
+export function FaqList({ items }: { items: Array<{ q: string; a: string }> }) {
   return (
-    <div
-      className={cn(
-        "bg-background",
-        flush
-          ? "divide-y divide-border"
-          : "divide-y divide-border border border-border"
-      )}
-    >
+    <div className="divide-y divide-border border border-border bg-background">
       {items.map(({ q, a }) => (
-        <FaqItem key={q} q={q} a={a} flush={flush} />
+        <FaqItem key={q} q={q} a={a} />
       ))}
     </div>
   );

@@ -398,21 +398,25 @@ export default function HomePage() {
         </SheetSection>
 
         {/* ── FAQ (mirrored in the FAQPage structured data above) ── */}
-        <SheetSection band="neutral" flush>
-          <header className="border-b border-border px-8 py-8 sm:px-12 sm:py-10">
-            <h2 className="text-2xl font-medium tracking-tight">Frequently asked questions about tracking DSA</h2>
-            <p className="mt-2 text-base leading-relaxed text-muted-foreground">
-              New to spaced repetition for DSA? Read{" "}
-              <Link
-                href={GUIDE_PATH}
-                className="border-b border-orange-500 pb-0.5 text-orange-600 transition-colors hover:text-orange-700"
-              >
-                how to remember DSA problems
-              </Link>
-              .
-            </p>
-          </header>
-          <FaqList items={LANDING_FAQ} flush />
+        <SheetSection innerClassName="py-10 sm:py-14" band="neutral">
+          <div className="mx-auto max-w-2xl space-y-5">
+            <div className="space-y-2">
+              <h2 className="text-xl font-medium tracking-tight text-foreground">
+                Frequently asked questions about tracking DSA
+              </h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                New to spaced repetition for DSA? Read{" "}
+                <Link
+                  href={GUIDE_PATH}
+                  className="border-b border-orange-500 pb-0.5 text-orange-600 transition-colors hover:text-orange-700"
+                >
+                  how to remember DSA problems
+                </Link>
+                .
+              </p>
+            </div>
+            <FaqList items={LANDING_FAQ} />
+          </div>
         </SheetSection>
       </main>
     </div>
