@@ -134,7 +134,7 @@ function LookBack({ data }: { data: WeeklyReviewData["lookBack"] }) {
 
 /* ── Step 2 ── */
 
-function RecallCheckCard({
+export function RecallCheckCard({
   item,
   onAnswered,
 }: {
@@ -148,8 +148,9 @@ function RecallCheckCard({
   const revealed = confidence != null;
   const diff = formatDifficulty(item.difficulty);
 
-  const answer = (recalled: boolean) => {
-    if (!confidence) return;
+  const answer = (recalled: boolean, picked: Confidence | null = confidence) => {
+    if (!picked) return;
+    const confidence = picked;
     setError(null);
     startTransition(async () => {
       try {
@@ -175,13 +176,17 @@ function RecallCheckCard({
 
       {!revealed ? (
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">Recall the approach and the trap. How sure are you?</p>
+          <p className="text-xs text-muted-foreground">Recall the approach and the trap. How much came back?</p>
           <div className="grid grid-cols-3 gap-2 sm:flex">
             {CONFIDENCE.map((c) => (
               <button
                 key={c.value}
                 type="button"
-                onClick={() => setConfidence(c.value)}
+                onClick={() => {
+                  setConfidence(c.value);
+                  // Blank means nothing came to mind: no comparison to make, so it's a miss.
+                  if (c.value === "BLANK") answer(false, c.value);
+                }}
                 className="pressable flex flex-col items-start border border-border bg-background px-3 py-1.5 text-left hover:border-orange-500 hover:bg-muted/40 sm:min-w-28"
               >
                 <span className="text-xs font-medium text-foreground">{c.label}</span>
@@ -210,22 +215,32 @@ function RecallCheckCard({
             <p className={cn("flex items-center gap-1.5 text-xs", result.recalled ? "text-easy" : falseConfidence ? "text-destructive" : "text-muted-foreground")}>
               {result.recalled ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
               {result.recalled
-                ? "Had it. Schedule unchanged."
+                ? "Matched your notes. Schedule unchanged."
                 : falseConfidence
-                  ? "You were sure and missed it. It's marked to revisit tomorrow; your review schedule is unchanged."
-                  : "Missed. It's marked to revisit tomorrow; your review schedule is unchanged."}
+                  ? "You were sure, but it didn't match. It's marked to revisit tomorrow; your review schedule is unchanged."
+                  : result.confidence === "BLANK"
+                    ? "Nothing came back. It's marked to revisit tomorrow; your review schedule is unchanged."
+                    : "Didn't match your notes. It's marked to revisit tomorrow; your review schedule is unchanged."}
             </p>
+          ) : confidence === "BLANK" ? (
+            isPending ? (
+              <p className="text-xs text-muted-foreground">Saving…</p>
+            ) : (
+              <Button variant="secondary" size="sm" onClick={() => answer(false)}>
+                Retry
+              </Button>
+            )
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground">
-                You said <span className="font-medium text-foreground">{CONFIDENCE.find((c) => c.value === confidence)?.label}</span>. Did you have it?
+                Compare with your notes above. Did your recall match?
               </span>
               <div className="flex gap-2">
                 <Button variant="secondary" size="sm" disabled={isPending} onClick={() => answer(false)}>
-                  Missed it
+                  Didn&apos;t match
                 </Button>
                 <Button variant="primary" size="sm" disabled={isPending} onClick={() => answer(true)}>
-                  Had it
+                  Matched
                 </Button>
               </div>
             </div>

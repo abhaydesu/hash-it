@@ -180,10 +180,10 @@ function ReviewDayBanner({ day, weeklyDone }: { day: ReviewDay; weeklyDone: bool
     day.monthly && { key: "monthly", label: "Monthly mock", href: "/review/monthly", done: false },
   ].filter((p): p is { key: string; label: string; href: string; done: boolean } => !!p);
   return (
-    <SheetSection innerClassName="py-4">
-      <div className="flex flex-col gap-3 border border-orange-600/50 bg-orange-600/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <SheetSection className="sheet-section-alert" innerClassName="py-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-foreground">
+          <p className="type-heading text-foreground">
             Review day: {parts.map((p) => p.label.toLowerCase()).join(" + ")}
           </p>
           <p className="mt-1 type-caption">

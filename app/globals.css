@@ -253,6 +253,24 @@
     pointer-events: none;
   }
 
+  /* Whole-section tint, full-bleed like the hairline; content sits above it. */
+  .sheet-section-alert::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    inset-block: 0;
+    left: 50%;
+    width: 100vw;
+    background: hsl(24 95% 53% / 0.1);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .sheet-section-alert > .sheet-inner {
+    position: relative;
+    z-index: 1;
+  }
+
   .sheet-section-last::after {
     display: none;
   }
