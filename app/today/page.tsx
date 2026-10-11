@@ -8,6 +8,7 @@ import { getUserTimezone } from "@/lib/user-settings";
 import { TodayClient } from "@/components/today-client";
 import { getActivePlan } from "@/lib/weekly-review";
 import { getMonthlyMockState } from "@/lib/monthly-mock";
+import { reviewDay } from "@/lib/review-windows";
 import { SpecGrid, SpecCell } from "@/components/ui/spec-sheet";
 import { SheetSection } from "@/components/ui/sheet-section";
 import type { Metadata } from "next";
@@ -41,7 +42,10 @@ async function TodayData() {
     }),
     getUserTimezone(user.id),
   ]);
-  const { overdueCount } = queueResult;
+  // On a weekly/monthly review day the daily queue is held back; the review is the day's work.
+  const heldBack = reviewDay(now, timezone, monthly.status);
+  const isReviewDay = heldBack.weekly || heldBack.monthly;
+  const overdueCount = isReviewDay ? 0 : queueResult.overdueCount;
   // Only nudge people who look new: haven't answered the banner, haven't imported, and have a near-empty log.
   const showImportPrompt =
     !account?.importPromptDismissedAt &&
@@ -52,9 +56,10 @@ async function TodayData() {
   return (
     <TodayClient
       data={{
-        queue: queueResult.queue,
-        resolveCount: queueResult.resolveCount,
-        recallCount: queueResult.recallCount,
+        queue: isReviewDay ? [] : queueResult.queue,
+        resolveCount: isReviewDay ? 0 : queueResult.resolveCount,
+        recallCount: isReviewDay ? 0 : queueResult.recallCount,
+        reviewDay: heldBack,
         doneToday: queueResult.doneToday,
         overdueCount,
         showRoadmap: canSeeRoadmap(user.email),

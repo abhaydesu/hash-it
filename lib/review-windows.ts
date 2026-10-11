@@ -56,3 +56,19 @@ export function weeklyWindow(now: Date, timezone: string): WeeklyWindow {
     nextOpensAt: startOfLocalDay(addDays(monday, isSunday ? 13 : 6), timezone).getTime(),
   };
 }
+
+export interface ReviewDay {
+  /** Sunday: the weekly review is the day's job. (Monday's grace window doesn't count.) */
+  weekly: boolean;
+  /** The month's last day: the mock is due today. An overdue one doesn't clear the queue. */
+  monthly: boolean;
+}
+
+/**
+ * Days set aside for a weekly/monthly review. The daily queue is held back on these so the
+ * review isn't stacked on top of a full day of revising; due dates simply carry over.
+ */
+export function reviewDay(now: Date, timezone: string, monthly: MonthlyStatus): ReviewDay {
+  const dow = new Date(`${localDay(now, timezone)}T00:00:00Z`).getUTCDay();
+  return { weekly: dow === 0, monthly: monthly.state === "open" && !monthly.overdue };
+}

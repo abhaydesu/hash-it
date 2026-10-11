@@ -11,7 +11,7 @@ import { SheetSection } from "@/components/ui/sheet-section";
 import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
 import { WeeklyPlanItems } from "@/components/weekly-plan-items";
 import type { getActivePlan } from "@/lib/weekly-review";
-import type { MonthlyStatus } from "@/lib/review-windows";
+import type { MonthlyStatus, ReviewDay } from "@/lib/review-windows";
 import { Countdown } from "@/components/ui/countdown";
 import { ImportPromptBanner } from "@/components/import-prompt-banner";
 import { cn } from "@/lib/utils";
@@ -48,6 +48,8 @@ export interface TodayData {
   queue: QueueItem[];
   resolveCount: number;
   recallCount: number;
+  /** Weekly/monthly review day: the daily queue is held back. */
+  reviewDay: ReviewDay;
   /** Queue reviews already logged today (local day). */
   doneToday: number;
   snapshot: Snapshot;
@@ -171,6 +173,39 @@ function WeeklyTile({
 
 const COLLAPSE_MS = 300;
 
+/** Loud call-out for a day the weekly/monthly review replaces the daily queue. */
+function ReviewDayBanner({ day, weeklyDone }: { day: ReviewDay; weeklyDone: boolean }) {
+  const parts = [
+    day.weekly && { key: "weekly", label: "Weekly review", href: "/review/weekly", done: weeklyDone },
+    day.monthly && { key: "monthly", label: "Monthly mock", href: "/review/monthly", done: false },
+  ].filter((p): p is { key: string; label: string; href: string; done: boolean } => !!p);
+  return (
+    <SheetSection innerClassName="py-4">
+      <div className="flex flex-col gap-3 border border-orange-600/50 bg-orange-600/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            Review day: {parts.map((p) => p.label.toLowerCase()).join(" + ")}
+          </p>
+          <p className="mt-1 type-caption">
+            Today&apos;s daily queue is skipped so the review doesn&apos;t pile on top. Nothing is lost; due dates carry over.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {parts.map((p) => (
+            <Link
+              key={p.key}
+              href={p.href}
+              className="pressable inline-flex h-8 items-center gap-1 bg-orange-600 px-3 text-xs font-medium text-white hover:bg-orange-700"
+            >
+              {p.done ? `${p.label} (done)` : `Start ${p.label.toLowerCase()}`} <ArrowRight className="h-3 w-3" />
+            </Link>
+          ))}
+        </div>
+      </div>
+    </SheetSection>
+  );
+}
+
 export function TodayClient({ data }: { data: TodayData }) {
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
@@ -199,6 +234,7 @@ export function TodayClient({ data }: { data: TodayData }) {
   useEffect(() => {
     shown.current = activeQueue;
   });
+  const isReviewDay = data.reviewDay.weekly || data.reviewDay.monthly;
   const estimateMinutes = recallCount * 3 + resolveCount * 25;
 
   return (
@@ -217,6 +253,10 @@ export function TodayClient({ data }: { data: TodayData }) {
           Review catalogue
         </Link>
       </SheetSection>
+
+      {(data.reviewDay.weekly || data.reviewDay.monthly) && (
+        <ReviewDayBanner day={data.reviewDay} weeklyDone={data.weeklyPlan.reviewDone} />
+      )}
 
       {data.showImportPrompt && <ImportPromptBanner />}
 
@@ -269,10 +309,12 @@ export function TodayClient({ data }: { data: TodayData }) {
         {activeQueue.length === 0 ? (
           <div className="idea-preview border border-border bg-muted/40 px-4 py-10 text-center">
             <p className="text-sm font-medium text-foreground">
-              {finished ? "Done for today." : "Nothing due today."}
+              {isReviewDay ? "No daily queue today." : finished ? "Done for today." : "Nothing due today."}
             </p>
             <p className="mt-1 type-caption">
-              {finished
+              {isReviewDay
+                ? "Do the review above instead; your daily cards resume tomorrow."
+                : finished
                 ? <>Log new problems with <ShortcutKeycaps className="align-middle" /> or review the catalogue.</>
                 : <>Log new problems with <ShortcutKeycaps className="align-middle" />{data.showRoadmap ? ", or work through your roadmap." : "."}</>}
             </p>
