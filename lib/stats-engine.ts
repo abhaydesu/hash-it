@@ -204,8 +204,11 @@ export async function computeAllStats(userId: string): Promise<AllStats> {
     countByDifficulty[diffKey] = (countByDifficulty[diffKey] || 0) + 1;
 
     hasSourceList ||= isPresent(e.sourceList);
-    const source = e.sourceList?.trim() || "Uncategorized";
-    countBySourceList[source] = (countBySourceList[source] || 0) + 1;
+    // sourceList is comma-joined: an entry in two lists counts once toward each, not as a combined category.
+    const sources = new Set((e.sourceList ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+    for (const source of sources.size ? sources : ["Uncategorized"]) {
+      countBySourceList[source] = (countBySourceList[source] || 0) + 1;
+    }
 
     if (e.reviewCard) {
       totalCards++;
