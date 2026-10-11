@@ -350,6 +350,14 @@ export function ReviewCadences() {
 const importSources = ["Screenshot", "Spreadsheet", "CSV"] as const;
 type ImportSource = (typeof importSources)[number];
 
+/** What the visitor actually does for each route. Screenshots go to the user's own LLM, not to us. */
+const importSteps: Record<ImportSource, string> = {
+  Screenshot:
+    "Screenshot your LeetCode progress page, give it to any LLM along with our prompt, and paste the CSV it returns.",
+  Spreadsheet: "Upload the Excel sheet you already track in. We read the first sheet and match the problems.",
+  CSV: "Upload or paste a CSV with a title or link for each problem. We match them and show a preview before anything is saved.",
+};
+
 function ScreenshotPreview() {
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] h-full">
@@ -444,7 +452,7 @@ export function ImportSources() {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-background px-8 py-4 sm:px-12">
-        <span className="type-label py-1">Supported formats</span>
+        <span className="type-label py-1">How to import</span>
         <div className="flex items-center gap-2" role="group" aria-label="Choose an import source">
           {importSources.map((source) => (
             <button
@@ -478,6 +486,7 @@ export function ImportSources() {
             </div>
           ))}
         </div>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{importSteps[selected]}</p>
       </div>
     </div>
   );

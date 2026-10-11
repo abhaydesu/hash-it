@@ -70,13 +70,13 @@ export default function HomePage() {
         {/* ── Hero ── */}
         <SheetSection className="relative" band="hero" flush>
           <div className="relative z-10 flex max-w-3xl flex-col items-start px-6 py-20 sm:px-12 sm:py-32">
-            <p className="type-label mb-5 text-orange-600">LeetCode &amp; DSA tracker · Spaced repetition</p>
+            <p className="type-label mb-5 text-orange-600">DSA revision tracker · Spaced repetition</p>
             <h1 className="idea-preview mb-6 text-3xl font-medium tracking-tight sm:text-5xl md:text-6xl">
-              Remember every problem you solve.
+              Automate your DSA revision.
             </h1>
             <p className="mb-10 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              Hash-It is a LeetCode and DSA tracker that uses spaced repetition to schedule your
-              revision. You re-solve what&apos;s fading, skip what&apos;s locked in.
+              Log each problem you solve. Hash-It schedules when to redo it, so your revision time
+              goes to the problems you&apos;re about to forget.
             </p>
 
             <Link
@@ -99,15 +99,16 @@ export default function HomePage() {
           <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
             <div className="p-8 sm:p-12 lg:p-16">
               <p className="type-label mb-3">The problem</p>
-              <h2 className="mb-4 text-xl font-medium tracking-tight">Why spreadsheets fail</h2>
+              <h2 className="mb-4 text-xl font-medium tracking-tight">Tracking isn&apos;t revising</h2>
               <p className="max-w-md text-base leading-relaxed text-muted-foreground">
-                You mark a problem green, but a month later the core idea is gone. A spreadsheet
-                tracks what you&apos;ve done. It can&apos;t tell you what you&apos;re about to forget.
+                I was already logging every problem I solved, and I still had no idea what to revise.
+                A list shows what you&apos;ve done. It can&apos;t show which problem from last month is
+                about to slip.
               </p>
             </div>
             <div className="bg-muted/5 p-8 sm:p-12 lg:p-16">
               <p className="type-label mb-3 text-orange-600">The system</p>
-              <h2 className="mb-4 text-xl font-medium tracking-tight">Log once, review forever</h2>
+              <h2 className="mb-4 text-xl font-medium tracking-tight">Log once, revise on schedule</h2>
               <p className="max-w-md text-base leading-relaxed text-muted-foreground">
                 Hit{" "}
                 <ShortcutKeycaps className="align-middle" />{" "}
@@ -123,7 +124,7 @@ export default function HomePage() {
           <header className="border-b border-border px-8 py-8 sm:px-12 sm:py-10">
             <h2 className="text-2xl font-medium tracking-tight">How it works</h2>
             <p className="mt-2 max-w-xl text-base leading-relaxed text-muted-foreground">
-              Three steps from your first solve on LeetCode to long-term retention.
+              Solve, log, and redo it when it&apos;s due.
             </p>
           </header>
 
@@ -151,7 +152,7 @@ export default function HomePage() {
                   <h3 className="text-base font-medium">System schedules</h3>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  FSRS picks the exact day you&apos;d forget. It reappears in your queue. No manual scheduling.
+                  FSRS estimates when you&apos;re likely to forget the problem and puts it in your queue that day. No manual scheduling.
                 </p>
               </div>
 
@@ -164,7 +165,7 @@ export default function HomePage() {
                   <h3 className="text-base font-medium">Re-solve and grow</h3>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  Each review strengthens the memory. Intervals stretch. You stop forgetting what you&apos;ve learned.
+                  Solve it cold and the gap before the next review grows, from days to weeks to months. Struggle and it comes back sooner.
                 </p>
               </div>
             </div>
@@ -197,7 +198,7 @@ export default function HomePage() {
                 Spaced repetition, not guesswork
               </h2>
               <p className="mt-2 max-w-2xl text-base leading-relaxed text-muted-foreground">
-                FSRS calculates when you&apos;re about to forget each problem. You spend time on what&apos;s fading, never on what you already know.
+                FSRS estimates when you&apos;re likely to forget each problem. You re-solve those first and leave alone the ones you still remember.
               </p>
             </div>
             <a
@@ -345,7 +346,7 @@ export default function HomePage() {
               <h2 className="mb-4 text-xl font-medium tracking-tight">Not a flashcard app</h2>
               <p className="max-w-md text-base leading-relaxed text-muted-foreground">
                 Anki reviews text. Hash-It reviews problems. You re-solve from scratch, on the
-                real platform, under time pressure. The scheduling is the same science — the
+                real platform, under time pressure. The scheduling is the same science, and the
                 practice is real.
               </p>
             </div>
@@ -354,8 +355,7 @@ export default function HomePage() {
               <h2 className="mb-4 text-xl font-medium tracking-tight">Not a problem list</h2>
               <p className="max-w-md text-base leading-relaxed text-muted-foreground">
                 NeetCode and Grind 75 tell you what to solve first. Hash-It tells you what to
-                solve again. Use any list to seed your log — the review schedule is what
-                keeps it in your head.
+                solve again. Use any list to seed your log, and the schedule handles the revising.
               </p>
             </div>
           </div>

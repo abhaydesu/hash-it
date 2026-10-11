@@ -46,7 +46,7 @@ export const INDEXABLE_PATHS = ["/", GUIDE_PATH] as const;
 export const LANDING_FAQ: Array<{ q: string; a: string }> = [
   {
     q: "What is Hash-It, in plain terms?",
-    a: "A log for the DSA problems you solve that tells you when to solve them again. You add a problem after you solve it, and a few days or weeks later it shows up in your queue so you can try it from scratch, before you've forgotten how it works.",
+    a: "A revision schedule for DSA. You log each problem after you solve it, and Hash-It tells you when to solve it again, a few days or weeks later, before you've forgotten how it works.",
   },
   {
     q: "Do I solve problems on Hash-It?",
@@ -83,6 +83,10 @@ export const LANDING_FAQ: Array<{ q: string; a: string }> = [
   {
     q: "Does it work if I don't use LeetCode?",
     a: "Yes. GeeksforGeeks links fill in the title and difficulty automatically, same as LeetCode. For problems from anywhere else, add the title and link yourself and everything else works the same.",
+  },
+  {
+    q: "Who is Hash-It for?",
+    a: "Anyone studying DSA who wants a system for revising, whether that's interview prep or learning the topics. You keep solving wherever you already practice, and Hash-It handles when to redo each problem. It doesn't sync with LeetCode automatically, so you log problems as you solve them or import them from a screenshot or a CSV.",
   },
   {
     q: "What do I need to get started?",
