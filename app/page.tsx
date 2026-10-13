@@ -10,6 +10,7 @@ import { HeroDemo } from "@/components/hero-demo";
 import { ShortcutKeycaps } from "@/components/ui/keycap-hint";
 import { ImportSources, ReviewCadences, PracticePatternsGrid } from "@/components/landing/landing-interactions";
 import { HairlineFigure } from "@/components/landing/hairline-figure";
+import { QueueFigure } from "@/components/figures/queue/figure";
 import { JsonLd } from "@/components/json-ld";
 import { FaqList } from "@/components/faq-list";
 import { AUTHOR, GUIDE_PATH, LANDING_FAQ, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
@@ -173,10 +174,7 @@ export default function HomePage() {
             <div className="flex flex-col justify-between bg-dither-25">
               <div className="flex flex-1 items-center justify-center p-6 sm:p-10 lg:p-12">
                 <div className="w-full border border-border bg-background p-4 sm:p-6 shadow-xs">
-                  <HairlineFigure
-                    page="hairline-review-queue.html"
-                    title="Interactive review queue mechanics"
-                  />
+                  <QueueFigure />
                 </div>
               </div>
               <div className="border-t border-border px-8 py-4 sm:px-12">

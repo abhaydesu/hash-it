@@ -1,0 +1,79 @@
+.queue-fig .iso-figure {
+  margin: 0;
+}
+
+.queue-fig .iso-plate {
+  padding: 0 0 34px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.queue-fig .iso-plate-corners {
+  inset: auto 0 0 0;
+  height: 20px;
+}
+
+.queue-fig [data-corner="fig"],
+.queue-fig [data-corner="title"],
+.queue-fig [data-corner="hint"] {
+  display: none;
+}
+
+.queue-fig [data-corner="readout"] {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0;
+  color: hsl(var(--foreground));
+  font-variant-numeric: tabular-nums;
+}
+
+.queue {
+  border-radius: 6px;
+  cursor: ew-resize;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.queue:focus-visible {
+  outline: 1px solid var(--anatomy-muted);
+  outline-offset: 6px;
+}
+
+.queue .iso-svg {
+  overflow: visible;
+}
+
+.queue-shadow {
+  filter: blur(4px);
+  opacity: 0.8;
+  transform: translateY(1px);
+}
+
+.queue-needle {
+  stroke-width: 1.1px;
+}
+
+.queue-lamp > .iso-top {
+  transition: fill 240ms var(--anatomy-ease);
+}
+
+.queue-lamp[data-lit] > .iso-top {
+  fill: var(--anatomy-lit);
+}
+
+.queue-lamp[data-lit] > .iso-edge {
+  stroke: var(--anatomy-lit);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .queue * {
+    transition: none !important;
+  }
+}
