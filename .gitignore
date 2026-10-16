@@ -51,3 +51,9 @@ Thumbs.db
 
 
 public/Hash-It logo.pdf
+# AI agent tooling (local only)
+.agents/
+.claude/
+CAPS.md
+VERIFY.md
+skills-lock.json
